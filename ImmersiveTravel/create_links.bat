@@ -5,7 +5,7 @@ set "cd=%CD%"
 
 echo %cd%
 
-mklink /J "%location%\MWSE\mods\ImmersiveVehicles" "%cd%\MWSE\mods\ImmersiveVehicles"
+mklink /J "%location%\MWSE\mods\ImmersiveTravel" "%cd%\MWSE\mods\ImmersiveTravel"
 
 pause
 
