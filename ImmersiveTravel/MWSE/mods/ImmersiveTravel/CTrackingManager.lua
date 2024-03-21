@@ -1,0 +1,55 @@
+-- Define a class to manage the tracking list and timer
+---@class TrackingManager
+---@field trackingList CTickingEntity[]
+---@field timer mwseTimer?
+local TrackingManager = {
+    trackingList = {},
+    timer = nil
+}
+
+local TIMER_TICK = 0.01
+
+
+function TrackingManager:new()
+    local newObj = {}
+    self.__index = self
+    setmetatable(newObj, self)
+
+    newObj.trackingList = {}
+    newObj.timer = nil
+
+    return newObj
+end
+
+-- Add an entity to the tracking list
+function TrackingManager:AddEntity(entity)
+    table.insert(self.trackingList, entity)
+end
+
+-- Remove an entity from the tracking list
+function TrackingManager:RemoveEntity(entity)
+    table.removevalue(self.trackingList, entity)
+end
+
+-- Start the timer to call OnTick on each entity in the tracking list
+function TrackingManager:StartTimer()
+    self.timer = timer.start {
+        duration = 1,    -- Adjust as needed
+        iterations = -1, -- Repeat indefinitely
+        callback = function()
+            for _, entity in ipairs(self.trackingList) do
+                entity:OnTick()
+            end
+        end
+    }
+end
+
+-- Stop the timer
+function TrackingManager:StopTimer()
+    if self.timer then
+        self.timer:cancel()
+        self.timer = nil
+    end
+end
+
+return TrackingManager
