@@ -4,7 +4,7 @@ local CBoat = require("ImmersiveTravel.Vehicles.CBoat")
 -- Define the CGondola class inheriting from CBoat
 ---@class CGondola : CBoat
 local CGondola = {
-    id = "a_longboat",
+    id = "a_gondola_01",
     sound = {
         "Boat Creak"
     },
@@ -61,7 +61,7 @@ setmetatable(CGondola, { __index = CBoat })
 ---@param orientation tes3vector3
 ---@param facing number
 ---@return CGondola
-function CGondola:new(position, orientation, facing)
+function CGondola:create(position, orientation, facing)
     -- create reference
     -- TODO this can be moved to the superclass
     local mountOffset = tes3vector3.new(0, 0, self.offset)
@@ -72,7 +72,7 @@ function CGondola:new(position, orientation, facing)
     }
     reference.facing = facing
 
-    local newObj = CBoat:new(reference)
+    local newObj = CBoat:create(reference)
     self.__index = self
     setmetatable(newObj, self)
 

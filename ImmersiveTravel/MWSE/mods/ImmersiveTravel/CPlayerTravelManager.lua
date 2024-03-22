@@ -1,7 +1,5 @@
 local lib = require("ImmersiveTravel.lib")
 local interop = require("ImmersiveTravel.interop")
--- classes
-
 local log = lib.log
 
 -- define the player travel manager class
@@ -15,6 +13,7 @@ local CPlayerTravelManager = {
     free_movement = false
 }
 
+-- constructor
 function CPlayerTravelManager:new()
     local newObj = {}
     self.__index = self
@@ -265,35 +264,6 @@ function CPlayerTravelManager:destinationReached(force)
     end
 end
 
--- TODO interop this
---- get vehicle
----@param mountId string
----@param startPos tes3vector3
----@param orientation tes3vector3
----@param facing number
----@return CVehicle?
-local function getVehicle(mountId, startPos, orientation, facing)
-    if mountId == "a_siltstrider" then
-        local CSiltStrider = require("ImmersiveTravel.Vehicles.CSiltStrider")
-        local vehicle = CSiltStrider:new(startPos, orientation, facing)
-        return vehicle
-    elseif mountId == "a_longboat" then
-        local CLongboat = require("ImmersiveTravel.Vehicles.CLongboat")
-        local vehicle = CLongboat:new(startPos, orientation, facing)
-        return vehicle
-    elseif mountId == "a_DE_ship" then
-        local CShipDe = require("ImmersiveTravel.Vehicles.CShipDe")
-        local vehicle = CShipDe:new(startPos, orientation, facing)
-        return vehicle
-    elseif mountId == "a_gondola_01" then
-        local CGondola = require("ImmersiveTravel.Vehicles.CGondola")
-        local vehicle = CGondola:new(startPos, orientation, facing)
-        return vehicle
-    end
-
-    return nil
-end
-
 --- set up everything
 ---@param start string
 ---@param destination string
@@ -350,7 +320,7 @@ function CPlayerTravelManager:startTravel(start, destination, service, guide)
             local d = nextPos - startPos
             d:normalize()
             local facing = math.atan2(d.x, d.y)
-            local vehicle = getVehicle(mountId, startPos, d, facing)
+            local vehicle = lib.createVehicle(mountId, startPos, d, facing)
             if not vehicle then
                 return
             end

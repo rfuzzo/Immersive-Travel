@@ -4,7 +4,7 @@ local CBoat = require("ImmersiveTravel.Vehicles.CBoat")
 -- Define the CShipDe class inheriting from CBoat
 ---@class CShipDe : CBoat
 local CShipDe = {
-    id = "a_longboat",
+    id = "a_DE_ship",
     sound = {
         "Boat Hull"
     },
@@ -80,7 +80,7 @@ setmetatable(CShipDe, { __index = CBoat })
 ---@param orientation tes3vector3
 ---@param facing number
 ---@return CShipDe
-function CShipDe:new(position, orientation, facing)
+function CShipDe:create(position, orientation, facing)
     -- create reference
     -- TODO this can be moved to the superclass
     local mountOffset = tes3vector3.new(0, 0, self.offset)
@@ -91,7 +91,7 @@ function CShipDe:new(position, orientation, facing)
     }
     reference.facing = facing
 
-    local newObj = CBoat:new(reference)
+    local newObj = CBoat:create(reference)
     self.__index = self
     setmetatable(newObj, self)
 

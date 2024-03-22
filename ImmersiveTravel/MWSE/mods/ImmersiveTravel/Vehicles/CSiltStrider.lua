@@ -49,7 +49,7 @@ setmetatable(CSiltStrider, { __index = CVehicle })
 ---@param orientation tes3vector3
 ---@param facing number
 ---@return CSiltStrider
-function CSiltStrider:new(position, orientation, facing)
+function CSiltStrider:create(position, orientation, facing)
     -- create reference
     -- TODO this can be moved to the superclass
     local mountOffset = tes3vector3.new(0, 0, self.offset)
@@ -60,7 +60,7 @@ function CSiltStrider:new(position, orientation, facing)
     }
     reference.facing = facing
 
-    local newObj = CVehicle:new(reference)
+    local newObj = CVehicle:create(reference)
     self.__index = self
     setmetatable(newObj, self)
 

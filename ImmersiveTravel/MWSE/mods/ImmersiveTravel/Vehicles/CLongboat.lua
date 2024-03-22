@@ -4,7 +4,7 @@ local CBoat = require("ImmersiveTravel.Vehicles.CBoat")
 -- Define the CLongboat class inheriting from CBoat
 ---@class CLongboat : CBoat
 local CLongboat = {
-    id = "a_DE_ship",
+    id = "a_longboat",
     sound = {
         "Boat Hull"
     },
@@ -59,7 +59,7 @@ setmetatable(CLongboat, { __index = CBoat })
 ---@param orientation tes3vector3
 ---@param facing number
 ---@return CLongboat
-function CLongboat:new(position, orientation, facing)
+function CLongboat:create(position, orientation, facing)
     -- create reference
     -- TODO this can be moved to the superclass
     local mountOffset = tes3vector3.new(0, 0, self.offset)
@@ -70,7 +70,7 @@ function CLongboat:new(position, orientation, facing)
     }
     reference.facing = facing
 
-    local newObj = CBoat:new(reference)
+    local newObj = CBoat:create(reference)
     self.__index = self
     setmetatable(newObj, self)
 

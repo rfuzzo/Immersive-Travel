@@ -8,7 +8,7 @@ mwse real-time travel mod
 
 --]]
 --
-local common = require("rfuzzo.ImmersiveTravel.common")
+local lib = require("ImmersiveTravel.lib")
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
@@ -83,19 +83,19 @@ local arrow = nil
 --- @return tes3vector3
 local function vec(pos) return tes3vector3.new(pos.x, pos.y, pos.z) end
 
----@param data MountData
 ---@param startPoint tes3vector3
 ---@param nextPoint tes3vector3
 ---@param mountId string
+---@param offset number
 ---@return tes3reference
-local function createMount(data, startPoint, nextPoint, mountId)
+local function createMount(startPoint, nextPoint, mountId, offset)
     local d = nextPoint - startPoint
     d:normalize()
 
     local newFacing = math.atan2(d.x, d.y)
 
     -- create mount
-    local mountOffset = tes3vector3.new(0, 0, data.offset)
+    local mountOffset = tes3vector3.new(0, 0, offset)
     local mount = tes3.createReference {
         object = mountId,
         position = startPoint + mountOffset,
@@ -133,7 +133,7 @@ local function updateMarkers()
         if index < #editorMarkers then
             local nextMarker = editorMarkers[index + 1]
             local direction = nextMarker.translation - marker.translation
-            local rotation_matrix = common.rotationFromDirection(direction)
+            local rotation_matrix = lib.rotationFromDirection(direction)
             marker.rotation = rotation_matrix
         end
     end
@@ -219,7 +219,7 @@ local last_facing = nil ---@type number|nil
 
 ---comment
 ---@param startpos tes3vector3
----@param mountData MountData
+---@param mountData CVehicle
 local function calculatePositions(startpos, mountData)
     if not editorData then return end
     if not editorData.editorMarkers then return end
@@ -283,12 +283,12 @@ local function calculatePositions(startpos, mountData)
                 local child = arrow:clone()
                 child.translation = mountPosition - mountOffset
                 child.appCulled = false
-                child.rotation = common.rotationFromDirection(forward)
+                child.rotation = lib.rotationFromDirection(forward)
                 table.insert(arrows, child)
             end
 
             -- move to next marker
-            local isBehind = common.isPointBehindObject(nextPos, mountPosition,
+            local isBehind = lib.isPointBehindObject(nextPos, mountPosition,
                 forward)
             if isBehind then
                 editorData.splineIndex = editorData.splineIndex + 1
@@ -327,15 +327,17 @@ local function traceRoute(service)
     -- override mounts
     if service.override_mount then
         for _, o in ipairs(service.override_mount) do
-            if common.is_in(o.points, editorData.start) and common.is_in(o.points, editorData.destination) then
+            if lib.is_in(o.points, editorData.start) and lib.is_in(o.points, editorData.destination) then
                 mountId = o.id
                 break
             end
         end
     end
-    local mountData = common.loadMountData(mountId)
+
+    local mountData = lib.getVehicleData(mountId)
     if not mountData then return end
-    editorData.mount = createMount(mountData, start_point, next_point, mountId)
+
+    editorData.mount = createMount(start_point, next_point, mountId, mountData.offset)
 
     calculatePositions(start_pos, mountData)
 
@@ -356,7 +358,7 @@ local function createEditWindow()
     if (tes3ui.findMenu(editMenuId) ~= nil) then return end
 
     -- load services
-    local services = common.loadServices()
+    local services = lib.loadServices()
     if not services then return end
 
     -- get current service
@@ -366,7 +368,7 @@ local function createEditWindow()
     if editorData then currentServiceName = editorData.service.class end
 
     local service = services[currentServiceName]
-    common.loadRoutes(service)
+    lib.loadRoutes(service)
 
     -- Create window and frame
     local menu = tes3ui.createMenu {
@@ -435,8 +437,7 @@ local function createEditWindow()
                         currentMarker = nil
                     }
 
-                    local spline =
-                        common.loadSpline(start, destination, service)
+                    local spline = lib.loadSpline(start, destination, service)
                     tes3.messageBox("loaded spline: " .. start .. " -> " ..
                         destination)
 
@@ -569,7 +570,7 @@ local function createEditWindow()
             local mountId = service.mount
             if service.override_mount then
                 for _, o in ipairs(service.override_mount) do
-                    if common.is_in(o.points, editorData.start) and common.is_in(o.points, editorData.destination) then
+                    if lib.is_in(o.points, editorData.start) and lib.is_in(o.points, editorData.destination) then
                         mountId = o.id
                         break
                     end
@@ -587,7 +588,7 @@ local function createEditWindow()
             }
 
             -- preview slots
-            local mountData = common.loadMountData(mountId)
+            local mountData = lib.getVehicleData(mountId)
             if not mountData then return end
 
             local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
@@ -613,7 +614,7 @@ local function createEditWindow()
 
             -- guide
             local marker1 = tes3.loadMesh(divineMarkerId)
-            local o1 = vec(mountData.guideSlot.position) - boneOffset
+            local o1 = mountData.guideSlot.position - boneOffset
             local offsetYUp1 = tes3vector3.new(o1.x, -o1.z, o1.y)
             local child1 = marker1:clone()
             child1.scale = 0.3
@@ -625,7 +626,7 @@ local function createEditWindow()
             -- slots
             local marker = tes3.loadMesh("marker_arrow.nif")
             for _index, slot in ipairs(mountData.slots) do
-                local o = vec(slot.position) - boneOffset
+                local o = slot.position - boneOffset
                 local offsetYUp = tes3vector3.new(o.x, -o.z, o.y)
 
                 local child = marker:clone()
@@ -684,7 +685,7 @@ local function createEditWindow()
         -- save to file
         local current_editor_route = editorData.start .. "_" ..
             editorData.destination
-        local filename = common.localmodpath .. service.class .. "\\" ..
+        local filename = lib.localmodpath .. service.class .. "\\" ..
             current_editor_route
         json.savefile(filename, tempSpline)
 

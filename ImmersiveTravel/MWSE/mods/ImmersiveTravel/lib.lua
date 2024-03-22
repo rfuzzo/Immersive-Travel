@@ -100,6 +100,42 @@ end
 
 --#region tes3
 
+--- @param from tes3vector3
+--- @return number|nil
+function this.getGroundZ(from)
+    local rayhit = tes3.rayTest {
+        position = from,
+        direction = tes3vector3.new(0, 0, -1),
+        returnNormal = true,
+        root = tes3.game.worldLandscapeRoot
+    }
+
+    if (rayhit) then
+        local to = rayhit.intersection
+        return to.z
+    end
+
+    return nil
+end
+
+--- @param from tes3vector3
+--- @return number|nil
+function this.testCollisionZ(from)
+    local rayhit = tes3.rayTest {
+        position = from,
+        direction = tes3vector3.new(0, 0, -1),
+        returnNormal = true,
+        root = tes3.game.worldObjectRoot
+    }
+
+    if (rayhit) then
+        local to = rayhit.intersection
+        return to.z
+    end
+
+    return nil
+end
+
 ---@param slot Slot
 ---@return integer
 function this.getRandomAnimGroup(slot)
@@ -461,5 +497,88 @@ function this.loadRoutes(service)
 end
 
 --#endregion
+
+-- TODO interop this
+--- get vehicle
+---@param mountId string
+---@param startPos tes3vector3
+---@param orientation tes3vector3
+---@param facing number
+---@return CVehicle?
+function this.createVehicle(mountId, startPos, orientation, facing)
+    if mountId == "a_siltstrider" then
+        local CSiltStrider = require("ImmersiveTravel.Vehicles.CSiltStrider")
+        local vehicle = CSiltStrider:create(startPos, orientation, facing)
+        return vehicle
+    elseif mountId == "a_longboat" then
+        local CLongboat = require("ImmersiveTravel.Vehicles.CLongboat")
+        local vehicle = CLongboat:create(startPos, orientation, facing)
+        return vehicle
+    elseif mountId == "a_DE_ship" then
+        local CShipDe = require("ImmersiveTravel.Vehicles.CShipDe")
+        local vehicle = CShipDe:create(startPos, orientation, facing)
+        return vehicle
+    elseif mountId == "a_gondola_01" then
+        local CGondola = require("ImmersiveTravel.Vehicles.CGondola")
+        local vehicle = CGondola:create(startPos, orientation, facing)
+        return vehicle
+    end
+
+    return nil
+end
+
+-- TODO interop this
+--- get vehicle
+---@param mountId string
+---@return CVehicle?
+function this.newVehicle(mountId)
+    if mountId == "a_siltstrider" then
+        local CSiltStrider = require("ImmersiveTravel.Vehicles.CSiltStrider")
+        local vehicle = CSiltStrider:new()
+        return vehicle
+    elseif mountId == "a_longboat" then
+        local CLongboat = require("ImmersiveTravel.Vehicles.CLongboat")
+        local vehicle = CLongboat:new()
+        return vehicle
+    elseif mountId == "a_DE_ship" then
+        local CShipDe = require("ImmersiveTravel.Vehicles.CShipDe")
+        local vehicle = CShipDe:new()
+        return vehicle
+    elseif mountId == "a_gondola_01" then
+        local CGondola = require("ImmersiveTravel.Vehicles.CGondola")
+        local vehicle = CGondola:new()
+        return vehicle
+    end
+
+    return nil
+end
+
+-- ---@class MountData
+-- ---@field offset number
+-- ---@field nodeName string?
+-- ---@field guideSlot Slot?
+-- ---@field slots Slot[]
+-- ---@field speed number
+-- ---@field turnspeed number
+-- ---@field mesh string
+
+
+--- get static vehicle data
+---@param mountId string
+---@return CVehicle?
+function this.getVehicleData(mountId)
+    local c = nil
+    if mountId == "a_siltstrider" then
+        c = require("ImmersiveTravel.Vehicles.CSiltStrider")
+    elseif mountId == "a_longboat" then
+        c = require("ImmersiveTravel.Vehicles.CLongboat")
+    elseif mountId == "a_DE_ship" then
+        c = require("ImmersiveTravel.Vehicles.CShipDe")
+    elseif mountId == "a_gondola_01" then
+        c = require("ImmersiveTravel.Vehicles.CGondola")
+    end
+
+    return c
+end
 
 return this

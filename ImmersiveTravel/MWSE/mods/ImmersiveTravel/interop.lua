@@ -4,7 +4,22 @@ local this = {}
 -- Keys are in the format "(-x, -y)" where x and y are the coordinates of the location.
 -- Note the whitespace!
 
-
+---@type string[]
+this.vehicles = {
+    -- strider
+    "a_siltstrider",
+    -- boats
+    "a_gondola_01",
+    "a_longboat",
+    "a_DE_ship",
+    "a_mushroomdola_iv",
+    "a_sailboat_iv",
+    "a_rowboat_iv",
+    "a_telvcatboat_iv",
+    -- creatures
+    "a_cliffracer",
+    "a_nix-hound",
+}
 
 ---@type table<string, string>
 this.quips = {}

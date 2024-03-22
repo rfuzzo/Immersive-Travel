@@ -22,6 +22,20 @@ local log = lib.log
 ---@field handle mwseSafeObjectHandle?
 ---@field node niNode?
 
+---@class VehicleData
+---@field minSpeed number?
+---@field maxSpeed number?
+---@field changeSpeed number?
+---@field freedomtype string? -- flying, boat, ground
+---@field accelerateAnimation string? -- animation to play while accelerating. slowing
+---@diagnostic disable-next-line: undefined-doc-name
+---@field materials CraftingFramework.MaterialRequirement[]? -- recipe materials for crafting the mount
+---@field name string? -- name of the mount
+---@field price number? -- price of the mount
+---@field length number? -- length of the mount
+---@field width number? -- width of the mount
+
+
 -- Define the CVehicle class inheriting from CTickingEntity
 ---@class CVehicle : CTickingEntity
 ---@field id string
@@ -41,6 +55,8 @@ local log = lib.log
 ---@field nodeName string? -- niNode, slots are relative tho this
 ---@field nodeOffset tes3vector3? -- position of the nodeName relative to sceneNode
 ---@field forwardAnimation string? -- walk animation
+---@field userData VehicleData?
+-- runtime data
 ---@field last_position tes3vector3
 ---@field last_forwardDirection tes3vector3
 ---@field last_facing number
@@ -48,6 +64,8 @@ local log = lib.log
 ---@field swayTime number
 ---@field currentSpline PositionRecord[]?
 ---@field splineIndex number
+---@field virtualDestination tes3vector3?
+---@field current_speed number
 local CVehicle = {
     -- Add properties here
     sound = {},
@@ -68,7 +86,9 @@ local CVehicle = {
     forwardAnimation = nil,
     -- runtime
     swayTime = 0,
-    splineIndex = 1
+    splineIndex = 1,
+    virtualDestination = nil,
+    current_speed = 0,
 }
 setmetatable(CVehicle, { __index = CTickingEntity })
 
@@ -82,11 +102,18 @@ local SWAY_AMPL = 0.014       -- how much the mount sways
 
 ---Constructor for CVehicle
 ---@param reference tes3reference
-function CVehicle:new(reference)
-    local newObj = CTickingEntity:new(reference)
+function CVehicle:create(reference)
+    local newObj = CTickingEntity:create(reference)
     self.__index = self
     setmetatable(newObj, self)
     return newObj
+end
+
+---Register the vehicle
+---@param reference tes3reference
+function CVehicle:register(reference)
+    -- call superclass register method
+    CTickingEntity.register(self, reference)
 end
 
 --#region events
@@ -368,7 +395,7 @@ function CVehicle:UpdatePlayerCollision()
     local rootBone = self:GetRootBone()
     if rootBone then
         local playerShipLocal = rootBone.worldTransform:invert() * tes3.player.position
-        -- player TODO check id player is in freemovement mode
+        -- player TODO check if player is in freemovement mode
         if self.hasFreeMovement and self:isOnMount() then
             -- this is needed to enable collisions :todd:
             tes3.dataHandler:updateCollisionGroupsForActiveCells {}

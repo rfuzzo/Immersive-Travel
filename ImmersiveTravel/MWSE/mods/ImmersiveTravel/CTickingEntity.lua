@@ -12,8 +12,19 @@ local CTickingEntity = {
 
 
 ---Constructor for CTickingEntity
+function CTickingEntity:new()
+    local newObj = {
+        referenceHandle = tes3.makeSafeObjectHandle(nil),
+    } ---@type CTickingEntity
+    setmetatable(newObj, self)
+    self.__index = self
+
+    return newObj
+end
+
+---Create a new instance of CTickingEntity
 ---@param reference tes3reference
-function CTickingEntity:new(reference)
+function CTickingEntity:create(reference)
     local newObj = {
         referenceHandle = tes3.makeSafeObjectHandle(reference),
         id = reference.id
@@ -25,6 +36,18 @@ function CTickingEntity:new(reference)
     TrackingManager.getInstance():AddEntity(newObj)
 
     return newObj
+end
+
+---Register the entity with the CTrackingManager
+---@param reference tes3reference
+function CTickingEntity:register(reference)
+    self.referenceHandle = tes3.makeSafeObjectHandle(reference)
+    self:Attach()
+end
+
+function CTickingEntity:Attach()
+    -- register all ticking entities with the CTrackingManager
+    TrackingManager.getInstance():AddEntity(self)
 end
 
 ---Called on each tick of the timer
@@ -40,6 +63,10 @@ function CTickingEntity:Delete()
         self.referenceHandle:getObject():delete()
     end
 
+    self:Detach()
+end
+
+function CTickingEntity:Detach()
     -- remove the entity from the CTrackingManager
     TrackingManager.getInstance():RemoveEntity(self)
 end
