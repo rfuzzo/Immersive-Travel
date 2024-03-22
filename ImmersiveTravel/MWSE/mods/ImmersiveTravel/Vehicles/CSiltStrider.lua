@@ -1,8 +1,8 @@
 local lib = require("ImmersiveTravel.lib")
-local CBoat = require("ImmersiveTravel.CBoat")
+local CVehicle = require("ImmersiveTravel.Vehicles.CVehicle")
 
--- Define the CSiltStrider class inheriting from CBoat
----@class CSiltStrider : CBoat
+-- Define the CSiltStrider class inheriting from CVehicle
+---@class CSiltStrider : CVehicle
 local CSiltStrider = {
     id = "a_siltstrider",
     sound = {
@@ -42,7 +42,7 @@ local CSiltStrider = {
         },
     }
 }
-setmetatable(CSiltStrider, { __index = CBoat })
+setmetatable(CSiltStrider, { __index = CVehicle })
 
 ---Constructor for CSiltStrider
 ---@param position tes3vector3
@@ -60,33 +60,10 @@ function CSiltStrider:new(position, orientation, facing)
     }
     reference.facing = facing
 
-    local newObj = CBoat:new(reference)
+    local newObj = CVehicle:new(reference)
     self.__index = self
     setmetatable(newObj, self)
     return newObj
 end
-
--- onTick override
----@param dt number
-function CSiltStrider:OnTick(dt)
-    -- Call the superclass onTick method
-    CBoat.OnTick(self, dt)
-end
-
---#region CBoat methods
-
--- Define the CSiltStrider class inheriting from CBoat
-function CSiltStrider:Delete()
-    -- Call the superclass delete method
-    CBoat.Delete(self)
-end
-
---#endregion
-
---#regions methods
-
-
-
---#endregion
 
 return CSiltStrider

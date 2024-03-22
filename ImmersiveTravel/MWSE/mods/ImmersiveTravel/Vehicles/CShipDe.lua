@@ -1,5 +1,5 @@
 local lib = require("ImmersiveTravel.lib")
-local CBoat = require("ImmersiveTravel.CBoat")
+local CBoat = require("ImmersiveTravel.Vehicles.CBoat")
 
 -- Define the CShipDe class inheriting from CBoat
 ---@class CShipDe : CBoat
@@ -96,28 +96,5 @@ function CShipDe:new(position, orientation, facing)
     setmetatable(newObj, self)
     return newObj
 end
-
--- onTick override
----@param dt number
-function CShipDe:OnTick(dt)
-    -- Call the superclass onTick method
-    CBoat.OnTick(self, dt)
-end
-
---#region CBoat methods
-
--- Define the CShipDe class inheriting from CBoat
-function CShipDe:Delete()
-    -- Call the superclass delete method
-    CBoat.Delete(self)
-end
-
---#endregion
-
---#regions methods
-
-
-
---#endregion
 
 return CShipDe

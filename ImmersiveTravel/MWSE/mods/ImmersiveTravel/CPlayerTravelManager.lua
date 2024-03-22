@@ -233,7 +233,7 @@ end
 -- what happens when we reach the destination
 ---@param force boolean
 function CPlayerTravelManager:destinationReached(force)
-    log:debug("destinationReached %s", force)
+    log:debug("destinationReached, force %s", force)
 
     -- unregister events
     event.unregister(tes3.event.mouseWheel, mouseWheelCallback)
@@ -274,19 +274,19 @@ end
 ---@return CVehicle?
 local function getVehicle(mountId, startPos, orientation, facing)
     if mountId == "a_siltstrider" then
-        local CSiltStrider = require("ImmersiveTravel.CSiltStrider")
+        local CSiltStrider = require("ImmersiveTravel.Vehicles.CSiltStrider")
         local vehicle = CSiltStrider:new(startPos, orientation, facing)
         return vehicle
     elseif mountId == "a_longboat" then
-        local CLongboat = require("ImmersiveTravel.CLongboat")
+        local CLongboat = require("ImmersiveTravel.Vehicles.CLongboat")
         local vehicle = CLongboat:new(startPos, orientation, facing)
         return vehicle
     elseif mountId == "a_DE_ship" then
-        local CShipDe = require("ImmersiveTravel.CShipDe")
+        local CShipDe = require("ImmersiveTravel.Vehicles.CShipDe")
         local vehicle = CShipDe:new(startPos, orientation, facing)
         return vehicle
     elseif mountId == "a_gondola_01" then
-        local CGondola = require("ImmersiveTravel.CGondola")
+        local CGondola = require("ImmersiveTravel.Vehicles.CGondola")
         local vehicle = CGondola:new(startPos, orientation, facing)
         return vehicle
     end

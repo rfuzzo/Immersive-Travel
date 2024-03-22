@@ -1,4 +1,3 @@
-local lib = require("ImmersiveTravel.lib")
 local TrackingManager = require("ImmersiveTravel.CTrackingManager")
 
 -- Define the base class CTickingEntity

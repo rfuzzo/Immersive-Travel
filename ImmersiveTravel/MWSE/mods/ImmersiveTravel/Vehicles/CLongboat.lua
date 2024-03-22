@@ -1,5 +1,5 @@
 local lib = require("ImmersiveTravel.lib")
-local CBoat = require("ImmersiveTravel.CBoat")
+local CBoat = require("ImmersiveTravel.Vehicles.CBoat")
 
 -- Define the CLongboat class inheriting from CBoat
 ---@class CLongboat : CBoat
@@ -75,28 +75,5 @@ function CLongboat:new(position, orientation, facing)
     setmetatable(newObj, self)
     return newObj
 end
-
--- onTick override
----@param dt number
-function CLongboat:OnTick(dt)
-    -- TODO remove this Call the superclass onTick method
-    CBoat.OnTick(self, dt)
-end
-
---#region CBoat methods
-
--- Define the CLongboat class inheriting from CBoat
-function CLongboat:Delete()
-    -- Call the superclass delete method
-    CBoat.Delete(self)
-end
-
---#endregion
-
---#regions methods
-
-
-
---#endregion
 
 return CLongboat

@@ -731,7 +731,7 @@ end
 
 -- cleanup all variables
 function CVehicle:cleanup()
-    log:debug("cleanup")
+    log:debug("CVehicle cleanup")
 
     local mount = self.referenceHandle:getObject()
     tes3.removeSound({ reference = mount })

@@ -13,6 +13,7 @@ local TrackingManager = {
 }
 
 TrackingManager.TIMER_TICK = 0.01
+-- TODO add budget for tracking list
 
 function TrackingManager:new()
     local newObj = {}
@@ -38,6 +39,7 @@ function TrackingManager:AddEntity(entity)
     table.insert(self.trackingList, entity)
 
     lib.log:debug("Added %s to tracking list", entity.id)
+    lib.log:debug("Tracking list size: %s", #self.trackingList)
 end
 
 --- Remove an entity from the tracking list
@@ -46,6 +48,7 @@ function TrackingManager:RemoveEntity(entity)
     table.removevalue(self.trackingList, entity)
 
     lib.log:debug("Removed %s from tracking list", entity.id)
+    lib.log:debug("Tracking list size: %s", #self.trackingList)
 end
 
 -- Start the timer to call OnTick on each entity in the tracking list
