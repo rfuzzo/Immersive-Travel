@@ -8,9 +8,11 @@ local log = lib.log
 ---@class CPlayerTravelManager
 ---@field trackedVehicle CVehicle?
 ---@field npcMenu number?
+---@field free_movement boolean
 local CPlayerTravelManager = {
     trackedVehicle = nil,
-    npcMenu = nil
+    npcMenu = nil,
+    free_movement = false
 }
 
 function CPlayerTravelManager:new()
@@ -30,8 +32,6 @@ function CPlayerTravelManager.getInstance()
     end
     return travelManager
 end
-
-local free_movement = false
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// EVENTS ACTIVE WHILE TRAVELLING (DISABLED ON DESTINATION REACHED) //////////////
@@ -87,7 +87,7 @@ local function activateCallback(e)
     if not mount then return end
 
     if e.target.id == mount.guideSlot.handle:getObject().id and
-        free_movement then
+        CPlayerTravelManager.getInstance().free_movement then
         -- register player in slot
         tes3ui.showMessageMenu {
             message = "Do you want to sit down?",
@@ -95,7 +95,7 @@ local function activateCallback(e)
                 {
                     text = "Yes",
                     callback = function()
-                        free_movement = false
+                        CPlayerTravelManager.getInstance().free_movement = false
                         log:debug("register player")
                         tes3.player.facing = mount.referenceHandle:getObject().facing
                         mount:registerRefInRandomSlot(tes3.makeSafeObjectHandle(tes3.player))
@@ -127,7 +127,7 @@ local function keyDownCallback(e)
 
 
     -- move
-    if not free_movement and CPlayerTravelManager.getInstance():isTraveling() then
+    if not CPlayerTravelManager.getInstance().free_movement and CPlayerTravelManager.getInstance():isTraveling() then
         if e.keyCode == tes3.scanCode["w"] or e.keyCode == tes3.scanCode["a"] or
             e.keyCode == tes3.scanCode["d"] then
             mount:incrementSlot()
@@ -140,7 +140,7 @@ local function keyDownCallback(e)
                     if slot.handle and slot.handle:valid() and
                         slot.handle:getObject() == tes3.player then
                         slot.handle = nil
-                        free_movement = true
+                        CPlayerTravelManager.getInstance().free_movement = true
                         -- free animations
                         tes3.mobilePlayer.movementCollision = true;
                         tes3.loadAnimation({ reference = tes3.player })
@@ -356,9 +356,7 @@ function CPlayerTravelManager:startTravel(start, destination, service, guide)
             end
             vehicle:OnStartPlayerTravel(currentSpline, guide.baseObject.id)
             self.trackedVehicle = vehicle
-
-            -- TODO always start slotted
-            free_movement = false
+            self.free_movement = false
 
             -- register travel events
             event.register(tes3.event.mouseWheel, mouseWheelCallback)
