@@ -77,13 +77,18 @@ setmetatable(CLongboat, { __index = CBoat })
 ---Constructor for CLongboat
 ---@param position tes3vector3
 ---@param orientation tes3vector3
-function CLongboat:new(position, orientation)
+---@param facing number
+---@return CLongboat
+function CLongboat:new(position, orientation, facing)
     -- create reference
+    -- TODO this can be moved to the superclass
+    local mountOffset = tes3vector3.new(0, 0, self.offset)
     local reference = tes3.createReference {
         object = self.id,
-        position = position,
+        position = position + mountOffset,
         orientation = orientation
     }
+    reference.facing = facing
 
     local newObj = CBoat:new(reference)
     self.__index = self

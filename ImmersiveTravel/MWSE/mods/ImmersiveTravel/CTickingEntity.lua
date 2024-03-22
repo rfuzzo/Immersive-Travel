@@ -16,11 +16,14 @@ function CTickingEntity:new(reference)
     setmetatable(newObj, self)
     self.__index = self
 
+    -- TODO register all ticking entities with the CTrackingManager
+
     return newObj
 end
 
 ---Called on each tick of the timer
-function CTickingEntity:OnTick()
+---@param dt number
+function CTickingEntity:OnTick(dt)
     -- Override this method in subclasses
 end
 
@@ -30,6 +33,8 @@ function CTickingEntity:Delete()
     if self.referenceHandle:valid() then
         self.referenceHandle:getObject():delete()
     end
+
+    -- TODO remove the entity from the CTrackingManager
 end
 
 return CTickingEntity

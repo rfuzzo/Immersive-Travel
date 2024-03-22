@@ -2,22 +2,18 @@
 ---@class TrackingManager
 ---@field trackingList CTickingEntity[]
 ---@field timer mwseTimer?
+---@field TIMER_TICK number
 local TrackingManager = {
     trackingList = {},
     timer = nil
 }
 
-local TIMER_TICK = 0.01
-
+TrackingManager.TIMER_TICK = 0.01
 
 function TrackingManager:new()
     local newObj = {}
     self.__index = self
     setmetatable(newObj, self)
-
-    newObj.trackingList = {}
-    newObj.timer = nil
-
     return newObj
 end
 
@@ -38,7 +34,7 @@ function TrackingManager:StartTimer()
         iterations = -1, -- Repeat indefinitely
         callback = function()
             for _, entity in ipairs(self.trackingList) do
-                entity:OnTick()
+                entity:OnTick(self.TIMER_TICK)
             end
         end
     }
@@ -50,6 +46,10 @@ function TrackingManager:StopTimer()
         self.timer:cancel()
         self.timer = nil
     end
+end
+
+function TrackingManager:Cleanup()
+
 end
 
 return TrackingManager

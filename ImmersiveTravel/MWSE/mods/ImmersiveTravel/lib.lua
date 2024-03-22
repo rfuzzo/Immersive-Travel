@@ -3,7 +3,7 @@ local this = {}
 --#region global
 
 local logger = require("logging.logger")
-local log = logger.new {
+this.log = logger.new {
     name = "Immersive Travel",
     logLevel = "DEBUG",
     logToConsole = false,
@@ -211,7 +211,7 @@ function this.findClosestTravelMarker()
     end
 
     local result = results[last_index]
-    if not result then log:warn("No TravelMarker found to teleport to") end
+    if not result then this.log:warn("No TravelMarker found to teleport to") end
 
     return results[last_index]
 end
@@ -307,5 +307,14 @@ function this.teleportToClosestMarker()
 end
 
 --#endregion
+
+---@class PositionRecord
+---@field x number The x position
+---@field y number The y position
+---@field z number The z position
+
+---@param pos PositionRecord
+--- @return tes3vector3
+function this.vec(pos) return tes3vector3.new(pos.x, pos.y, pos.z) end
 
 return this

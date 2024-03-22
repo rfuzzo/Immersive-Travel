@@ -1,23 +1,22 @@
 local this = {}
 
+local lib = require("ImmersiveTravel.lib")
+local log = lib.log
 
-
-this.localmodpath = "mods\\rfuzzo\\ImmersiveTravel\\"
+this.localmodpath = "mods\\ImmersiveTravel\\"
 this.fullmodpath = "Data Files\\MWSE\\" .. this.localmodpath
 
 local localmodpath = this.localmodpath
 local fullmodpath = this.fullmodpath
 
-
-
-
-
--- /////////////////////////////////////////////////////////////////////////////////////////
--- ////////////// IO
-
-
-
-
+---@class ServiceData
+---@field class string The npc class name
+---@field mount string The mount
+---@field override_npc string[]? register specific npcs with the service
+---@field override_mount table<string,string[]>? register specific mounts with the service
+---@field routes table<string, string[]>? routes
+---@field ground_offset number DEPRECATED: editor marker offset
+---@field guide string[]? guide npcs
 
 --- load json spline from file
 ---@param start string
@@ -61,21 +60,6 @@ function this.loadSpline(start, destination, data)
         else
             log:error("!!! failed to find any file: " .. fileName)
         end
-    end
-end
-
---- load json static mount data
----@param id string
----@return MountData|nil
-function this.loadMountData(id)
-    local filePath = localmodpath .. "mounts\\" .. id .. ".json"
-    local result = {} ---@type table<string, MountData>
-    result = json.loadfile(filePath)
-    if result then
-        return result
-    else
-        log:error("!!! failed to load mount: " .. id)
-        return nil
     end
 end
 
