@@ -98,6 +98,7 @@ end
 
 --- OnCreate is called when the vehicle is created
 function CVehicle:OnCreate()
+    log:debug("OnCreate %s", self.id)
     local mount = self.referenceHandle:getObject()
 
     self.last_position = mount.position
@@ -107,6 +108,10 @@ function CVehicle:OnCreate()
 
     -- animation
     if self.forwardAnimation then
+        log:debug("\tset animation %s", self.forwardAnimation)
+
+        -- TODO override in subclass from mcm
+
         tes3.loadAnimation({ reference = mount })
         local forwardAnimation = self.forwardAnimation
         tes3.playAnimation({ reference = mount, group = tes3.animationGroup[forwardAnimation] })
@@ -115,6 +120,7 @@ function CVehicle:OnCreate()
     -- sounds
     if self.loopSound then
         local sound = self.sound[math.random(1, #self.sound)]
+        log:debug("\tset sound %s", sound)
         tes3.playSound({
             sound = sound,
             reference = mount,
@@ -124,7 +130,7 @@ function CVehicle:OnCreate()
 
     -- register statics
     if self.clutter then
-        log:debug("> registering statics")
+        log:debug("\tregistering statics")
         for index, clutter in ipairs(self.clutter) do
             if clutter.id then
                 -- instantiate
@@ -168,19 +174,19 @@ function CVehicle:OnStartPlayerTravel(spline, guideId)
             orientation = mount.orientation
         }
         guide2.mobile.hello = 0
-        log:debug("> registering guide")
+        log:debug("\tregistering guide")
         self:registerGuide(tes3.makeSafeObjectHandle(guide2))
     end
 
     -- register player
-    log:debug("> registering player")
+    log:debug("\tregistering player")
     tes3.player.position = mount.position
     self:registerRefInRandomSlot(tes3.makeSafeObjectHandle(tes3.player))
     tes3.player.facing = mount.facing
 
     -- register followers
     local followers = lib.getFollowers()
-    log:debug("> registering %s followers", #followers)
+    log:debug("\tregistering %s followers", #followers)
     for index, follower in ipairs(followers) do
         local handle = tes3.makeSafeObjectHandle(follower)
         local result = self:registerRefInRandomSlot(handle)
@@ -515,7 +521,7 @@ function CVehicle:RegisterPassengers()
     local maxPassengers = math.max(0, #self.slots - 2)
     if maxPassengers > 0 then
         local n = math.random(maxPassengers);
-        log:debug("> registering %s / %s passengers", n, maxPassengers)
+        log:debug("\tregistering %s / %s passengers", n, maxPassengers)
         for _i, value in ipairs(lib.getRandomNpcsInCell(n)) do
             local passenger = tes3.createReference {
                 object = value,

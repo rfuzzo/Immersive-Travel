@@ -1,5 +1,7 @@
 local lib = require("ImmersiveTravel.lib")
 
+-- TODO modiefied false on save
+
 -- Define a class to manage the tracking list and timer
 ---@class CTrackingManager
 ---@field trackingList CTickingEntity[]

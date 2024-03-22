@@ -69,8 +69,6 @@ end
 -- onTick override
 ---@param dt number
 function CSiltStrider:OnTick(dt)
-    lib.log:debug("CSiltStrider OnTick called for %s", self.id)
-
     -- Call the superclass onTick method
     CBoat.OnTick(self, dt)
 end

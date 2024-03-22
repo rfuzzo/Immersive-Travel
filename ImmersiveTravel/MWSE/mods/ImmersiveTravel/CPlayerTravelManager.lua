@@ -190,9 +190,10 @@ local function uiShowRestMenuCallback(e)
                             -- teleport to last marker
                             local mount = CPlayerTravelManager.getInstance().trackedVehicle
                             if mount then
+                                -- teleport to last position
                                 tes3.positionCell({
                                     reference = tes3.mobilePlayer,
-                                    position = mount.currentSpline[#mount.currentSpline]
+                                    position = lib.vec(mount.currentSpline[#mount.currentSpline])
                                 })
                                 -- then to destination
                                 CPlayerTravelManager.getInstance():destinationReached(true)
@@ -216,8 +217,6 @@ end
 
 -- OnDestinationReached
 function CPlayerTravelManager:OnDestinationReached()
-    -- body
-
     tes3.fadeOut()
 
     timer.start({
@@ -234,7 +233,7 @@ end
 -- what happens when we reach the destination
 ---@param force boolean
 function CPlayerTravelManager:destinationReached(force)
-    log:debug("destinationReached")
+    log:debug("destinationReached %s", force)
 
     -- unregister events
     event.unregister(tes3.event.mouseWheel, mouseWheelCallback)

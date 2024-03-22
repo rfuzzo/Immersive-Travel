@@ -81,8 +81,6 @@ end
 -- onTick override
 ---@param dt number
 function CGondola:OnTick(dt)
-    lib.log:debug("CGondola OnTick called for %s", self.id)
-
     -- Call the superclass onTick method
     CBoat.OnTick(self, dt)
 end
