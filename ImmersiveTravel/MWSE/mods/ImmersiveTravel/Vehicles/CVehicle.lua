@@ -24,7 +24,6 @@ local log = lib.log
 
 -- Define the CVehicle class inheriting from CTickingEntity
 ---@class CVehicle : CTickingEntity
--- serialized properties
 ---@field id string
 ---@field sound string[] The mount sound id
 ---@field loopSound boolean The mount sound id
@@ -42,7 +41,6 @@ local log = lib.log
 ---@field nodeName string? -- niNode, slots are relative tho this
 ---@field nodeOffset tes3vector3? -- position of the nodeName relative to sceneNode
 ---@field forwardAnimation string? -- walk animation
--- runtime variables
 ---@field last_position tes3vector3
 ---@field last_forwardDirection tes3vector3
 ---@field last_facing number
@@ -74,6 +72,8 @@ local CVehicle = {
 }
 setmetatable(CVehicle, { __index = CTickingEntity })
 
+-- TODO make this a statemachine
+
 --#region variables
 local ANIM_CHANGE_FREQ = 10   -- change passenger animations every 10 seconds
 local SWAY_MAX_AMPL = 3       -- how much the ship can sway in a turn
@@ -88,9 +88,6 @@ function CVehicle:new(reference)
     local newObj = CTickingEntity:new(reference)
     self.__index = self
     setmetatable(newObj, self)
-
-    newObj:OnCreate()
-
     return newObj
 end
 

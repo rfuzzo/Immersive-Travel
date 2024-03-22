@@ -73,6 +73,9 @@ function CLongboat:new(position, orientation, facing)
     local newObj = CBoat:new(reference)
     self.__index = self
     setmetatable(newObj, self)
+
+    newObj:OnCreate()
+
     return newObj
 end
 

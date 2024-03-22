@@ -63,6 +63,9 @@ function CSiltStrider:new(position, orientation, facing)
     local newObj = CVehicle:new(reference)
     self.__index = self
     setmetatable(newObj, self)
+
+    newObj:OnCreate()
+
     return newObj
 end
 

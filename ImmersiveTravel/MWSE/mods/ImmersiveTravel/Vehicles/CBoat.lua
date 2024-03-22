@@ -13,6 +13,7 @@ function CBoat:new(reference)
     local newObj = CVehicle:new(reference)
     self.__index = self
     setmetatable(newObj, self)
+
     return newObj
 end
 
