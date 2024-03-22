@@ -1,3 +1,4 @@
+local lib = require("ImmersiveTravel.lib")
 local CVehicle = require("ImmersiveTravel.CVehicle")
 
 -- Define the CBoat class inheriting from CVehicle
@@ -17,6 +18,13 @@ function CBoat:new(reference)
 end
 
 --#region CVehicle methods
+
+-- onTick override
+---@param dt number
+function CBoat:OnTick(dt)
+    -- Call the superclass onTick method
+    CVehicle.OnTick(self, dt)
+end
 
 -- Define the CBoat class inheriting from CVehicle
 function CBoat:Delete()

@@ -1,11 +1,14 @@
-TrackingManager = require("ImmersiveTravel.CTrackingManager")
+local lib = require("ImmersiveTravel.lib")
+local TrackingManager = require("ImmersiveTravel.CTrackingManager")
 
 -- Define the base class CTickingEntity
 ---@class CTickingEntity
 ---@field referenceHandle mwseSafeObjectHandle
+---@field id string?
 local CTickingEntity = {
     -- Reference handle to the entity
-    referenceHandle = tes3.makeSafeObjectHandle(nil)
+    referenceHandle = tes3.makeSafeObjectHandle(nil),
+    id = nil
 }
 
 
@@ -13,7 +16,8 @@ local CTickingEntity = {
 ---@param reference tes3reference
 function CTickingEntity:new(reference)
     local newObj = {
-        referenceHandle = tes3.makeSafeObjectHandle(reference)
+        referenceHandle = tes3.makeSafeObjectHandle(reference),
+        id = reference.id
     } ---@type CTickingEntity
     setmetatable(newObj, self)
     self.__index = self

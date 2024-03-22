@@ -1,3 +1,5 @@
+local lib = require("ImmersiveTravel.lib")
+
 -- Define a class to manage the tracking list and timer
 ---@class CTrackingManager
 ---@field trackingList CTickingEntity[]
@@ -28,20 +30,27 @@ function TrackingManager.getInstance()
     return trackingManager
 end
 
--- Add an entity to the tracking list
+--- Add an entity to the tracking list
+---@param entity CTickingEntity
 function TrackingManager:AddEntity(entity)
     table.insert(self.trackingList, entity)
+
+    lib.log:debug("Added %s to tracking list", entity.id)
 end
 
--- Remove an entity from the tracking list
+--- Remove an entity from the tracking list
+---@param entity CTickingEntity
 function TrackingManager:RemoveEntity(entity)
     table.removevalue(self.trackingList, entity)
+
+    lib.log:debug("Removed %s from tracking list", entity.id)
 end
 
 -- Start the timer to call OnTick on each entity in the tracking list
 function TrackingManager:StartTimer()
     self.timer = timer.start {
-        duration = 1,    -- Adjust as needed
+        duration = self.TIMER_TICK,
+        type = timer.simulate,
         iterations = -1, -- Repeat indefinitely
         callback = function()
             for _, entity in ipairs(self.trackingList) do
@@ -60,7 +69,10 @@ function TrackingManager:StopTimer()
 end
 
 function TrackingManager:Cleanup()
+    self:StopTimer()
+    self.trackingList = {}
 
+    lib.log:debug("TrackingManager cleaned up")
 end
 
 return TrackingManager

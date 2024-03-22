@@ -1,3 +1,4 @@
+local lib = require("ImmersiveTravel.lib")
 local CBoat = require("ImmersiveTravel.CBoat")
 
 -- Define the CLongboat class inheriting from CBoat
@@ -94,6 +95,15 @@ function CLongboat:new(position, orientation, facing)
     self.__index = self
     setmetatable(newObj, self)
     return newObj
+end
+
+-- onTick override
+---@param dt number
+function CLongboat:OnTick(dt)
+    lib.log:debug("CLongboat OnTick called for %s", self.id)
+
+    -- Call the superclass onTick method
+    CBoat.OnTick(self, dt)
 end
 
 --#region CBoat methods

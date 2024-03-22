@@ -38,7 +38,6 @@ local log = lib.log
 ---@field guideSlot Slot?
 ---@field hiddenSlot HiddenSlot?
 ---@field clutter Clutter[]?
----@field idList string[]?
 ---@field scale number?
 ---@field nodeName string? -- niNode, slots are relative tho this
 ---@field nodeOffset tes3vector3? -- position of the nodeName relative to sceneNode
@@ -64,14 +63,14 @@ local CVehicle = {
     slots = {},
     guideSlot = nil,
     hiddenSlot = nil,
-    clutter = {},
-    idList = {},
-    scale = 0,
-    nodeName = "",
+    clutter = nil,
+    scale = nil,
+    nodeName = nil,
     nodeOffset = nil,
-    forwardAnimation = "",
+    forwardAnimation = nil,
     -- runtime
     swayTime = 0,
+    splineIndex = 1
 }
 setmetatable(CVehicle, { __index = CTickingEntity })
 
@@ -90,7 +89,7 @@ function CVehicle:new(reference)
     self.__index = self
     setmetatable(newObj, self)
 
-    self:OnCreate()
+    newObj:OnCreate()
 
     return newObj
 end
@@ -271,6 +270,8 @@ end
 -- Define the CVehicle class inheriting from CTickingEntity
 ---@param dt number
 function CVehicle:OnTick(dt)
+    lib.log:debug("CVehicle OnTick called for %s", self.id)
+
     -- Call the superclass onTick method
     CTickingEntity.OnTick(self, dt)
 
@@ -309,7 +310,7 @@ function CVehicle:OnTick(dt)
     end
 
     local mountOffset = tes3vector3.new(0, 0, self.offset)
-    local nextPos = self.currentSpline[self.splineIndex]
+    local nextPos = lib.vec(self.currentSpline[self.splineIndex])
     local currentPos = self.last_position - mountOffset
 
     -- calculate diffs
@@ -416,8 +417,7 @@ function CVehicle:OnTick(dt)
         local guide = self.guideSlot.handle:getObject()
         tes3.positionCell({
             reference = guide,
-            position = rootBone.worldTransform *
-                self:getSlotTransform(self.guideSlot.position, boneOffset)
+            position = rootBone.worldTransform * self:getSlotTransform(self.guideSlot.position, boneOffset)
         })
         guide.facing = mount.facing
         -- only change anims if behind player
@@ -504,7 +504,7 @@ function CVehicle:OnTick(dt)
     --#endregion
 
     -- move to next marker
-    local isBehind = lib.isPointBehindObject(lib.vec(nextPos), mount.position, forward)
+    local isBehind = lib.isPointBehindObject(nextPos, mount.position, forward)
     if isBehind then
         self.splineIndex = self.splineIndex + 1
     end
