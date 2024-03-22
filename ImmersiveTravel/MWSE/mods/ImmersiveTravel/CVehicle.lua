@@ -98,7 +98,6 @@ end
 
 --- OnCreate is called when the vehicle is created
 function CVehicle:OnCreate()
-    -- TODO checks?
     local mount = self.referenceHandle:getObject()
 
     self.last_position = mount.position
@@ -157,7 +156,6 @@ end
 ---@param guideId string The ID of the guide object.
 ---@param spline PositionRecord[] The spline to travel on.
 function CVehicle:OnStartPlayerTravel(spline, guideId)
-    -- TODO checks?
     local mount = self.referenceHandle:getObject()
 
     self.currentSpline = spline
@@ -251,7 +249,6 @@ function CVehicle:OnEndPlayerTravel()
 end
 
 function CVehicle:OnDestinationReached()
-    -- TODO notify travel manager
     CPlayerTravelManager.getInstance():OnDestinationReached()
 end
 
@@ -270,13 +267,9 @@ end
 -- Define the CVehicle class inheriting from CTickingEntity
 ---@param dt number
 function CVehicle:OnTick(dt)
-    lib.log:debug("CVehicle OnTick called for %s", self.id)
-
     -- Call the superclass onTick method
     CTickingEntity.OnTick(self, dt)
 
-
-    -- TODO checks?
     local mount = self.referenceHandle:getObject()
 
     if self.currentSpline == nil then
@@ -516,7 +509,6 @@ end
 
 --- Registers the passengers for the vehicle.
 function CVehicle:RegisterPassengers()
-    -- TODO checks?
     local mount = self.referenceHandle:getObject()
 
     -- register passengers
@@ -547,7 +539,6 @@ end
 -- player is within the surface of the mount
 ---@return boolean
 function CVehicle:isOnMount()
-    -- TODO checks?
     local mount = self.referenceHandle:getObject()
 
 
@@ -736,7 +727,6 @@ end
 function CVehicle:cleanup()
     log:debug("cleanup")
 
-    -- TODO checks?
     local mount = self.referenceHandle:getObject()
     tes3.removeSound({ reference = mount })
 

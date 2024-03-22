@@ -12,6 +12,10 @@ this.log = logger.new {
 
 --#endregion
 
+---@class ReferenceRecord
+---@field cell tes3cell The cell
+---@field position tes3vector3 The reference position
+
 --region math
 
 ---@param pos tes3vector3

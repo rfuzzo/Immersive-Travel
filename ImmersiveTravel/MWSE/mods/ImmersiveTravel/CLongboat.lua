@@ -4,74 +4,53 @@ local CBoat = require("ImmersiveTravel.CBoat")
 -- Define the CLongboat class inheriting from CBoat
 ---@class CLongboat : CBoat
 local CLongboat = {
-    id = "a_longboat",
+    id = "a_DE_ship",
     sound = {
         "Boat Hull"
     },
     loopSound = true,
-    mesh = "x\\Ex_longboat_rot.nif",
-    offset = 74,
-    sway = 4,
-    speed = 4,
-    turnspeed = 24,
+    mesh = "x\\Ex_DE_ship_rot.nif",
+    offset = -20,
+    sway = 3,
+    speed = 3,
+    turnspeed = 10,
     hasFreeMovement = true,
     guideSlot = {
         animationGroup = {},
-        position = tes3vector3.new(67, -457, -65)
+        position = tes3vector3.new(-25, -823, 360)
     },
     hiddenSlot = {
-        position = tes3vector3.new(0, 0, -200)
+        position = tes3vector3.new(0, 0, 40)
     },
     slots = {
         {
             animationGroup = {},
-            position = tes3vector3.new(0, 411, -63)
+            position = tes3vector3.new(0, 438, 257)
         },
         {
             animationGroup = {},
-            position = tes3vector3.new(-132, 67, -63)
+            position = tes3vector3.new(0, 29, 209)
         },
         {
             animationGroup = {},
-            position = tes3vector3.new(160, -145, -63)
+            position = tes3vector3.new(-181, 139, 209)
         },
         {
             animationGroup = {},
-            position = tes3vector3.new(-79, -390, -67)
+            position = tes3vector3.new(181, -139, 209)
         },
         {
-            animationGroup = {
-                "idle6"
-            },
-            animationFile = "VA_sitting.nif",
-            position = tes3vector3.new(0, 133, -26)
+            animationGroup = {},
+            position = tes3vector3.new(115, -466, 208)
         },
-        {
-            animationGroup = {
-                "idle6"
-            },
-            animationFile = "VA_sitting.nif",
-            position = tes3vector3.new(-122, -181, -27)
-        },
-        {
-            animationGroup = {
-                "idle6"
-            },
-            animationFile = "VA_sitting.nif",
-            position = tes3vector3.new(87, -259, -27)
-        }
     },
     clutter = {
         {
-            id = "light_com_lantern_01",
-            position = tes3vector3.new(0, 623, 28)
+            id = "Ex_DE_ship_cabindoor",
+            position = tes3vector3.new(92, -617, 261),
+            orientation = tes3vector3.new(0, 0, 180),
         },
-        {
-            id = "light_com_lantern_02",
-            position = tes3vector3.new(0, -585, 18)
-        }
     }
-
 }
 setmetatable(CLongboat, { __index = CBoat })
 
@@ -100,9 +79,7 @@ end
 -- onTick override
 ---@param dt number
 function CLongboat:OnTick(dt)
-    lib.log:debug("CLongboat OnTick called for %s", self.id)
-
-    -- Call the superclass onTick method
+    -- TODO remove this Call the superclass onTick method
     CBoat.OnTick(self, dt)
 end
 

@@ -266,6 +266,35 @@ function CPlayerTravelManager:destinationReached(force)
     end
 end
 
+-- TODO interop this
+--- get vehicle
+---@param mountId string
+---@param startPos tes3vector3
+---@param orientation tes3vector3
+---@param facing number
+---@return CVehicle?
+local function getVehicle(mountId, startPos, orientation, facing)
+    if mountId == "a_siltstrider" then
+        local CSiltStrider = require("ImmersiveTravel.CSiltStrider")
+        local vehicle = CSiltStrider:new(startPos, orientation, facing)
+        return vehicle
+    elseif mountId == "a_longboat" then
+        local CLongboat = require("ImmersiveTravel.CLongboat")
+        local vehicle = CLongboat:new(startPos, orientation, facing)
+        return vehicle
+    elseif mountId == "a_DE_ship" then
+        local CShipDe = require("ImmersiveTravel.CShipDe")
+        local vehicle = CShipDe:new(startPos, orientation, facing)
+        return vehicle
+    elseif mountId == "a_gondola_01" then
+        local CGondola = require("ImmersiveTravel.CGondola")
+        local vehicle = CGondola:new(startPos, orientation, facing)
+        return vehicle
+    end
+
+    return nil
+end
+
 --- set up everything
 ---@param start string
 ---@param destination string
@@ -322,11 +351,12 @@ function CPlayerTravelManager:startTravel(start, destination, service, guide)
             local d = nextPos - startPos
             d:normalize()
             local facing = math.atan2(d.x, d.y)
-            -- TODO create correct vehicle type
-            local CLongboat = require("ImmersiveTravel.CLongboat")
-            local boat = CLongboat:new(startPos, d, facing)
-            boat:OnStartPlayerTravel(currentSpline, guide.baseObject.id)
-            self.trackedVehicle = boat
+            local vehicle = getVehicle(mountId, startPos, d, facing)
+            if not vehicle then
+                return
+            end
+            vehicle:OnStartPlayerTravel(currentSpline, guide.baseObject.id)
+            self.trackedVehicle = vehicle
 
             -- TODO always start slotted
             free_movement = false
