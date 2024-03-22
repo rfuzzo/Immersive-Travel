@@ -1,5 +1,5 @@
 -- Define a class to manage the tracking list and timer
----@class TrackingManager
+---@class CTrackingManager
 ---@field trackingList CTickingEntity[]
 ---@field timer mwseTimer?
 ---@field TIMER_TICK number
@@ -15,6 +15,17 @@ function TrackingManager:new()
     self.__index = self
     setmetatable(newObj, self)
     return newObj
+end
+
+-- singleton instance
+--- @type CTrackingManager?
+local trackingManager = nil
+--- @return CTrackingManager
+function TrackingManager.getInstance()
+    if trackingManager == nil then
+        trackingManager = TrackingManager:new()
+    end
+    return trackingManager
 end
 
 -- Add an entity to the tracking list

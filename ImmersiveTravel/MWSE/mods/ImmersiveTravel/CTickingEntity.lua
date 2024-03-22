@@ -1,3 +1,5 @@
+TrackingManager = require("ImmersiveTravel.CTrackingManager")
+
 -- Define the base class CTickingEntity
 ---@class CTickingEntity
 ---@field referenceHandle mwseSafeObjectHandle
@@ -16,7 +18,8 @@ function CTickingEntity:new(reference)
     setmetatable(newObj, self)
     self.__index = self
 
-    -- TODO register all ticking entities with the CTrackingManager
+    -- register all ticking entities with the CTrackingManager
+    TrackingManager.getInstance():AddEntity(newObj)
 
     return newObj
 end
@@ -34,7 +37,8 @@ function CTickingEntity:Delete()
         self.referenceHandle:getObject():delete()
     end
 
-    -- TODO remove the entity from the CTrackingManager
+    -- remove the entity from the CTrackingManager
+    TrackingManager.getInstance():RemoveEntity(self)
 end
 
 return CTickingEntity

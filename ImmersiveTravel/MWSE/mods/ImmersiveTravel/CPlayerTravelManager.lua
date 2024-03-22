@@ -1,12 +1,8 @@
 local lib = require("ImmersiveTravel.lib")
-local log = lib.log
-local io = require("ImmersiveTravel.io")
 local interop = require("ImmersiveTravel.interop")
-
 -- classes
-local CLongboat = require("ImmersiveTravel.CLongboat")
-local CBoat = require("ImmersiveTravel.CBoat")
-local CVehicle = require("ImmersiveTravel.CVehicle")
+
+local log = lib.log
 
 -- define the player travel manager class
 ---@class CPlayerTravelManager
@@ -22,9 +18,18 @@ function CPlayerTravelManager:new()
     return newObj
 end
 
+-- singleton instance
+--- @type CPlayerTravelManager?
+local travelManager = nil
+--- @return CPlayerTravelManager
+function CPlayerTravelManager.getInstance()
+    if travelManager == nil then
+        travelManager = CPlayerTravelManager:new()
+    end
+    return travelManager
+end
+
 local free_movement = false
-local travelMenuId = tes3ui.registerID("it:travel_menu")
-local travelMenuCancelId = tes3ui.registerID("it:travel_menu_cancel")
 
 -- //////////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// EVENTS ACTIVE WHILE TRAVELLING (DISABLED ON DESTINATION REACHED) //////////////
@@ -76,8 +81,7 @@ end
 local function activateCallback(e)
     if (e.activator ~= tes3.player) then return end
 
-    -- TODO does that work?
-    local mount = CPlayerTravelManager.trackedVehicle
+    local mount = CPlayerTravelManager.getInstance().trackedVehicle
     if not mount then return end
 
     if e.target.id == mount.guideSlot.handle:getObject().id and
@@ -116,13 +120,12 @@ end
 -- key down callbacks while in travel
 --- @param e keyDownEventData
 local function keyDownCallback(e)
-    -- TODO does that work?
-    local mount = CPlayerTravelManager.trackedVehicle
+    local mount = CPlayerTravelManager.getInstance().trackedVehicle
     if not mount then return end
 
 
     -- move
-    if not free_movement and CPlayerTravelManager:isTraveling() then
+    if not free_movement and CPlayerTravelManager.getInstance():isTraveling() then
         if e.keyCode == tes3.scanCode["w"] or e.keyCode == tes3.scanCode["a"] or
             e.keyCode == tes3.scanCode["d"] then
             mount:incrementSlot()
@@ -183,15 +186,14 @@ local function uiShowRestMenuCallback(e)
                             tes3.fadeIn({ duration = 1 })
 
                             -- teleport to last marker
-                            local mount = CPlayerTravelManager.trackedVehicle
+                            local mount = CPlayerTravelManager.getInstance().trackedVehicle
                             if mount then
                                 tes3.positionCell({
                                     reference = tes3.mobilePlayer,
                                     position = mount.currentSpline[#mount.currentSpline]
                                 })
                                 -- then to destination
-                                -- TODO does that work?
-                                CPlayerTravelManager:destinationReached(true)
+                                CPlayerTravelManager.getInstance():destinationReached(true)
                             end
                         end)
                     })
@@ -271,7 +273,7 @@ function CPlayerTravelManager:startTravel(start, destination, service, guide)
     -- checks
     if guide == nil then return end
 
-    local m = tes3ui.findMenu(travelMenuId)
+    local m = tes3ui.findMenu("it:travel_menu")
     if not m then return end
 
     -- leave dialogue
@@ -286,7 +288,7 @@ function CPlayerTravelManager:startTravel(start, destination, service, guide)
         end
     end
 
-    local currentSpline = io.loadSpline(start, destination, service)
+    local currentSpline = lib.loadSpline(start, destination, service)
     if currentSpline == nil then return end
 
     -- fade out
@@ -320,8 +322,9 @@ function CPlayerTravelManager:startTravel(start, destination, service, guide)
             d:normalize()
             local facing = math.atan2(d.x, d.y)
             -- TODO create correct vehicle type
+            local CLongboat = require("ImmersiveTravel.CLongboat")
             local boat = CLongboat:new(startPos, d, facing)
-            boat:OnStartPlayerTravel(guide.baseObject.id)
+            boat:OnStartPlayerTravel(currentSpline, guide.baseObject.id)
             self.trackedVehicle = boat
 
             -- TODO always start slotted
@@ -353,110 +356,5 @@ end
 
 --#endregion
 
--- //////////////////////////////////////////////////////////////////////////////////////////////
--- ////////////// UI FUNCTIONS //////////////////////////////////////////////////////////////////
---#region ui functions
-
---- Start Travel window
--- Create window and layout. Called by onCommand.
----@param service ServiceData
----@param guide tes3reference
-function CPlayerTravelManager.createTravelWindow(service, guide)
-    -- Return if window is already open
-    if (tes3ui.findMenu(travelMenuId) ~= nil) then return end
-    -- Return if no destinations
-    local destinations = service.routes[guide.cell.id]
-    if destinations == nil then return end
-    if #destinations == 0 then return end
-
-    -- Create window and frame
-    local menu = tes3ui.createMenu {
-        id = travelMenuId,
-        fixedFrame = false,
-        dragFrame = true
-    }
-    menu.alpha = 1.0
-    menu.text = tes3.player.cell.id
-    menu.width = 350
-    menu.height = 350
-
-    -- Create layout
-    local label = menu:createLabel { text = "Destinations" }
-    label.borderBottom = 5
-
-    local pane = menu:createVerticalScrollPane { id = "sortedPane" }
-    for _key, name in ipairs(destinations) do
-        local button = pane:createButton {
-            id = "button_spline_" .. name,
-            text = name
-        }
-
-        button:register(tes3.uiEvent.mouseClick, function()
-            CPlayerTravelManager:startTravel(tes3.player.cell.id, name, service, guide)
-        end)
-    end
-    pane:getContentElement():sortChildren(function(a, b)
-        return a.text < b.text
-    end)
-    pane.height = 400
-
-    local button_block = menu:createBlock {}
-    button_block.widthProportional = 1.0 -- width is 100% parent width
-    button_block.autoHeight = true
-    button_block.childAlignX = 1.0       -- right content alignment
-
-    local button_cancel = button_block:createButton {
-        id = travelMenuCancelId,
-        text = "Cancel"
-    }
-
-    -- Events
-    button_cancel:register(tes3.uiEvent.mouseClick, function()
-        local m = tes3ui.findMenu(travelMenuId)
-        if (m) then
-            tes3ui.leaveMenuMode()
-            m:destroy()
-        end
-    end)
-
-    -- Final setup
-    menu:updateLayout()
-    tes3ui.enterMenuMode(travelMenuId)
-end
-
----@param menu tes3uiElement
-function CPlayerTravelManager.updateServiceButton(menu)
-    timer.frame.delayOneFrame(function()
-        if not menu then return end
-        local serviceButton = menu:findChild("rf_id_travel_button")
-        if not serviceButton then return end
-        serviceButton.visible = true
-        serviceButton.disabled = false
-    end)
-end
-
----@param menu tes3uiElement
----@param guide tes3reference
----@param service ServiceData
-function CPlayerTravelManager.createTravelButton(menu, guide, service)
-    local divider = menu:findChild("MenuDialog_divider")
-    local topicsList = divider.parent
-    local button = topicsList:createTextSelect({
-        id = "rf_id_travel_button",
-        text = "Take me to..."
-    })
-    button.widthProportional = 1.0
-    button.visible = true
-    button.disabled = false
-
-    topicsList:reorderChildren(divider, button, 1)
-
-    button:register("mouseClick", function()
-        CPlayerTravelManager.createTravelWindow(service, guide)
-    end)
-    menu:registerAfter("update", function() CPlayerTravelManager.updateServiceButton(menu) end)
-end
-
---#endregion
 
 return CPlayerTravelManager

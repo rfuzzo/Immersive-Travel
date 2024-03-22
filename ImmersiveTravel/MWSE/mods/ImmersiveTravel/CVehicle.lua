@@ -1,5 +1,5 @@
 local CTickingEntity = require("ImmersiveTravel.CTickingEntity")
-local CTrackingManager = require("ImmersiveTravel.CTrackingManager")
+local CPlayerTravelManager = require("ImmersiveTravel.CPlayerTravelManager")
 local lib = require("ImmersiveTravel.lib")
 local log = lib.log
 
@@ -49,7 +49,7 @@ local log = lib.log
 ---@field last_facing number
 ---@field last_sway number
 ---@field swayTime number
----@field currentSpline tes3vector3[]?
+---@field currentSpline PositionRecord[]?
 ---@field splineIndex number
 local CVehicle = {
     -- Add properties here
@@ -156,9 +156,12 @@ end
 
 --- OnStartPlayerTravel is called when the player starts traveling
 ---@param guideId string The ID of the guide object.
-function CVehicle:OnStartPlayerTravel(guideId)
+---@param spline PositionRecord[] The spline to travel on.
+function CVehicle:OnStartPlayerTravel(spline, guideId)
     -- TODO checks?
     local mount = self.referenceHandle:getObject()
+
+    self.currentSpline = spline
 
     -- register guide
     if self.guideSlot then
@@ -172,7 +175,7 @@ function CVehicle:OnStartPlayerTravel(guideId)
         self:registerGuide(tes3.makeSafeObjectHandle(guide2))
     end
 
-    -- TODO register player
+    -- register player
     log:debug("> registering player")
     tes3.player.position = mount.position
     self:registerRefInRandomSlot(tes3.makeSafeObjectHandle(tes3.player))
@@ -248,6 +251,11 @@ function CVehicle:OnEndPlayerTravel()
     self:cleanup()
 end
 
+function CVehicle:OnDestinationReached()
+    -- TODO notify travel manager
+    CPlayerTravelManager.getInstance():OnDestinationReached()
+end
+
 --#endregion
 
 --#region CTickingEntity methods
@@ -270,11 +278,11 @@ function CVehicle:OnTick(dt)
     -- TODO checks?
     local mount = self.referenceHandle:getObject()
 
-    -- TODO state on spline
     if self.currentSpline == nil then
         return
     end
     if self.splineIndex > #self.currentSpline then
+        self:OnDestinationReached()
         return
     end
 
@@ -496,8 +504,10 @@ function CVehicle:OnTick(dt)
     --#endregion
 
     -- move to next marker
-    local isBehind = lib.isPointBehindObject(nextPos, mount.position, forward)
-    if isBehind then self.splineIndex = self.splineIndex + 1 end
+    local isBehind = lib.isPointBehindObject(lib.vec(nextPos), mount.position, forward)
+    if isBehind then
+        self.splineIndex = self.splineIndex + 1
+    end
 end
 
 --#endregion
