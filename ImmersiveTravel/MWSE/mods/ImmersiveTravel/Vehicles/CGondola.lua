@@ -63,7 +63,6 @@ setmetatable(CGondola, { __index = CBoat })
 ---@return CGondola
 function CGondola:create(position, orientation, facing)
     -- create reference
-    -- TODO this can be moved to the superclass
     local mountOffset = tes3vector3.new(0, 0, self.offset)
     local reference = tes3.createReference {
         object = self.id,

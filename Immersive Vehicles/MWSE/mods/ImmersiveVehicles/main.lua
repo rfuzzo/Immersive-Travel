@@ -171,6 +171,7 @@ event.register("uiActivated", onMenuDialog, { filter = "MenuDialog" })
 
 -- //////////////////////////////////////////////////////////////////////////////////////////
 -- CRAFTING FRAMEWORK
+--#region CRAFTING FRAMEWORK
 
 local CraftingFramework = include("CraftingFramework")
 if not CraftingFramework then return end
@@ -213,7 +214,7 @@ CraftingFramework.Material:registerMaterials(materials)
 ---get recipe with data
 ---@param id string
 local function getRecipeFor(id)
-    local class = lib.getVehicleData(id)
+    local class = interop.getVehicleData(id)
     if not class then
         return nil
     end
@@ -253,6 +254,8 @@ local function registerRecipes(e)
     if e.menuActivator then e.menuActivator:registerRecipes(recipes) end
 end
 event.register("Ashfall:ActivateBushcrafting:Registered", registerRecipes)
+
+--#endregion
 
 --[[
 

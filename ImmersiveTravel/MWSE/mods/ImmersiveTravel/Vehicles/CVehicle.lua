@@ -118,6 +118,15 @@ end
 
 --#region events
 
+function CVehicle:PlayAnimation()
+    if self.forwardAnimation then
+        local mount = self.referenceHandle:getObject()
+        tes3.loadAnimation({ reference = mount })
+        local forwardAnimation = self.forwardAnimation
+        tes3.playAnimation({ reference = mount, group = tes3.animationGroup[forwardAnimation] })
+    end
+end
+
 --- OnCreate is called when the vehicle is created
 function CVehicle:OnCreate()
     log:debug("OnCreate %s", self.id)
@@ -129,15 +138,7 @@ function CVehicle:OnCreate()
     self.last_sway = 0
 
     -- animation
-    if self.forwardAnimation then
-        log:debug("\tset animation %s", self.forwardAnimation)
-
-        -- TODO override in subclass from mcm
-
-        tes3.loadAnimation({ reference = mount })
-        local forwardAnimation = self.forwardAnimation
-        tes3.playAnimation({ reference = mount, group = tes3.animationGroup[forwardAnimation] })
-    end
+    self:PlayAnimation()
 
     -- sounds
     if self.loopSound then
@@ -180,6 +181,17 @@ function CVehicle:OnCreate()
     end
 end
 
+--- OnStartPlayerSteer is called when the player starts steering
+function CVehicle:OnStartPlayerSteer()
+    -- register player
+    log:debug("\tregistering player")
+    self:registerGuide(tes3.makeSafeObjectHandle(tes3.player))
+    tes3.player.facing = self.referenceHandle:getObject().facing
+
+    -- register followers
+    self:RegisterFollowers()
+end
+
 --- OnStartPlayerTravel is called when the player starts traveling
 ---@param guideId string The ID of the guide object.
 ---@param spline PositionRecord[] The spline to travel on.
@@ -189,6 +201,7 @@ function CVehicle:OnStartPlayerTravel(spline, guideId)
     self.currentSpline = spline
 
     -- register guide
+    log:debug("\tregistering guide")
     if self.guideSlot then
         local guide2 = tes3.createReference {
             object = guideId,
@@ -196,7 +209,6 @@ function CVehicle:OnStartPlayerTravel(spline, guideId)
             orientation = mount.orientation
         }
         guide2.mobile.hello = 0
-        log:debug("\tregistering guide")
         self:registerGuide(tes3.makeSafeObjectHandle(guide2))
     end
 
@@ -207,15 +219,7 @@ function CVehicle:OnStartPlayerTravel(spline, guideId)
     tes3.player.facing = mount.facing
 
     -- register followers
-    local followers = lib.getFollowers()
-    log:debug("\tregistering %s followers", #followers)
-    for index, follower in ipairs(followers) do
-        local handle = tes3.makeSafeObjectHandle(follower)
-        local result = self:registerRefInRandomSlot(handle)
-        if not result then
-            self:registerRefInHiddenSlot(handle)
-        end
-    end
+    self:RegisterFollowers()
 
     -- register passengers
     self:RegisterPassengers()
@@ -300,6 +304,7 @@ function CVehicle:OnTick(dt)
 
     self:UpdatePlayerCollision()
 
+    -- todo state machine
     self:Move(dt)
 end
 
@@ -308,29 +313,58 @@ function CVehicle:Move(dt)
     if self.currentSpline == nil then
         return
     end
+
+    -- move to next marker
     if self.splineIndex > #self.currentSpline then
         self:OnDestinationReached()
         return
     end
+    local mount = self.referenceHandle:getObject()
+    local nextPos = lib.vec(self.currentSpline[self.splineIndex])
+    local isBehind = lib.isPointBehindObject(nextPos, mount.position, mount.forwardDirection)
+    if isBehind then
+        self.splineIndex = self.splineIndex + 1
+    end
+    nextPos = lib.vec(self.currentSpline[self.splineIndex])
+
+    -- calculate position
+    local position, facing, turn = self:CalculatePositions(nextPos)
+
+    -- move the reference
+    mount.facing = facing
+    mount.position = position
+    -- save positions
+    self.last_position = mount.position
+    self.last_forwardDirection = mount.forwardDirection
+    self.last_facing = mount.facing
+
+    -- sway
+    mount.orientation = self:calculateOrientation(dt, turn)
+
+    -- update slots
+    self:UpdateSlots(dt)
+end
+
+---@param nextPos tes3vector3
+---@return tes3vector3, number, number
+function CVehicle:CalculatePositions(nextPos)
+    local mount = self.referenceHandle:getObject()
 
     -- calculate diffs
     local mountOffset = tes3vector3.new(0, 0, self.offset)
-    local nextPos = lib.vec(self.currentSpline[self.splineIndex])
     local currentPos = self.last_position - mountOffset
     local forwardDirection = self.last_forwardDirection
     forwardDirection:normalize()
     local d = (nextPos - currentPos):normalized()
     local lerp = forwardDirection:lerp(d, self.turnspeed / 10):normalized()
-
-    -- calculate position
-    local mount = self.referenceHandle:getObject()
     local forward = tes3vector3.new(mount.forwardDirection.x, mount.forwardDirection.y, lerp.z):normalized()
     local delta = forward * self.speed
+    local position = currentPos + delta + mountOffset
 
     -- calculate facing
+    local new_facing = math.atan2(d.x, d.y)
     local turn = 0
     local current_facing = self.last_facing
-    local new_facing = math.atan2(d.x, d.y)
     local facing = new_facing
     local diff = new_facing - current_facing
     if diff < -math.pi then diff = diff + 2 * math.pi end
@@ -346,63 +380,7 @@ function CVehicle:Move(dt)
         facing = new_facing
     end
 
-    -- move the reference
-    mount.facing = facing
-    mount.position = currentPos + delta + mountOffset
-
-    -- move to next marker
-    local isBehind = lib.isPointBehindObject(nextPos, mount.position, forward)
-    if isBehind then
-        self.splineIndex = self.splineIndex + 1
-    end
-
-    -- save positions
-    self.last_position = mount.position
-    self.last_forwardDirection = mount.forwardDirection
-    self.last_facing = mount.facing
-
-    -- sway
-    mount.orientation = self:calculateOrientation(dt, turn)
-
-    -- update slots
-    self:UpdateSlots(dt)
-end
-
---- Get root scene node
----@return nil
-function CVehicle:GetRootBone()
-    if not self.referenceHandle then
-        return nil
-    end
-    if not self.referenceHandle:valid() then
-        return nil
-    end
-
-    local mount = self.referenceHandle:getObject()
-    local rootBone = mount.sceneNode
-    if self.nodeName then
-        rootBone = mount.sceneNode:getObjectByName(self.nodeName) --[[@as niNode]]
-    end
-    if rootBone == nil then
-        rootBone = mount.sceneNode
-    end
-
-    return rootBone
-end
-
-function CVehicle:UpdatePlayerCollision()
-    -- move player when on vehicle
-    local rootBone = self:GetRootBone()
-    if rootBone then
-        local playerShipLocal = rootBone.worldTransform:invert() * tes3.player.position
-        -- player TODO check if player is in freemovement mode
-        if self.hasFreeMovement and self:isOnMount() then
-            -- this is needed to enable collisions :todd:
-            tes3.dataHandler:updateCollisionGroupsForActiveCells {}
-            self.referenceHandle:getObject().sceneNode:update()
-            tes3.player.position = rootBone.worldTransform * playerShipLocal
-        end
-    end
+    return position, facing, turn
 end
 
 ---@param dt number
@@ -446,9 +424,7 @@ function CVehicle:calculateOrientation(dt, turn)
         end
     end
     self.last_sway = sway
-    local newOrientation = lib.toWorldOrientation(
-        tes3vector3.new(0.0, sway, 0.0),
-        mount.orientation)
+    local newOrientation = lib.toWorldOrientation(tes3vector3.new(0.0, sway, 0.0), mount.orientation)
 
     return newOrientation
 end
@@ -575,9 +551,58 @@ function CVehicle:UpdateSlots(dt)
     end
 end
 
+--- Get root scene node
+---@return nil
+function CVehicle:GetRootBone()
+    if not self.referenceHandle then
+        return nil
+    end
+    if not self.referenceHandle:valid() then
+        return nil
+    end
+
+    local mount = self.referenceHandle:getObject()
+    local rootBone = mount.sceneNode
+    if self.nodeName then
+        rootBone = mount.sceneNode:getObjectByName(self.nodeName) --[[@as niNode]]
+    end
+    if rootBone == nil then
+        rootBone = mount.sceneNode
+    end
+
+    return rootBone
+end
+
+function CVehicle:UpdatePlayerCollision()
+    -- move player when on vehicle
+    local rootBone = self:GetRootBone()
+    if rootBone then
+        local playerShipLocal = rootBone.worldTransform:invert() * tes3.player.position
+        -- check if player is in freemovement mode
+        if self.hasFreeMovement and self:isOnMount() and CPlayerTravelManager.getInstance().free_movement then
+            -- this is needed to enable collisions :todd:
+            tes3.dataHandler:updateCollisionGroupsForActiveCells {}
+            self.referenceHandle:getObject().sceneNode:update()
+            tes3.player.position = rootBone.worldTransform * playerShipLocal
+        end
+    end
+end
+
 --#endregion
 
 --#region CVehicle methods
+
+function CVehicle:RegisterFollowers()
+    local followers = lib.getFollowers()
+    log:debug("\tregistering %s followers", #followers)
+    for index, follower in ipairs(followers) do
+        local handle = tes3.makeSafeObjectHandle(follower)
+        local result = self:registerRefInRandomSlot(handle)
+        if not result then
+            self:registerRefInHiddenSlot(handle)
+        end
+    end
+end
 
 --- Registers the passengers for the vehicle.
 function CVehicle:RegisterPassengers()

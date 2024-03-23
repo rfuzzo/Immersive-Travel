@@ -49,19 +49,6 @@ local function cellChangedCallback(e)
     end
 end
 
---- @param e mouseWheelEventData
-local function mouseWheelCallback(e)
-    local isControlDown = tes3.worldController.inputController:isControlDown()
-    if isControlDown then
-        -- update fov
-        if e.delta > 0 then
-            tes3.set3rdPersonCameraOffset({ offset = tes3.get3rdPersonCameraOffset() + tes3vector3.new(0, 10, 0) })
-        else
-            tes3.set3rdPersonCameraOffset({ offset = tes3.get3rdPersonCameraOffset() - tes3vector3.new(0, 10, 0) })
-        end
-    end
-end
-
 -- Disable damage on select characters in travel, thanks Null
 --- @param e damageEventData
 local function damageInvincibilityGate(e)
@@ -235,7 +222,7 @@ function CPlayerTravelManager:destinationReached(force)
     log:debug("destinationReached, force %s", force)
 
     -- unregister events
-    event.unregister(tes3.event.mouseWheel, mouseWheelCallback)
+    event.unregister(tes3.event.mouseWheel, lib.mouseWheelCallback)
     event.unregister(tes3.event.damage, damageInvincibilityGate)
     event.unregister(tes3.event.activate, activateCallback)
     event.unregister(tes3.event.combatStart, forcedPacifism)
@@ -320,7 +307,7 @@ function CPlayerTravelManager:startTravel(start, destination, service, guide)
             local d = nextPos - startPos
             d:normalize()
             local facing = math.atan2(d.x, d.y)
-            local vehicle = lib.createVehicle(mountId, startPos, d, facing)
+            local vehicle = interop.createVehicle(mountId, startPos, d, facing)
             if not vehicle then
                 return
             end
@@ -329,7 +316,7 @@ function CPlayerTravelManager:startTravel(start, destination, service, guide)
             self.free_movement = false
 
             -- register travel events
-            event.register(tes3.event.mouseWheel, mouseWheelCallback)
+            event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
             event.register(tes3.event.damage, damageInvincibilityGate)
             event.register(tes3.event.activate, activateCallback)
             event.register(tes3.event.combatStart, forcedPacifism)

@@ -1,29 +1,77 @@
 local this = {}
 
+--#region vehicles
+
+
+---@type table<string, string?>
+this.vehicles = {
+    -- strider
+    ["a_siltstrider"] = "CSiltStrider",
+    -- boats
+    ["a_gondola_01"] = "CGondola",
+    ["a_longboat"] = "CLongboat",
+    ["a_DE_ship"] = "CShipDe",
+    ["a_mushroomdola_iv"] = nil,
+    ["a_sailboat_iv"] = nil,
+    ["a_rowboat_iv"] = nil,
+    ["a_telvcatboat_iv"] = nil,
+    -- creatures
+    ["a_cliffracer"] = nil,
+    ["a_nix-hound"] = nil,
+}
+
+--- get vehicle
+---@param mountId string
+---@param startPos tes3vector3
+---@param orientation tes3vector3
+---@param facing number
+---@return CVehicle?
+function this.createVehicle(mountId, startPos, orientation, facing)
+    -- get from vehicles table
+    if this.vehicles[mountId] then
+        local vehicle = require("ImmersiveTravel.Vehicles." .. this.vehicles[mountId])
+        return vehicle:create(startPos, orientation, facing)
+    end
+
+    return nil
+end
+
+--- get vehicle
+---@param mountId string
+---@return CVehicle?
+function this.newVehicle(mountId)
+    -- get from vehicles table
+    if this.vehicles[mountId] then
+        local vehicle = require("ImmersiveTravel.Vehicles." .. this.vehicles[mountId])
+        return vehicle:new()
+    end
+
+    return nil
+end
+
+--- get static vehicle data
+---@param mountId string
+---@return CVehicle?
+function this.getVehicleData(mountId)
+    -- get from vehicles table
+    if this.vehicles[mountId] then
+        local vehicle = require("ImmersiveTravel.Vehicles." .. this.vehicles[mountId])
+        return vehicle
+    end
+
+    return nil
+end
+
+--#endregion
+
+--#region quips
+
 -- Please generate a short text a guide NPC in Morrowind would say about this location.
 -- Keys are in the format "(-x, -y)" where x and y are the coordinates of the location.
 -- Note the whitespace!
 
----@type string[]
-this.vehicles = {
-    -- strider
-    "a_siltstrider",
-    -- boats
-    "a_gondola_01",
-    "a_longboat",
-    "a_DE_ship",
-    "a_mushroomdola_iv",
-    "a_sailboat_iv",
-    "a_rowboat_iv",
-    "a_telvcatboat_iv",
-    -- creatures
-    "a_cliffracer",
-    "a_nix-hound",
-}
-
 ---@type table<string, string>
 this.quips = {}
-
 
 -- insert to table
 function this.insertQuip(key, text)
@@ -109,3 +157,5 @@ Zainab Camp  (9, 10)
 Zaintirais  (12, -10)
 Zergonipal  (5, 15)
 ]]
+
+--#endregion

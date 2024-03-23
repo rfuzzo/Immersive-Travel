@@ -1,14 +1,5 @@
---[[
-Immersive Travel Mod
-v 1.1
-by rfuzzo
-
-mwse real-time travel mod
-
-
---]]
---
 local lib = require("ImmersiveTravel.lib")
+local interop = require("ImmersiveTravel.interop")
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
@@ -334,7 +325,7 @@ local function traceRoute(service)
         end
     end
 
-    local mountData = lib.getVehicleData(mountId)
+    local mountData = interop.getVehicleData(mountId)
     if not mountData then return end
 
     editorData.mount = createMount(start_point, next_point, mountId, mountData.offset)
@@ -588,7 +579,7 @@ local function createEditWindow()
             }
 
             -- preview slots
-            local mountData = lib.getVehicleData(mountId)
+            local mountData = interop.getVehicleData(mountId)
             if not mountData then return end
 
             local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot

@@ -1,4 +1,5 @@
 local lib = require("ImmersiveTravel.lib")
+local config = require("ImmersiveTravel.config")
 local CVehicle = require("ImmersiveTravel.Vehicles.CVehicle")
 
 -- Define the CSiltStrider class inheriting from CVehicle
@@ -51,7 +52,6 @@ setmetatable(CSiltStrider, { __index = CVehicle })
 ---@return CSiltStrider
 function CSiltStrider:create(position, orientation, facing)
     -- create reference
-    -- TODO this can be moved to the superclass
     local mountOffset = tes3vector3.new(0, 0, self.offset)
     local reference = tes3.createReference {
         object = self.id,
@@ -67,6 +67,22 @@ function CSiltStrider:create(position, orientation, facing)
     newObj:OnCreate()
 
     return newObj
+end
+
+-- overrides
+
+function CSiltStrider:PlayAnimation()
+    if self.forwardAnimation then
+        local mount = self.referenceHandle:getObject()
+
+        local forwardAnimation = self.forwardAnimation
+        if config.a_siltstrider_forwardAnimation then
+            forwardAnimation = config.a_siltstrider_forwardAnimation
+        end
+
+        tes3.loadAnimation({ reference = mount })
+        tes3.playAnimation({ reference = mount, group = tes3.animationGroup[forwardAnimation] })
+    end
 end
 
 return CSiltStrider

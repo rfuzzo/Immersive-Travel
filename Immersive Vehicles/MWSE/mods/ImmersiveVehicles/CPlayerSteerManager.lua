@@ -161,7 +161,7 @@ local function mountSimulatedCallback(e)
 
         vehicle.virtualDestination = target
 
-        -- todo render debug marker
+        -- todo debug
         -- if DEBUG and travelMarker then
         --     travelMarker.translation = target
         --     local m = tes3matrix33.new()
@@ -272,7 +272,7 @@ function CPlayerSteerManager:cleanup()
     if self.trackedVehicle then
         self.trackedVehicle:cleanup()
         self.trackedVehicle:Detach()
-        self.trackedVehicle = nil
+        self:Detach()
     end
 
     -- todo debug
@@ -284,24 +284,38 @@ function CPlayerSteerManager:cleanup()
     -- mountMarker = nil
 
     -- unregister events
-    --todo upvalue
-    --event.unregister(tes3.event.mouseWheel, mouseWheelCallback)
+    event.unregister(tes3.event.mouseWheel, lib.mouseWheelCallback)
     event.unregister(tes3.event.keyDown, mountKeyDownCallback)
     event.unregister(tes3.event.keyUp, keyUpCallback)
     event.unregister(tes3.event.simulated, mountSimulatedCallback)
 end
 
+---@param reference tes3reference
+local function isTracked(reference)
+    return reference.tempData.CPlayerSteerManager == true
+end
+
 ---
 ---@param reference tes3reference
 function CPlayerSteerManager:isOnMount(reference)
-    -- TODO
+    -- TODO debug
+    if reference == self.trackedVehicle.referenceHandle:getObject() then
+        log:debug("isOnMount equal reference")
+    end
+
+    if isTracked(reference) then
+        return self.trackedVehicle:isOnMount()
+    end
+
     return false
 end
 
 ---
 ---@param reference tes3reference
 function CPlayerSteerManager:destroy(reference)
-    -- TODO
+    if isTracked(reference) then
+        self.trackedVehicle:Delete()
+    end
 end
 
 function CPlayerSteerManager:destinationReached()
@@ -345,7 +359,7 @@ end
 --- set up everything
 ---@param mount tes3reference
 function CPlayerSteerManager:startTravel(mount)
-    local class = lib.getVehicleData(mount.id)
+    local class = interop.getVehicleData(mount.id)
     if not class then
         log:error("No data found for %s", mount.id)
         return
@@ -355,8 +369,7 @@ function CPlayerSteerManager:startTravel(mount)
     tes3.fadeOut({ duration = 1 })
 
     -- register events
-    -- todo upvalue
-    --event.register(tes3.event.mouseWheel, mouseWheelCallback)
+    event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
     event.register(tes3.event.keyDown, mountKeyDownCallback)
     event.register(tes3.event.keyUp, keyUpCallback)
     event.register(tes3.event.simulated, mountSimulatedCallback)
@@ -383,13 +396,15 @@ function CPlayerSteerManager:startTravel(mount)
             mount.orientation = tes3.player.orientation
 
             -- register vehicle with ticker
-            local vehicle = lib.newVehicle(mount.id)
+            local vehicle = interop.newVehicle(mount.id)
             if not vehicle then
                 return
             end
-            self.trackedVehicle = vehicle
+
+            self:Attach(vehicle)
             self.trackedVehicle.virtualDestination = mount.position
             -- TODO start state machine
+            vehicle:OnStartPlayerSteer()
 
             -- visualize debug marker
             -- TODO debug
@@ -406,6 +421,17 @@ function CPlayerSteerManager:startTravel(mount)
             -- end
         end)
     })
+end
+
+---@param vehicle CVehicle
+function CPlayerSteerManager:Attach(vehicle)
+    self.trackedVehicle = vehicle
+    self.trackedVehicle.referenceHandle:getObject().tempData.CPlayerSteerManager = true
+end
+
+function CPlayerSteerManager:Detach()
+    self.trackedVehicle.referenceHandle:getObject().tempData.CPlayerSteerManager = false
+    self.trackedVehicle = nil
 end
 
 --#endregion
@@ -440,7 +466,7 @@ end
 --- @param id string
 ---@return boolean
 local function trySpawnBoat(ref, id)
-    local data = lib.getVehicleData(id)
+    local data = interop.getVehicleData(id)
     if not data then
         log:error("No data found for %s", id)
         return false
@@ -589,7 +615,7 @@ function CPlayerSteerManager.createPurchaseTopic(menu, ref)
         local buttons = {}
 
         for _, id in ipairs(interop.vehicles) do
-            local class = lib.getVehicleData(id)
+            local class = interop.getVehicleData(id)
             if not class then
                 goto continue
             end
