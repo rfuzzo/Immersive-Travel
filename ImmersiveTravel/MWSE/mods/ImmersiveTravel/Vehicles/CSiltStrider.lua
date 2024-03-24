@@ -18,6 +18,7 @@ local CSiltStrider = {
     speed = 3,
     turnspeed = 30,
     hasFreeMovement = false,
+    freedomtype = "ground",
     forwardAnimation = "runForward",
     nodeName = "Body",
     nodeOffset = tes3vector3.new(0, 56, 1005),

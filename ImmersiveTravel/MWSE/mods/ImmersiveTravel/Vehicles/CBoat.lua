@@ -4,6 +4,7 @@ local CVehicle = require("ImmersiveTravel.Vehicles.CVehicle")
 ---@class CBoat : CVehicle
 local CBoat = {
     sound = { "Boat Hull" },
+    freedomtype = "boat",
 }
 setmetatable(CBoat, { __index = CVehicle })
 

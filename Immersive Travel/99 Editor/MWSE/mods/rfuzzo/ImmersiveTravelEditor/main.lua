@@ -325,7 +325,7 @@ local function traceRoute(service)
         end
     end
 
-    local mountData = interop.getVehicleData(mountId)
+    local mountData = interop.getVehicleStaticData(mountId)
     if not mountData then return end
 
     editorData.mount = createMount(start_point, next_point, mountId, mountData.offset)
@@ -579,7 +579,7 @@ local function createEditWindow()
             }
 
             -- preview slots
-            local mountData = interop.getVehicleData(mountId)
+            local mountData = interop.getVehicleStaticData(mountId)
             if not mountData then return end
 
             local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot

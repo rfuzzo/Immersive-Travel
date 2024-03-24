@@ -15,6 +15,7 @@ local CLongboat = {
     speed = 3,
     turnspeed = 10,
     hasFreeMovement = true,
+    freedomtype = "boat",
     guideSlot = {
         animationGroup = {},
         position = tes3vector3.new(-25, -823, 360)

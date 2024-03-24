@@ -190,7 +190,7 @@ CraftingFramework.Material:registerMaterials(materials)
 ---get recipe with data
 ---@param id string
 local function getRecipeFor(id)
-    local class = interop.getVehicleData(id)
+    local class = interop.getVehicleStaticData(id)
     if not class then
         return nil
     end

@@ -44,24 +44,20 @@ local function mountKeyDownCallback(e)
     if not vehicle then
         return
     end
-    local mountData = vehicle.userData
-    if not mountData then
-        return
-    end
     local mountHandle = vehicle.referenceHandle
 
-    if mountHandle and mountHandle:valid() and mountData then
+    if mountHandle and mountHandle:valid() then
         if e.keyCode == tes3.scanCode["w"] then
             -- increment speed
-            if vehicle.current_speed < mountData.maxSpeed then
+            if vehicle.current_speed < vehicle.maxSpeed then
                 this.speedChange = 1
                 -- play anim
-                if mountData.accelerateAnimation then
+                if vehicle.accelerateAnimation then
                     tes3.loadAnimation({ reference = mountHandle:getObject() })
                     tes3.playAnimation({
                         reference = mountHandle:getObject(),
                         group = tes3.animationGroup
-                            [mountData.accelerateAnimation]
+                            [vehicle.accelerateAnimation]
                     })
                 end
             end
@@ -69,15 +65,15 @@ local function mountKeyDownCallback(e)
 
         if e.keyCode == tes3.scanCode["s"] then
             -- decrement speed
-            if vehicle.current_speed > mountData.minSpeed then
+            if vehicle.current_speed > vehicle.minSpeed then
                 this.speedChange = -1
                 -- play anim
-                if mountData.accelerateAnimation then
+                if vehicle.accelerateAnimation then
                     tes3.loadAnimation({ reference = mountHandle:getObject() })
                     tes3.playAnimation({
                         reference = mountHandle:getObject(),
                         group = tes3.animationGroup
-                            [mountData.accelerateAnimation]
+                            [vehicle.accelerateAnimation]
                     })
                 end
             end
@@ -126,18 +122,13 @@ local function mountSimulatedCallback(e)
     if not vehicle then
         return
     end
-    local mountData = vehicle.userData
-    if not mountData then
-        return
-    end
     local mountHandle = vehicle.referenceHandle
 
     -- update next pos
-    if mountHandle and mountHandle:valid() and
-        mountData then
+    if mountHandle and mountHandle:valid() then
         local mount = mountHandle:getObject()
         local dist = 2048
-        if mountData.freedomtype == "ground" then
+        if vehicle.freedomtype == "ground" then
             dist = 100
         end
         local target = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * dist
@@ -146,10 +137,10 @@ local function mountSimulatedCallback(e)
         if isControlDown then
             target = mount.sceneNode.worldTransform * tes3vector3.new(0, 2048, 0)
         end
-        if mountData.freedomtype == "boat" then
+        if vehicle.freedomtype == "boat" then
             -- pin to waterlevel
             target.z = 0
-        elseif mountData.freedomtype == "ground" then
+        elseif vehicle.freedomtype == "ground" then
             -- pin to groundlevel
             local z = lib.getGroundZ(target + tes3vector3.new(0, 0, 100))
             if not z then
@@ -176,7 +167,7 @@ local function mountSimulatedCallback(e)
     end
 
     -- collision
-    if mountHandle and mountHandle:valid() and mountData then
+    if mountHandle and mountHandle:valid() then
         -- raytest at sealevel to detect shore transition
         local box = mountHandle:getObject().object.boundingBox
         local max = box.max * vehicle.scale
@@ -185,7 +176,7 @@ local function mountSimulatedCallback(e)
 
         if vehicle.current_speed > 0 then
             -- detect shore
-            if mountData.freedomtype == "boat" then
+            if vehicle.freedomtype == "boat" then
                 local bowPos = t * tes3vector3.new(0, max.y, min.z + (vehicle.offset * vehicle.scale))
                 local hitResult1 = tes3.rayTest({
                     position = bowPos,
@@ -220,7 +211,7 @@ local function mountSimulatedCallback(e)
             end
         elseif vehicle.current_speed < 0 then
             -- detect shore
-            if mountData.freedomtype == "boat" then
+            if vehicle.freedomtype == "boat" then
                 local sternPos = t * tes3vector3.new(0, min.y, min.z + (vehicle.offset * vehicle.scale))
                 local hitResult1 = tes3.rayTest({
                     position = sternPos,
@@ -316,7 +307,7 @@ end
 --- set up everything
 ---@param mount tes3reference
 function CPlayerSteerManager:StartSteer(mount)
-    local class = interop.getVehicleData(mount.id)
+    local class = interop.getVehicleStaticData(mount.id)
     if not class then
         log:error("No data found for %s", mount.id)
         return
@@ -334,7 +325,7 @@ function CPlayerSteerManager:StartSteer(mount)
             tes3.fadeIn({ duration = 1 })
 
             -- position mount at ground level
-            if class.userData.freedomtype ~= "boat" then
+            if class.freedomtype ~= "boat" then
                 local top = tes3vector3.new(0, 0, mount.object.boundingBox.max.z)
                 local z = lib.getGroundZ(mount.position + top)
                 if not z then
@@ -451,7 +442,7 @@ end
 --- @param id string
 ---@return boolean
 local function trySpawnBoat(ref, id)
-    local data = interop.getVehicleData(id)
+    local data = interop.getVehicleStaticData(id)
     if not data then
         log:error("No data found for %s", id)
         return false
@@ -600,7 +591,7 @@ function CPlayerSteerManager.createPurchaseTopic(menu, ref)
         local buttons = {}
 
         for _, id in ipairs(interop.vehicles) do
-            local class = interop.getVehicleData(id)
+            local class = interop.getVehicleStaticData(id)
             if not class then
                 goto continue
             end
@@ -611,7 +602,7 @@ function CPlayerSteerManager.createPurchaseTopic(menu, ref)
 
             -- check if data is a boat
             -- TODO message by vehicle
-            if data and data.freedomtype == "boat" then
+            if class.freedomtype == "boat" then
                 local buttonText = string.format("Buy %s for %s gold", data.name, data.price)
                 table.insert(buttons, {
                     text = buttonText,

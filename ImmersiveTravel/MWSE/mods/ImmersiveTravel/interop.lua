@@ -52,7 +52,7 @@ end
 --- get static vehicle data
 ---@param mountId string
 ---@return CVehicle?
-function this.getVehicleData(mountId)
+function this.getVehicleStaticData(mountId)
     -- get from vehicles table
     if this.vehicles[mountId] then
         local vehicle = require("ImmersiveTravel.Vehicles." .. this.vehicles[mountId])

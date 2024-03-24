@@ -15,6 +15,7 @@ local CShipDe = {
     speed = 4,
     turnspeed = 24,
     hasFreeMovement = true,
+    freedomtype = "boat",
     guideSlot = {
         animationGroup = {},
         position = tes3vector3.new(67, -457, -65)

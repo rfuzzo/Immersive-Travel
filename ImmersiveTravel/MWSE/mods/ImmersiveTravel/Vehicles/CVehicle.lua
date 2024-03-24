@@ -22,19 +22,11 @@ local log = lib.log
 ---@field handle mwseSafeObjectHandle?
 ---@field node niNode?
 
----@class VehicleData
----@field minSpeed number?
----@field maxSpeed number?
----@field changeSpeed number?
----@field freedomtype string? -- flying, boat, ground
----@field accelerateAnimation string? -- animation to play while accelerating. slowing
+---@class UserData
 ---@diagnostic disable-next-line: undefined-doc-name
 ---@field materials CraftingFramework.MaterialRequirement[]? -- recipe materials for crafting the mount
 ---@field name string? -- name of the mount
 ---@field price number? -- price of the mount
----@field length number? -- length of the mount
----@field width number? -- width of the mount
-
 
 -- Define the CVehicle class inheriting from CTickingEntity
 -- TODO refactor into serialized data
@@ -45,9 +37,14 @@ local log = lib.log
 ---@field mesh string The mount mesh path
 ---@field offset number The mount offset to ground
 ---@field sway number The sway intensity
----@field speed number forward speed
 ---@field turnspeed number turning speed
 ---@field hasFreeMovement boolean turning speed
+---@field speed number travel speed
+---@field maxSpeed number
+---@field freedomtype string flying, boat, ground
+-- optionals
+---@field changeSpeed number? -- default 1
+---@field minSpeed number?
 ---@field slots Slot[]
 ---@field guideSlot Slot?
 ---@field hiddenSlot HiddenSlot?
@@ -56,7 +53,8 @@ local log = lib.log
 ---@field nodeName string? -- niNode, slots are relative tho this
 ---@field nodeOffset tes3vector3? -- position of the nodeName relative to sceneNode
 ---@field forwardAnimation string? -- walk animation
----@field userData VehicleData?
+---@field accelerateAnimation string? -- animation to play while accelerating. slowing
+---@field userData UserData?
 -- runtime data
 ---@field last_position tes3vector3
 ---@field last_forwardDirection tes3vector3
@@ -78,6 +76,7 @@ local CVehicle = {
     turnspeed = 0,
     hasFreeMovement = false,
     slots = {},
+    changeSpeed = 1,
     -- runtime
     swayTime = 0,
     splineIndex = 1,
