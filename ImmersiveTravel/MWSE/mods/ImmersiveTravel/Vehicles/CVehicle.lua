@@ -37,6 +37,7 @@ local log = lib.log
 
 
 -- Define the CVehicle class inheriting from CTickingEntity
+-- TODO refactor into serialized data
 ---@class CVehicle : CTickingEntity
 ---@field id string
 ---@field sound string[] The mount sound id
@@ -77,17 +78,9 @@ local CVehicle = {
     turnspeed = 0,
     hasFreeMovement = false,
     slots = {},
-    guideSlot = nil,
-    hiddenSlot = nil,
-    clutter = nil,
-    scale = nil,
-    nodeName = nil,
-    nodeOffset = nil,
-    forwardAnimation = nil,
     -- runtime
     swayTime = 0,
     splineIndex = 1,
-    virtualDestination = nil,
     current_speed = 0,
 }
 setmetatable(CVehicle, { __index = CTickingEntity })
@@ -117,15 +110,6 @@ function CVehicle:register(reference)
 end
 
 --#region events
-
-function CVehicle:PlayAnimation()
-    if self.forwardAnimation then
-        local mount = self.referenceHandle:getObject()
-        tes3.loadAnimation({ reference = mount })
-        local forwardAnimation = self.forwardAnimation
-        tes3.playAnimation({ reference = mount, group = tes3.animationGroup[forwardAnimation] })
-    end
-end
 
 --- OnCreate is called when the vehicle is created
 function CVehicle:OnCreate()
@@ -181,8 +165,15 @@ function CVehicle:OnCreate()
     end
 end
 
---- OnStartPlayerSteer is called when the player starts steering
-function CVehicle:OnStartPlayerSteer()
+--#endregion
+
+--#region CVehicle methods
+
+--- StartPlayerSteer is called when the player starts steering
+function CVehicle:StartPlayerSteer()
+    log:debug("StartPlayerSteer %s", self.id)
+    self:OnCreate()
+
     -- register player
     log:debug("\tregistering player")
     self:registerGuide(tes3.makeSafeObjectHandle(tes3.player))
@@ -190,12 +181,18 @@ function CVehicle:OnStartPlayerSteer()
 
     -- register followers
     self:RegisterFollowers()
+
+    -- TODO push state PLAYERSTEER
 end
 
---- OnStartPlayerTravel is called when the player starts traveling
+function CVehicle:EndPlayerSteer()
+    self:release()
+end
+
+--- StartPlayerTravel is called when the player starts traveling
 ---@param guideId string The ID of the guide object.
 ---@param spline PositionRecord[] The spline to travel on.
-function CVehicle:OnStartPlayerTravel(spline, guideId)
+function CVehicle:StartPlayerTravel(spline, guideId)
     local mount = self.referenceHandle:getObject()
 
     self.currentSpline = spline
@@ -223,9 +220,20 @@ function CVehicle:OnStartPlayerTravel(spline, guideId)
 
     -- register passengers
     self:RegisterPassengers()
+
+    -- TODO push state ONSPLINE
 end
 
-function CVehicle:OnEndPlayerTravel()
+function CVehicle:EndPlayerTravel()
+    self:release()
+end
+
+function CVehicle:release()
+    -- reset player
+    tes3.mobilePlayer.movementCollision = true;
+    tes3.loadAnimation({ reference = tes3.player })
+    tes3.playAnimation({ reference = tes3.player, group = 0 })
+
     -- teleport followers
     for index, slot in ipairs(self.slots) do
         if slot.handle and slot.handle:valid() then
@@ -280,10 +288,6 @@ function CVehicle:OnEndPlayerTravel()
     self:cleanup()
 end
 
-function CVehicle:OnDestinationReached()
-    CPlayerTravelManager.getInstance():OnDestinationReached()
-end
-
 --#endregion
 
 --#region CTickingEntity methods
@@ -304,22 +308,28 @@ function CVehicle:OnTick(dt)
 
     self:UpdatePlayerCollision()
 
-    -- todo state machine
+    -- TODO states
     self:Move(dt)
 end
 
 ---@param dt number
 function CVehicle:Move(dt)
-    if self.currentSpline == nil then
-        return
-    end
-
-    -- move to next marker
-    if self.splineIndex > #self.currentSpline then
-        self:OnDestinationReached()
+    if not self.referenceHandle:valid() then
         return
     end
     local mount = self.referenceHandle:getObject()
+
+    -- move on spline
+    if self.currentSpline == nil then
+        return
+    end
+    -- move to next marker
+    if self.splineIndex > #self.currentSpline then
+        CPlayerTravelManager.getInstance():OnDestinationReached()
+        -- TODO push state IDLE
+        return
+    end
+
     local nextPos = lib.vec(self.currentSpline[self.splineIndex])
     local isBehind = lib.isPointBehindObject(nextPos, mount.position, mount.forwardDirection)
     if isBehind then
@@ -551,7 +561,6 @@ function CVehicle:UpdateSlots(dt)
     end
 end
 
---- Get root scene node
 ---@return nil
 function CVehicle:GetRootBone()
     if not self.referenceHandle then
@@ -591,6 +600,16 @@ end
 --#endregion
 
 --#region CVehicle methods
+
+
+function CVehicle:PlayAnimation()
+    if self.forwardAnimation then
+        local mount = self.referenceHandle:getObject()
+        tes3.loadAnimation({ reference = mount })
+        local forwardAnimation = self.forwardAnimation
+        tes3.playAnimation({ reference = mount, group = tes3.animationGroup[forwardAnimation] })
+    end
+end
 
 function CVehicle:RegisterFollowers()
     local followers = lib.getFollowers()

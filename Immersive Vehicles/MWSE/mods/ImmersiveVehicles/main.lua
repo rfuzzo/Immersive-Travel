@@ -11,38 +11,14 @@ local DEBUG = false
 
 local localmodpath = "mods\\ImmersiveVehicles\\"
 local fullmodpath = "Data Files\\MWSE\\" .. localmodpath
+
+-- TODO debug
 local travelMarkerId = "marker_arrow.nif"
 local travelMarkerMesh = nil
 local mountMarkerMesh = nil
 local travelMarker = nil ---@type niNode?
 local mountMarker = nil ---@type niNode?
-
-
 local editmode = false
-
-
-
---- activate the vehicle
----@param reference tes3reference
-local function activateMount(reference)
-    if lib.validMount(reference.id) then
-        if CPlayerSteerManager.getInstance():isOnMount(reference) then
-            -- stop
-            CPlayerSteerManager.getInstance():destinationReached()
-        else
-            -- start
-            CPlayerSteerManager.getInstance():startTravel(reference)
-        end
-    end
-end
-
---- destroy the vehicle
----@param reference tes3reference
-local function destroyMount(reference)
-    -- stop
-    CPlayerSteerManager.getInstance():destinationReached()
-    CPlayerSteerManager.getInstance():destroy(reference)
-end
 
 --[[
 
@@ -143,7 +119,7 @@ event.register(tes3.event.simulated, simulatedCallback)
 
 --- @param e activateEventData
 local function activateCallback(e)
-    activateMount(e.target)
+    CPlayerSteerManager.getInstance():OnActivate(e.target)
 end
 event.register(tes3.event.activate, activateCallback)
 
@@ -179,14 +155,14 @@ if not CraftingFramework then return end
 local enterVehicle = {
     text = "Get in/out",
     callback = function(e)
-        activateMount(e.reference)
+        CPlayerSteerManager.getInstance():OnActivate(e.reference)
     end
 }
 
 local destroyVehicle = {
     text = "Destroy",
     callback = function(e)
-        destroyMount(e.reference)
+        CPlayerSteerManager.getInstance():OnDestroy(e.reference)
     end
 }
 
@@ -231,7 +207,9 @@ local function getRecipeFor(id)
             craftedOnly = false,
             additionalMenuOptions = { enterVehicle, destroyVehicle },
             -- secondaryMenu         = false,
-            quickActivateCallback = function(_, e) activateMount(e.reference) end
+            quickActivateCallback = function(_, e)
+                CPlayerSteerManager.getInstance():OnActivate(e.reference)
+            end
         }
 
         return recipe

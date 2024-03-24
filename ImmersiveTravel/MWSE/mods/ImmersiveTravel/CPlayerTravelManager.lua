@@ -182,7 +182,7 @@ local function uiShowRestMenuCallback(e)
                                     position = lib.vec(mount.currentSpline[#mount.currentSpline])
                                 })
                                 -- then to destination
-                                CPlayerTravelManager.getInstance():destinationReached(true)
+                                CPlayerTravelManager.getInstance():EndTravel(true)
                             end
                         end)
                     })
@@ -210,7 +210,7 @@ function CPlayerTravelManager:OnDestinationReached()
         duration = 1,
         callback = (function()
             tes3.fadeIn()
-            self:destinationReached(false)
+            self:EndTravel(false)
         end)
     })
 end
@@ -218,8 +218,20 @@ end
 -- start the travel
 -- what happens when we reach the destination
 ---@param force boolean
-function CPlayerTravelManager:destinationReached(force)
-    log:debug("destinationReached, force %s", force)
+function CPlayerTravelManager:EndTravel(force)
+    log:debug("CPlayerTravelManager:destinationReached, force %s", force)
+
+    -- teleport player to closest marker
+    if force then
+        lib.teleportToClosestMarker()
+    else
+        if self:isTraveling() then lib.teleportToClosestMarker() end
+    end
+
+    self.trackedVehicle:EndPlayerTravel()
+
+    self.trackedVehicle:Delete()
+    self.trackedVehicle = nil
 
     -- unregister events
     event.unregister(tes3.event.mouseWheel, lib.mouseWheelCallback)
@@ -231,24 +243,6 @@ function CPlayerTravelManager:destinationReached(force)
     event.unregister(tes3.event.save, saveCallback)
     event.unregister(tes3.event.preventRest, preventRestCallback)
     event.unregister(tes3.event.cellChanged, cellChangedCallback)
-
-    -- reset player
-    tes3.mobilePlayer.movementCollision = true;
-    tes3.loadAnimation({ reference = tes3.player })
-    tes3.playAnimation({ reference = tes3.player, group = 0 })
-
-    if force then
-        lib.teleportToClosestMarker()
-    else
-        if self:isTraveling() then lib.teleportToClosestMarker() end
-    end
-
-    if self.trackedVehicle then
-        self.trackedVehicle:OnEndPlayerTravel()
-
-        -- delete vehicle
-        self.trackedVehicle:Delete()
-    end
 end
 
 --- set up everything
@@ -256,7 +250,7 @@ end
 ---@param destination string
 ---@param service ServiceData
 ---@param guide tes3reference
-function CPlayerTravelManager:startTravel(start, destination, service, guide)
+function CPlayerTravelManager:StartTravel(start, destination, service, guide)
     -- checks
     if guide == nil then return end
 
@@ -311,7 +305,7 @@ function CPlayerTravelManager:startTravel(start, destination, service, guide)
             if not vehicle then
                 return
             end
-            vehicle:OnStartPlayerTravel(currentSpline, guide.baseObject.id)
+            vehicle:StartPlayerTravel(currentSpline, guide.baseObject.id)
             self.trackedVehicle = vehicle
             self.free_movement = false
 
@@ -383,7 +377,7 @@ local function createTravelWindow(service, guide)
         }
 
         button:register(tes3.uiEvent.mouseClick, function()
-            CPlayerTravelManager:getInstance():startTravel(tes3.player.cell.id, name, service, guide)
+            CPlayerTravelManager:getInstance():StartTravel(tes3.player.cell.id, name, service, guide)
         end)
     end
     pane:getContentElement():sortChildren(function(a, b)

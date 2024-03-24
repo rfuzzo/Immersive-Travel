@@ -261,19 +261,42 @@ end
 
 --#region travel
 
-function CPlayerSteerManager:cleanup()
-    log:debug("CPlayerSteerManager cleanup")
+--- activate the vehicle, start or stop steer
+---@param reference tes3reference
+function CPlayerSteerManager:OnActivate(reference)
+    if lib.validMount(reference.id) then
+        if self:isOnMount(reference) then
+            -- stop
+            self:OnPlayerStopSteer()
+        else
+            -- start
+            self:StartSteer(reference)
+        end
+    end
+end
 
+--- destroy the vehicle
+---@param reference tes3reference
+function CPlayerSteerManager:OnDestroy(reference)
+    -- stop
+    self:OnPlayerStopSteer()
+    self:destroy(reference)
+end
+
+function CPlayerSteerManager:OnPlayerStopSteer()
+    log:debug("CPlayerSteerManager:OnPlayerStopSteer")
+
+    -- reset camera
     if self.cameraOffset then
         tes3.set3rdPersonCameraOffset({ offset = self.cameraOffset })
     end
 
+    self.trackedVehicle:EndPlayerSteer()
+
     -- don't delete ref since we may want to use the mount later
-    if self.trackedVehicle then
-        self.trackedVehicle:cleanup()
-        self.trackedVehicle:Detach()
-        self:Detach()
-    end
+    self.trackedVehicle:cleanup()
+    self.trackedVehicle:Detach()
+    self:Detach()
 
     -- todo debug
     -- local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
@@ -290,75 +313,9 @@ function CPlayerSteerManager:cleanup()
     event.unregister(tes3.event.simulated, mountSimulatedCallback)
 end
 
----@param reference tes3reference
-local function isTracked(reference)
-    return reference.tempData.CPlayerSteerManager == true
-end
-
----
----@param reference tes3reference
-function CPlayerSteerManager:isOnMount(reference)
-    -- TODO debug
-    if reference == self.trackedVehicle.referenceHandle:getObject() then
-        log:debug("isOnMount equal reference")
-    end
-
-    if isTracked(reference) then
-        return self.trackedVehicle:isOnMount()
-    end
-
-    return false
-end
-
----
----@param reference tes3reference
-function CPlayerSteerManager:destroy(reference)
-    if isTracked(reference) then
-        self.trackedVehicle:Delete()
-    end
-end
-
-function CPlayerSteerManager:destinationReached()
-    log:debug("destinationReached")
-
-    -- reset player
-    tes3.mobilePlayer.movementCollision = true;
-    tes3.loadAnimation({ reference = tes3.player })
-    tes3.playAnimation({ reference = tes3.player, group = 0 })
-
-    -- teleport followers
-    if self.trackedVehicle then
-        for index, slot in ipairs(self.trackedVehicle.slots) do
-            if slot.handle and slot.handle:valid() then
-                local ref = slot.handle:getObject()
-                if ref ~= tes3.player and ref.mobile and
-                    lib.isFollower(ref.mobile) then
-                    log:debug("teleporting follower " .. ref.id)
-
-                    ref.mobile.movementCollision = true;
-                    tes3.loadAnimation({ reference = ref })
-                    tes3.playAnimation({ reference = ref, group = 0 })
-
-                    local f = tes3.player.forwardDirection
-                    f:normalize()
-                    local offset = f * 60.0
-                    tes3.positionCell({
-                        reference = ref,
-                        position = tes3.player.position + offset
-                    })
-
-                    slot.handle = nil
-                end
-            end
-        end
-    end
-
-    self:cleanup()
-end
-
 --- set up everything
 ---@param mount tes3reference
-function CPlayerSteerManager:startTravel(mount)
+function CPlayerSteerManager:StartSteer(mount)
     local class = interop.getVehicleData(mount.id)
     if not class then
         log:error("No data found for %s", mount.id)
@@ -367,13 +324,6 @@ function CPlayerSteerManager:startTravel(mount)
 
     -- fade out
     tes3.fadeOut({ duration = 1 })
-
-    -- register events
-    event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
-    event.register(tes3.event.keyDown, mountKeyDownCallback)
-    event.register(tes3.event.keyUp, keyUpCallback)
-    event.register(tes3.event.simulated, mountSimulatedCallback)
-
 
     -- fade back in
     timer.start({
@@ -402,9 +352,13 @@ function CPlayerSteerManager:startTravel(mount)
             end
 
             self:Attach(vehicle)
-            self.trackedVehicle.virtualDestination = mount.position
-            -- TODO start state machine
-            vehicle:OnStartPlayerSteer()
+            vehicle:StartPlayerSteer()
+
+            -- register events
+            event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
+            event.register(tes3.event.keyDown, mountKeyDownCallback)
+            event.register(tes3.event.keyUp, keyUpCallback)
+            event.register(tes3.event.simulated, mountSimulatedCallback)
 
             -- visualize debug marker
             -- TODO debug
@@ -423,6 +377,22 @@ function CPlayerSteerManager:startTravel(mount)
     })
 end
 
+--#endregion
+
+--#region methods
+
+---@param reference tes3reference
+local function isTracked(reference)
+    return reference.tempData.CPlayerSteerManager == true
+end
+
+---@param reference tes3reference
+function CPlayerSteerManager:destroy(reference)
+    if isTracked(reference) then
+        self.trackedVehicle:Delete()
+    end
+end
+
 ---@param vehicle CVehicle
 function CPlayerSteerManager:Attach(vehicle)
     self.trackedVehicle = vehicle
@@ -432,6 +402,21 @@ end
 function CPlayerSteerManager:Detach()
     self.trackedVehicle.referenceHandle:getObject().tempData.CPlayerSteerManager = false
     self.trackedVehicle = nil
+end
+
+---
+---@param reference tes3reference
+function CPlayerSteerManager:isOnMount(reference)
+    -- TODO debug
+    if reference == self.trackedVehicle.referenceHandle:getObject() then
+        log:debug("isOnMount equal reference")
+    end
+
+    if isTracked(reference) then
+        return self.trackedVehicle:isOnMount()
+    end
+
+    return false
 end
 
 --#endregion
