@@ -2,7 +2,7 @@ local this = {}
 
 --#region vehicles
 
-
+-- TODO move to interop
 ---@type table<string, string?>
 this.vehicles = {
     -- strider
@@ -11,14 +11,21 @@ this.vehicles = {
     ["a_gondola_01"] = "CGondola",
     ["a_longboat"] = "CLongboat",
     ["a_DE_ship"] = "CShipDe",
-    ["a_mushroomdola_iv"] = nil,
-    ["a_sailboat_iv"] = nil,
+    ["a_mushroomdola_iv"] = "CMushroomdola",
+    ["a_sailboat_iv"] = "CSailboat",
     ["a_rowboat_iv"] = "CRowboat",
-    ["a_telvcatboat_iv"] = nil,
+    ["a_telvcatboat_iv"] = "CTelvcatboat",
     -- creatures
     ["a_cliffracer"] = nil,
     ["a_nix-hound"] = nil,
 }
+
+-- insert to table
+---@param id string
+---@param className string
+function this.insertVehicle(id, className)
+    this.vehicles[id] = className
+end
 
 --- get vehicle
 ---@param mountId string
@@ -74,6 +81,8 @@ end
 this.quips = {}
 
 -- insert to table
+---@param key string
+---@param text string
 function this.insertQuip(key, text)
     this.quips[key] = text
 end

@@ -9,10 +9,12 @@ local CGondola = {
     },
     loopSound = true,
     mesh = "x\\Ex_Gondola_01_rot.nif",
+    scale = 0.7, --TODO only for player
     offset = 40,
     sway = 1,
     speed = 2,
-    maxSpeed = 2,
+    minSpeed = -2,
+    maxSpeed = 7,
     turnspeed = 40,
     hasFreeMovement = false,
     freedomtype = "boat",
@@ -52,7 +54,25 @@ local CGondola = {
             id = "light_de_paper_lantern_04_nr",
             position = tes3vector3.new(0, 176, 17)
         }
-    }
+    },
+    userData = {
+        name = "Gondola",
+        price = 300,
+        materials = {
+            { material = "wood",   count = 12 },
+            { material = "rope",   count = 6 },
+            { material = "fabric", count = 4 },
+        },
+        -- TODO
+        -- overrides the default boat scale
+        scale = 0.7,
+        -- overrides the default guide slot
+        guideSlot = {
+            animationGroup = { "idle6" },
+            animationFile = "VA_sitting.nif",
+            position = tes3vector3.new(0, -82, -15)
+        },
+    },
 
 }
 setmetatable(CGondola, { __index = CBoat })

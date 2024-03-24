@@ -29,7 +29,6 @@ local log = lib.log
 ---@field price number? -- price of the mount
 
 -- Define the CVehicle class inheriting from CTickingEntity
--- TODO refactor into serialized data
 ---@class CVehicle : CTickingEntity
 ---@field id string
 ---@field sound string[] The mount sound id
@@ -112,13 +111,6 @@ function CVehicle:create(reference)
     ---@cast newObj CVehicle
 
     return newObj
-end
-
----Register the vehicle
----@param reference tes3reference
-function CVehicle:register(reference)
-    -- call superclass register method
-    CTickingEntity.register(self, reference)
 end
 
 --#region events
