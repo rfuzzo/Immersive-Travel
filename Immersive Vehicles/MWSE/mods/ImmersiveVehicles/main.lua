@@ -1,5 +1,4 @@
 local lib = require("ImmersiveVehicles.lib")
-local interop = require("ImmersiveTravel.interop")
 local CPlayerSteerManager = require("ImmersiveVehicles.CPlayerSteerManager")
 
 local log = lib.log
@@ -133,7 +132,7 @@ local function onMenuDialog(e)
         local obj = ref.baseObject
         local npc = obj ---@cast obj tes3npc
 
-        -- check if npc is Shipmaster
+        -- TODO check if npc is Shipmaster
         if npc.class.id == "Shipmaster" then
             log:debug("createPurchaseTopic for %s", npc.id)
             CPlayerSteerManager.createPurchaseTopic(menuDialog, ref)
@@ -143,11 +142,24 @@ local function onMenuDialog(e)
 end
 event.register("uiActivated", onMenuDialog, { filter = "MenuDialog" })
 
+--#region immersive travel integration
 
+local interop = require("ImmersiveTravel.interop")
+if not interop then return end
 
--- //////////////////////////////////////////////////////////////////////////////////////////
--- CRAFTING FRAMEWORK
---#region CRAFTING FRAMEWORK
+-- boats
+interop.insertVehicle("a_mushroomdola_iv", "CMushroomdola")
+interop.insertVehicle("a_sailboat_iv", "CSailboat")
+interop.insertVehicle("a_rowboat_iv", "CRowboat")
+interop.insertVehicle("a_telvcatboat_iv", "CTelvcatboat")
+interop.insertVehicle("a_canoe_01", "CCanoe")
+-- creatures TODO
+-- interop.insertVehicle("a_cliffracer", nil)
+-- interop.insertVehicle("a_nix-hound", nil)
+
+--#endregion
+
+--#region crafting framework integration
 
 local CraftingFramework = include("CraftingFramework")
 if not CraftingFramework then return end

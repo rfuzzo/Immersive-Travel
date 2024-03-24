@@ -187,6 +187,7 @@ function CVehicle:StartPlayerSteer()
     self:RegisterFollowers()
 
     -- TODO push state PLAYERSTEER
+    self.currentState = EVehicleState.MOVING
 end
 
 function CVehicle:EndPlayerSteer()

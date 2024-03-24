@@ -4,10 +4,14 @@ local TrackingManager = require("ImmersiveTravel.CTrackingManager")
 ---@class CTickingEntity
 ---@field referenceHandle mwseSafeObjectHandle
 ---@field id string?
+---@field locomotionState CLocomotionState
+---@field aiState CAiState
 local CTickingEntity = {
     -- Reference handle to the entity
     referenceHandle = tes3.makeSafeObjectHandle(nil),
-    id = nil
+    id = nil,
+    locomotionState = CLocomotionState.IDLE,
+    aiState = CAiState.NONE
 }
 
 
@@ -17,6 +21,8 @@ function CTickingEntity:new()
     ---@type CTickingEntity
     local newObj = {
         referenceHandle = tes3.makeSafeObjectHandle(nil),
+        locomotionState = CLocomotionState.IDLE,
+        aiState = CAiState.NONE
     }
     setmetatable(newObj, self)
     self.__index = self
@@ -31,7 +37,9 @@ function CTickingEntity:create(reference)
     ---@type CTickingEntity
     local newObj = {
         referenceHandle = tes3.makeSafeObjectHandle(reference),
-        id = reference.id
+        id = reference.id,
+        locomotionState = CLocomotionState.IDLE,
+        aiState = CAiState.NONE
     }
     setmetatable(newObj, self)
     self.__index = self
@@ -54,10 +62,19 @@ function CTickingEntity:Attach()
     TrackingManager.getInstance():AddEntity(self)
 end
 
+function CTickingEntity:UpdateState()
+    -- Update state based on conditions, e.g., speed, user input, etc.
+    -- Override this method in subclasses
+end
+
 ---Called on each tick of the timer
 ---@param dt number
 function CTickingEntity:OnTick(dt)
     -- Override this method in subclasses
+    self:UpdateState()
+
+    self.locomotionState:OnTick(dt)
+    self.aiState:OnTick(dt)
 end
 
 -- Define the base class CTickingEntity

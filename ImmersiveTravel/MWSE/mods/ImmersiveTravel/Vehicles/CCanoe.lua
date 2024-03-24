@@ -1,17 +1,17 @@
 local CBoat = require("ImmersiveTravel.Vehicles.CBoat")
 
--- Define the CGondola class inheriting from CBoat
----@class CGondola : CBoat
-local CGondola = {
-    id = "a_gondola_01",
+-- Define the CCanoe class inheriting from CBoat
+---@class CCanoe : CBoat
+local CCanoe = {
+    id = "a_canoe_01",
     sound = {
         "Boat Creak"
     },
     loopSound = true,
     mesh = "x\\Ex_Gondola_01_rot.nif",
-    scale = 1,
+    scale = 0.7,
     offset = 40,
-    sway = 1,
+    sway = 0.7,
     speed = 2,
     minSpeed = -2,
     maxSpeed = 7,
@@ -20,7 +20,8 @@ local CGondola = {
     freedomtype = "boat",
     guideSlot = {
         animationGroup = { "idle6" },
-        position = tes3vector3.new(0, -171, -18)
+        animationFile = "VA_sitting.nif",
+        position = tes3vector3.new(0, -82, -15)
     },
     hiddenSlot = {
         position = tes3vector3.new(0, 0, -200)
@@ -32,13 +33,6 @@ local CGondola = {
             },
             animationFile = "VA_sitting.nif",
             position = tes3vector3.new(0, 82, -15)
-        },
-        {
-            animationGroup = {
-                "idle6"
-            },
-            animationFile = "VA_sitting.nif",
-            position = tes3vector3.new(0, -82, -15)
         },
         {
             animationGroup = {},
@@ -57,24 +51,24 @@ local CGondola = {
     },
     userData = {
         name = "Gondola",
-        price = 500,
+        price = 300,
         materials = {
-            { material = "wood",   count = 20 },
-            { material = "rope",   count = 10 },
+            { material = "wood",   count = 12 },
+            { material = "rope",   count = 6 },
             { material = "fabric", count = 4 },
-        },
+        }
     },
 
 }
-setmetatable(CGondola, { __index = CBoat })
+setmetatable(CCanoe, { __index = CBoat })
 
----Constructor for CGondola
----@return CGondola
-function CGondola:new()
+---Constructor for CCanoe
+---@return CCanoe
+function CCanoe:new()
     local newObj = CBoat:new()
     self.__index = self
     setmetatable(newObj, self)
-    ---@cast newObj CGondola
+    ---@cast newObj CCanoe
 
     return newObj
 end
@@ -82,8 +76,8 @@ end
 ---@param position tes3vector3
 ---@param orientation tes3vector3
 ---@param facing number
----@return CGondola
-function CGondola:create(position, orientation, facing)
+---@return CCanoe
+function CCanoe:create(position, orientation, facing)
     -- create reference
     local mountOffset = tes3vector3.new(0, 0, self.offset)
     local reference = tes3.createReference {
@@ -96,11 +90,11 @@ function CGondola:create(position, orientation, facing)
     local newObj = CBoat:create(reference)
     self.__index = self
     setmetatable(newObj, self)
-    ---@cast newObj CGondola
+    ---@cast newObj CCanoe
 
     newObj:OnCreate()
 
     return newObj
 end
 
-return CGondola
+return CCanoe

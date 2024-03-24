@@ -2,22 +2,13 @@ local this = {}
 
 --#region vehicles
 
--- TODO move to interop
 ---@type table<string, string?>
 this.vehicles = {
-    -- strider
+    -- travel
     ["a_siltstrider"] = "CSiltStrider",
-    -- boats
     ["a_gondola_01"] = "CGondola",
     ["a_longboat"] = "CLongboat",
     ["a_DE_ship"] = "CShipDe",
-    ["a_mushroomdola_iv"] = "CMushroomdola",
-    ["a_sailboat_iv"] = "CSailboat",
-    ["a_rowboat_iv"] = "CRowboat",
-    ["a_telvcatboat_iv"] = "CTelvcatboat",
-    -- creatures
-    ["a_cliffracer"] = nil,
-    ["a_nix-hound"] = nil,
 }
 
 -- insert to table

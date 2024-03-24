@@ -601,7 +601,7 @@ function CPlayerSteerManager.createPurchaseTopic(menu, ref)
             end
 
             -- check if data is a boat
-            -- TODO message by vehicle
+            -- TODO add other mounts
             if class.freedomtype == "boat" then
                 local buttonText = string.format("Buy %s for %s gold", data.name, data.price)
                 table.insert(buttons, {
@@ -629,8 +629,8 @@ function CPlayerSteerManager.createPurchaseTopic(menu, ref)
             end
             ::continue::
         end
-        -- TODO message by class
-        tes3ui.showMessageMenu({ message = "Purchase a boat", buttons = buttons, cancels = true })
+
+        tes3ui.showMessageMenu({ message = "Purchase a mount", buttons = buttons, cancels = true })
     end)
     menu:registerAfter("update", function() updatePurchaseButton(menu) end)
 end
