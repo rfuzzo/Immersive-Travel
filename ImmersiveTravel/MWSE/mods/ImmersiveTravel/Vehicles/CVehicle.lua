@@ -93,11 +93,24 @@ local SWAY_AMPL = 0.014       -- how much the mount sways
 --#endregion
 
 ---Constructor for CVehicle
+---@return CVehicle
+function CVehicle:new()
+    local newObj = CTickingEntity:new()
+    self.__index = self
+    setmetatable(newObj, self)
+    ---@cast newObj CVehicle
+
+    return newObj
+end
+
 ---@param reference tes3reference
+---@return CVehicle
 function CVehicle:create(reference)
     local newObj = CTickingEntity:create(reference)
     self.__index = self
     setmetatable(newObj, self)
+    ---@cast newObj CVehicle
+
     return newObj
 end
 

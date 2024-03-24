@@ -1,4 +1,3 @@
-local lib = require("ImmersiveTravel.lib")
 local CBoat = require("ImmersiveTravel.Vehicles.CBoat")
 
 -- Define the CShipDe class inheriting from CBoat
@@ -77,6 +76,16 @@ local CShipDe = {
 setmetatable(CShipDe, { __index = CBoat })
 
 ---Constructor for CShipDe
+---@return CShipDe
+function CShipDe:new()
+    local newObj = CBoat:new()
+    self.__index = self
+    setmetatable(newObj, self)
+    ---@cast newObj CShipDe
+
+    return newObj
+end
+
 ---@param position tes3vector3
 ---@param orientation tes3vector3
 ---@param facing number
@@ -94,6 +103,7 @@ function CShipDe:create(position, orientation, facing)
     local newObj = CBoat:create(reference)
     self.__index = self
     setmetatable(newObj, self)
+    ---@cast newObj CShipDe
 
     newObj:OnCreate()
 

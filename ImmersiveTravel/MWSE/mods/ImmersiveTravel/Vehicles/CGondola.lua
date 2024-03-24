@@ -1,4 +1,3 @@
-local lib = require("ImmersiveTravel.lib")
 local CBoat = require("ImmersiveTravel.Vehicles.CBoat")
 
 -- Define the CGondola class inheriting from CBoat
@@ -59,6 +58,16 @@ local CGondola = {
 setmetatable(CGondola, { __index = CBoat })
 
 ---Constructor for CGondola
+---@return CGondola
+function CGondola:new()
+    local newObj = CBoat:new()
+    self.__index = self
+    setmetatable(newObj, self)
+    ---@cast newObj CGondola
+
+    return newObj
+end
+
 ---@param position tes3vector3
 ---@param orientation tes3vector3
 ---@param facing number
@@ -76,6 +85,7 @@ function CGondola:create(position, orientation, facing)
     local newObj = CBoat:create(reference)
     self.__index = self
     setmetatable(newObj, self)
+    ---@cast newObj CGondola
 
     newObj:OnCreate()
 

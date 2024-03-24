@@ -1,4 +1,3 @@
-local lib = require("ImmersiveTravel.lib")
 local CBoat = require("ImmersiveTravel.Vehicles.CBoat")
 
 -- Define the CLongboat class inheriting from CBoat
@@ -56,6 +55,16 @@ local CLongboat = {
 setmetatable(CLongboat, { __index = CBoat })
 
 ---Constructor for CLongboat
+---@return CLongboat
+function CLongboat:new()
+    local newObj = CBoat:new()
+    self.__index = self
+    setmetatable(newObj, self)
+    ---@cast newObj CLongboat
+
+    return newObj
+end
+
 ---@param position tes3vector3
 ---@param orientation tes3vector3
 ---@param facing number
@@ -73,6 +82,7 @@ function CLongboat:create(position, orientation, facing)
     local newObj = CBoat:create(reference)
     self.__index = self
     setmetatable(newObj, self)
+    ---@cast newObj CLongboat
 
     newObj:OnCreate()
 

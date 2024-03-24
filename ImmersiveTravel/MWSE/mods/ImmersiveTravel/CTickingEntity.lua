@@ -12,10 +12,12 @@ local CTickingEntity = {
 
 
 ---Constructor for CTickingEntity
+---@return CTickingEntity
 function CTickingEntity:new()
+    ---@type CTickingEntity
     local newObj = {
         referenceHandle = tes3.makeSafeObjectHandle(nil),
-    } ---@type CTickingEntity
+    }
     setmetatable(newObj, self)
     self.__index = self
 
@@ -24,11 +26,13 @@ end
 
 ---Create a new instance of CTickingEntity
 ---@param reference tes3reference
+---@return CTickingEntity
 function CTickingEntity:create(reference)
+    ---@type CTickingEntity
     local newObj = {
         referenceHandle = tes3.makeSafeObjectHandle(reference),
         id = reference.id
-    } ---@type CTickingEntity
+    }
     setmetatable(newObj, self)
     self.__index = self
 

@@ -9,11 +9,23 @@ local CBoat = {
 setmetatable(CBoat, { __index = CVehicle })
 
 ---Constructor for CBoat
+---@return CBoat
+function CBoat:new()
+    local newObj = CVehicle:new()
+    self.__index = self
+    setmetatable(newObj, self)
+    ---@cast newObj CBoat
+
+    return newObj
+end
+
 ---@param reference tes3reference
+---@return CBoat
 function CBoat:create(reference)
     local newObj = CVehicle:create(reference)
     self.__index = self
     setmetatable(newObj, self)
+    ---@cast newObj CBoat
 
     return newObj
 end

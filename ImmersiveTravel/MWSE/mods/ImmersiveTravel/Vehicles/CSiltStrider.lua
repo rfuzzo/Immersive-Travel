@@ -1,4 +1,3 @@
-local lib = require("ImmersiveTravel.lib")
 local config = require("ImmersiveTravel.config")
 local CVehicle = require("ImmersiveTravel.Vehicles.CVehicle")
 
@@ -47,6 +46,16 @@ local CSiltStrider = {
 setmetatable(CSiltStrider, { __index = CVehicle })
 
 ---Constructor for CSiltStrider
+---@return CSiltStrider
+function CSiltStrider:new()
+    local newObj = CVehicle:new()
+    self.__index = self
+    setmetatable(newObj, self)
+    ---@cast newObj CSiltStrider
+
+    return newObj
+end
+
 ---@param position tes3vector3
 ---@param orientation tes3vector3
 ---@param facing number
@@ -64,6 +73,7 @@ function CSiltStrider:create(position, orientation, facing)
     local newObj = CVehicle:create(reference)
     self.__index = self
     setmetatable(newObj, self)
+    ---@cast newObj CSiltStrider
 
     newObj:OnCreate()
 

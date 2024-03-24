@@ -13,7 +13,7 @@ this.vehicles = {
     ["a_DE_ship"] = "CShipDe",
     ["a_mushroomdola_iv"] = nil,
     ["a_sailboat_iv"] = nil,
-    ["a_rowboat_iv"] = nil,
+    ["a_rowboat_iv"] = "CRowboat",
     ["a_telvcatboat_iv"] = nil,
     -- creatures
     ["a_cliffracer"] = nil,
