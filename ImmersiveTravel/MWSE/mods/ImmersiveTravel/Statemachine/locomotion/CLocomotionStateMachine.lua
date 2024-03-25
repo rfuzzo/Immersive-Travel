@@ -1,5 +1,5 @@
 local AbstractStateMachine = require("ImmersiveTravel.Statemachine.CAbstractStateMachine")
-local LocomotionState = require("ImmersiveTravel.Statemachine.CLocomotionState")
+local LocomotionState = require("ImmersiveTravel.Statemachine.locomotion.CLocomotionState")
 
 ---@class CLocomotionStateMachine : CAbstractStateMachine
 local CLocomotionStateMachine = {

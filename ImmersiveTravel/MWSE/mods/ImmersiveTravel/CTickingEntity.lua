@@ -1,6 +1,6 @@
 local TrackingManager = require("ImmersiveTravel.CTrackingManager")
-local CLocomotionStateMachine = require("ImmersiveTravel.Statemachine.CLocomotionStateMachine")
-local CAiStateMachine = require("ImmersiveTravel.Statemachine.CAiStateMachine")
+local CLocomotionStateMachine = require("ImmersiveTravel.Statemachine.locomotion.CLocomotionStateMachine")
+local CAiStateMachine = require("ImmersiveTravel.Statemachine.ai.CAiStateMachine")
 
 -- Define the base class CTickingEntity
 ---@class CTickingEntity

@@ -1,5 +1,4 @@
 local CTickingEntity = require("ImmersiveTravel.CTickingEntity")
-local CPlayerTravelManager = require("ImmersiveTravel.CPlayerTravelManager")
 local lib = require("ImmersiveTravel.lib")
 local log = lib.log
 
@@ -45,7 +44,7 @@ local log = lib.log
 ---@field changeSpeed number? -- default 1
 ---@field minSpeed number?
 ---@field slots Slot[]
----@field guideSlot Slot?
+---@field guideSlot Slot
 ---@field hiddenSlot HiddenSlot?
 ---@field clutter Clutter[]?
 ---@field scale number?
@@ -198,24 +197,8 @@ function CVehicle:EndPlayerSteer()
 end
 
 --- StartPlayerTravel is called when the player starts traveling
----@param guideId string The ID of the guide object.
----@param spline PositionRecord[] The spline to travel on.
-function CVehicle:StartPlayerTravel(spline, guideId)
+function CVehicle:StartPlayerTravel()
     local mount = self.referenceHandle:getObject()
-
-    self.currentSpline = spline
-
-    -- register guide
-    log:debug("\tregistering guide")
-    if self.guideSlot then
-        local guide2 = tes3.createReference {
-            object = guideId,
-            position = mount.position,
-            orientation = mount.orientation
-        }
-        guide2.mobile.hello = 0
-        self:registerGuide(tes3.makeSafeObjectHandle(guide2))
-    end
 
     -- register player
     log:debug("\tregistering player")
@@ -366,10 +349,8 @@ end
 --- checks if player is slotted in guide slot
 ---@return boolean
 function CVehicle:isPlayerInGuideSlot()
-    if self.guideSlot then
-        if self.guideSlot.handle:valid() then
-            return self.guideSlot.handle:getObject() == tes3.player
-        end
+    if self.guideSlot.handle:valid() then
+        return self.guideSlot.handle:getObject() == tes3.player
     end
 
     return false
@@ -412,7 +393,6 @@ function CVehicle:Move(dt)
     end
     -- move to next marker
     if self.splineIndex > #self.currentSpline then
-        CPlayerTravelManager.getInstance():OnDestinationReached()
         return
     end
 
@@ -558,33 +538,31 @@ function CVehicle:UpdateSlots(dt)
     end
 
     -- guide
-    if self.guideSlot then
-        local guide = self.guideSlot.handle:getObject()
-        tes3.positionCell({
-            reference = guide,
-            position = rootBone.worldTransform * self:getSlotTransform(self.guideSlot.position, boneOffset)
-        })
-        guide.facing = mount.facing
-        -- only change anims if behind player
-        if changeAnims and
-            lib.isPointBehindObject(guide.position, tes3.player.position,
-                tes3.player.forwardDirection) then
-            local group = lib.getRandomAnimGroup(self.guideSlot)
-            local animController = guide.mobile.animationController
-            if animController then
-                local currentAnimationGroup =
-                    animController.animationData.currentAnimGroups[tes3.animationBodySection.upper]
-                log:trace("%s switching to animgroup %s", guide.id, group)
-                if group ~= currentAnimationGroup then
-                    tes3.loadAnimation({ reference = guide })
-                    if self.guideSlot.animationFile then
-                        tes3.loadAnimation({
-                            reference = guide,
-                            file = self.guideSlot.animationFile
-                        })
-                    end
-                    tes3.playAnimation({ reference = guide, group = group })
+    local guide = self.guideSlot.handle:getObject()
+    tes3.positionCell({
+        reference = guide,
+        position = rootBone.worldTransform * self:getSlotTransform(self.guideSlot.position, boneOffset)
+    })
+    guide.facing = mount.facing
+    -- only change anims if behind player
+    if changeAnims and
+        lib.isPointBehindObject(guide.position, tes3.player.position,
+            tes3.player.forwardDirection) then
+        local group = lib.getRandomAnimGroup(self.guideSlot)
+        local animController = guide.mobile.animationController
+        if animController then
+            local currentAnimationGroup =
+                animController.animationData.currentAnimGroups[tes3.animationBodySection.upper]
+            log:trace("%s switching to animgroup %s", guide.id, group)
+            if group ~= currentAnimationGroup then
+                tes3.loadAnimation({ reference = guide })
+                if self.guideSlot.animationFile then
+                    tes3.loadAnimation({
+                        reference = guide,
+                        file = self.guideSlot.animationFile
+                    })
                 end
+                tes3.playAnimation({ reference = guide, group = group })
             end
         end
     end
@@ -674,12 +652,37 @@ function CVehicle:UpdatePlayerCollision()
     if rootBone then
         local playerShipLocal = rootBone.worldTransform:invert() * tes3.player.position
         -- check if player is in freemovement mode
-        if self.hasFreeMovement and self:isOnMount() and CPlayerTravelManager.getInstance().free_movement then
+        if self.hasFreeMovement and self:isOnMount() then
             -- this is needed to enable collisions :todd:
             tes3.dataHandler:updateCollisionGroupsForActiveCells {}
             self.referenceHandle:getObject().sceneNode:update()
             tes3.player.position = rootBone.worldTransform * playerShipLocal
         end
+    end
+end
+
+-- you can register a guide with the vehicle
+---@param handle mwseSafeObjectHandle|nil
+function CVehicle:registerGuide(handle)
+    if handle and handle:valid() then
+        self.guideSlot.handle = handle
+        -- tcl
+        local reference = handle:getObject()
+        reference.mobile.movementCollision = false;
+        reference.data.rfuzzo_invincible = true;
+
+        -- play animation
+        local group = lib.getRandomAnimGroup(self.guideSlot)
+        tes3.loadAnimation({ reference = reference })
+        if self.guideSlot.animationFile then
+            tes3.loadAnimation({
+                reference = reference,
+                file = self.guideSlot.animationFile
+            })
+        end
+        tes3.playAnimation({ reference = reference, group = group })
+
+        log:debug("registered %s in guide slot with animgroup %s", reference.id, group)
     end
 end
 
@@ -773,32 +776,6 @@ function CVehicle:RegisterPassengers()
             local refHandle = tes3.makeSafeObjectHandle(passenger)
             self:registerRefInRandomSlot(refHandle)
         end
-    end
-end
-
--- you can register a guide with the vehicle
----@param handle mwseSafeObjectHandle|nil
----@private
-function CVehicle:registerGuide(handle)
-    if self.guideSlot and handle and handle:valid() then
-        self.guideSlot.handle = handle
-        -- tcl
-        local reference = handle:getObject()
-        reference.mobile.movementCollision = false;
-        reference.data.rfuzzo_invincible = true;
-
-        -- play animation
-        local group = lib.getRandomAnimGroup(self.guideSlot)
-        tes3.loadAnimation({ reference = reference })
-        if self.guideSlot.animationFile then
-            tes3.loadAnimation({
-                reference = reference,
-                file = self.guideSlot.animationFile
-            })
-        end
-        tes3.playAnimation({ reference = reference, group = group })
-
-        log:debug("registered %s in guide slot with animgroup %s", reference.id, group)
     end
 end
 

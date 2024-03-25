@@ -1,123 +1,29 @@
-local AbstractState = require("ImmersiveTravel.Statemachine.CAbstractState")
+local CAiState = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local lib = require("ImmersiveTravel.lib")
-
--- Abstract AI state machine class
----@class CAiState : CAbstractState
-local CAiState = {
-    transitions = {}
-}
-
--- enum for AI states
-CAiState.NONE = "NONE"
-CAiState.ONSPLINE = "ONSPLINE"
-CAiState.PLAYERSTEER = "PLAYERSTEER"
-
----Constructor for AI State
----@return CAiState
-function CAiState:new()
-    local newObj = AbstractState:new()
-    self.__index = self
-    setmetatable(newObj, self)
-    ---@cast newObj CAiState
-    return newObj
-end
-
---#region NoneState
-
--- None State class
----@class NoneState : CAiState
-CAiState.NoneState = {
-    transitions = {
-        [CAiState.ONSPLINE] = function(ctx)
-            return false
-        end,
-        [CAiState.PLAYERSTEER] = function(ctx)
-            -- transition to player steer state if player is in guide slot
-            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-            if vehicle and vehicle:isPlayerInGuideSlot() then
-                return true
-            end
-            return false
-        end
-    }
-}
-
--- constructor for NoneState
----@return NoneState
-function CAiState.NoneState:new()
-    local newObj = CAiState:new()
-    self.__index = self
-    setmetatable(newObj, self)
-    ---@cast newObj NoneState
-    return newObj
-end
-
----@param scriptedObject CTickingEntity
-function CAiState.NoneState:OnActivate(scriptedObject)
-    local vehicle = scriptedObject ---@cast vehicle CVehicle
-    vehicle:StartPlayerSteer()
-    -- transition to player steer state
-end
-
---#endregion
-
---#region OnSplineState
-
--- on spline state class
----@class OnSplineState : CAiState
-CAiState.OnSplineState = {
-    transitions = {
-        [CAiState.NONE] = function()
-            return false
-        end,
-        [CAiState.PLAYERSTEER] = function()
-            return false
-        end
-    }
-}
-
--- constructor for OnSplineState
----@return OnSplineState
-function CAiState.OnSplineState:new()
-    local newObj = CAiState:new()
-    self.__index = self
-    setmetatable(newObj, self)
-    ---@cast newObj OnSplineState
-    return newObj
-end
-
-function CAiState.OnSplineState:enter(scriptedObject)
-    -- Implement on spline state enter logic here
-end
-
-function CAiState.OnSplineState:update(dt, scriptedObject)
-    -- Implement on spline state update logic here
-end
-
-function CAiState.OnSplineState:exit(scriptedObject)
-    -- Implement on spline state exit logic here
-end
-
---#endregion
-
---#region PlayerSteerState
 
 -- player steer state class
 ---@class PlayerSteerState : CAiState
 ---@field trackedVehicle CVehicle?
 ---@field cameraOffset tes3vector3?
-CAiState.PlayerSteerState = {
+local PlayerSteerState = {
     transitions = {
+        [CAiState.ONSPLINE] = function(ctx)
+            -- transition to on spline state if spline is not nil
+            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
+            if vehicle then
+                return vehicle.currentSpline ~= nil
+            end
+
+            return false
+        end,
         [CAiState.NONE] = function(ctx)
             -- only stay in state if player is in guide slot
             local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
             if vehicle and vehicle:isPlayerInGuideSlot() then
                 return false
             end
+
             return true
-        end,
-        [CAiState.ONSPLINE] = function()
-            return false
         end
     },
     trackedVehicle = nil,
@@ -126,7 +32,7 @@ CAiState.PlayerSteerState = {
 
 -- constructor for PlayerSteerState
 ---@return PlayerSteerState
-function CAiState.PlayerSteerState:new()
+function PlayerSteerState:new()
     local newObj = CAiState:new()
     self.__index = self
     setmetatable(newObj, self)
@@ -138,7 +44,7 @@ end
 
 --- hold w or s to change speed
 --- @param e keyDownEventData
-function CAiState.PlayerSteerState:mountKeyDownCallback(e)
+function PlayerSteerState:mountKeyDownCallback(e)
     local vehicle = self.trackedVehicle
     if not vehicle then
         return
@@ -159,7 +65,7 @@ end
 
 --- release w or s to stop changing speed
 --- @param e keyUpEventData
-function CAiState.PlayerSteerState:keyUpCallback(e)
+function PlayerSteerState:keyUpCallback(e)
     local vehicle = self.trackedVehicle
     if not vehicle then
         return
@@ -193,7 +99,7 @@ end
 
 --- set virtual position
 --- @param e simulatedEventData
-function CAiState.PlayerSteerState:mountSimulatedCallback(e)
+function PlayerSteerState:mountSimulatedCallback(e)
     local vehicle = self.trackedVehicle
     if not vehicle then
         return
@@ -247,7 +153,7 @@ end
 --#endregion
 
 ---@param scriptedObject CTickingEntity
-function CAiState.PlayerSteerState:enter(scriptedObject)
+function PlayerSteerState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
     self.trackedVehicle = vehicle
 
@@ -305,7 +211,7 @@ end
 
 ---@param dt number
 ---@param scriptedObject CTickingEntity
-function CAiState.PlayerSteerState:update(dt, scriptedObject)
+function PlayerSteerState:update(dt, scriptedObject)
     -- Implement player steer state update logic here
     local mountHandle = scriptedObject.referenceHandle
     ---@cast scriptedObject CVehicle
@@ -394,7 +300,7 @@ function CAiState.PlayerSteerState:update(dt, scriptedObject)
 end
 
 ---@param scriptedObject CTickingEntity
-function CAiState.PlayerSteerState:exit(scriptedObject)
+function PlayerSteerState:exit(scriptedObject)
     -- reset camera
     if self.cameraOffset then
         tes3.set3rdPersonCameraOffset({ offset = self.cameraOffset })
@@ -406,6 +312,7 @@ function CAiState.PlayerSteerState:exit(scriptedObject)
 
     -- don't delete ref since we may want to use the mount later
     vehicle:Detach()
+    self.trackedVehicle = nil
 
     -- unregister events
     event.unregister(tes3.event.mouseWheel, lib.mouseWheelCallback)
@@ -415,11 +322,9 @@ function CAiState.PlayerSteerState:exit(scriptedObject)
 end
 
 ---@param scriptedObject CTickingEntity
-function CAiState.PlayerSteerState:OnActivate(scriptedObject)
+function PlayerSteerState:OnActivate(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
     vehicle:EndPlayerSteer()
 end
 
---#endregion
-
-return CAiState
+return PlayerSteerState

@@ -1,9 +1,69 @@
-local CPlayerTravelManager = require("ImmersiveTravel.CPlayerTravelManager")
+local lib = require("ImmersiveTravel.lib")
+local interop = require("ImmersiveTravel.interop")
+local log = lib.log
 
 local this = {}
 
 local travelMenuId = tes3ui.registerID("it:travel_menu")
 local travelMenuCancelId = tes3ui.registerID("it:travel_menu_cancel")
+
+--- set up everything
+---@param start string
+---@param destination string
+---@param service ServiceData
+---@param guide tes3reference
+local function StartTravel(start, destination, service, guide)
+    -- checks
+    if guide == nil then return end
+
+    local m = tes3ui.findMenu("it:travel_menu")
+    if not m then return end
+
+    -- leave dialogue
+    tes3ui.leaveMenuMode()
+    m:destroy()
+
+    local currentSpline = lib.loadSpline(start, destination, service)
+    if currentSpline == nil then return end
+
+    -- vehicle id
+    local mountId = service.mount
+    -- override mounts
+    if service.override_mount then
+        for _, o in ipairs(service.override_mount) do
+            if lib.is_in(o.points, start) and
+                lib.is_in(o.points, destination) then
+                mountId = o.id
+                break
+            end
+        end
+    end
+
+    -- create vehicle
+    local startPos = lib.vec(currentSpline[1])
+    local nextPos = lib.vec(currentSpline[2])
+    local orientation = nextPos - startPos
+    orientation:normalize()
+    local facing = math.atan2(orientation.x, orientation.y)
+    local vehicle = interop.createVehicle(mountId, startPos, orientation, facing)
+    if not vehicle then
+        return
+    end
+
+    -- register guide
+
+    -- register guide
+    log:debug("\tregistering guide")
+    local guide2 = tes3.createReference {
+        object = guide.baseObject.id,
+        position = startPos,
+        orientation = orientation
+    }
+    guide2.mobile.hello = 0
+    vehicle:registerGuide(tes3.makeSafeObjectHandle(guide2))
+
+    vehicle.currentSpline = currentSpline -- this pushes the AI statemachine
+end
 
 --- Start Travel window
 -- Create window and layout. Called by onCommand.
@@ -41,7 +101,7 @@ local function createTravelWindow(service, guide, npcMenu)
         }
 
         button:register(tes3.uiEvent.mouseClick, function()
-            CPlayerTravelManager:getInstance():StartTravel(tes3.player.cell.id, name, service, guide)
+            StartTravel(tes3.player.cell.id, name, service, guide)
             local npc_menu = tes3ui.findMenu(npcMenu)
             if npc_menu then
                 npc_menu:destroy()
