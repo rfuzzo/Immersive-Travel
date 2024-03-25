@@ -98,7 +98,6 @@ function CVehicle:new()
     self.__index = self
     setmetatable(newObj, self)
     ---@cast newObj CVehicle
-
     return newObj
 end
 
@@ -187,7 +186,6 @@ function CVehicle:StartPlayerSteer()
     self:RegisterFollowers()
 
     -- TODO push state PLAYERSTEER
-    self.currentState = EVehicleState.MOVING
 end
 
 function CVehicle:EndPlayerSteer()
