@@ -13,10 +13,18 @@ local PlayerTravelState = {
             -- transition to none state if spline is nil
             local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
             if vehicle then
-                return vehicle.currentSpline == nil
+                return vehicle.spline == nil
             end
 
             return true
+        end,
+        [CAiState.ONSPLINE] = function(ctx)
+            -- transition to on spline state if spline is not nil
+            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
+            if vehicle and vehicle.spline and not vehicle.playerRegistered then
+                return true
+            end
+            return false
         end,
         [CAiState.PLAYERSTEER] = function(ctx)
             -- transition to player steer state if player is in guide slot
@@ -183,11 +191,11 @@ function PlayerTravelState:uiShowRestMenuCallback(e)
                                 -- teleport to last position
                                 tes3.positionCell({
                                     reference = tes3.mobilePlayer,
-                                    position = lib.vec(mount.currentSpline[#mount.currentSpline])
+                                    position = lib.vec(mount.spline[#mount.spline])
                                 })
                                 -- then to destination
                                 -- this pushes the AI statemachine
-                                mount.currentSpline = nil
+                                mount.spline = nil
                             end
                         end)
                     })
@@ -218,8 +226,6 @@ function PlayerTravelState:enter(scriptedObject)
         callback = (function()
             tes3.fadeIn({ duration = 1 })
 
-            vehicle:StartPlayerTravel()
-
             -- register travel events
             event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
             event.register(tes3.event.damage, damageInvincibilityGate)
@@ -238,9 +244,9 @@ end
 function PlayerTravelState:update(dt, scriptedObject)
     -- Implement on spline state update logic here
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    if vehicle.splineIndex > #vehicle.currentSpline then
+    if vehicle.splineIndex > #vehicle.spline then
         -- reached end of spline
-        vehicle.currentSpline = nil
+        vehicle.spline = nil
     end
 end
 

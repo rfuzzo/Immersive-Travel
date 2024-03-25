@@ -7,11 +7,7 @@ local OnSplineState = {
         [CAiState.NONE] = function(ctx)
             -- transition to none state if spline is nil
             local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-            if vehicle then
-                return vehicle.currentSpline == nil
-            end
-
-            return true
+            return vehicle.spline == nil
         end,
         [CAiState.PLAYERSTEER] = function(ctx)
             -- transition to player steer state if player is in guide slot
@@ -20,7 +16,15 @@ local OnSplineState = {
                 return true
             end
             return false
-        end
+        end,
+        [CAiState.PLAYERTRAVEL] = function(ctx)
+            -- transition to on spline state if spline is not nil
+            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
+            if vehicle and vehicle.spline and vehicle.playerRegistered then
+                return true
+            end
+            return false
+        end,
     }
 }
 
@@ -40,9 +44,9 @@ end
 function OnSplineState:update(dt, scriptedObject)
     -- Implement on spline state update logic here
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    if vehicle.splineIndex > #vehicle.currentSpline then
+    if vehicle.splineIndex > #vehicle.spline then
         -- reached end of spline
-        vehicle.currentSpline = nil
+        vehicle.spline = nil
     end
 end
 

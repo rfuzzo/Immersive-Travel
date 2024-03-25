@@ -59,11 +59,12 @@ local log = lib.log
 ---@field last_facing number
 ---@field last_sway number
 ---@field swayTime number
----@field currentSpline PositionRecord[]?
+---@field spline PositionRecord[]?
 ---@field splineIndex number
 ---@field virtualDestination tes3vector3?
 ---@field current_speed number
 ---@field speedChange number
+---@field playerRegistered boolean
 local CVehicle = {
     -- Add properties here
     sound = {},
@@ -81,6 +82,7 @@ local CVehicle = {
     splineIndex = 1,
     current_speed = 0,
     speedChange = 0,
+    playerRegistered = false
 }
 setmetatable(CVehicle, { __index = CTickingEntity })
 
@@ -197,8 +199,23 @@ function CVehicle:EndPlayerSteer()
 end
 
 --- StartPlayerTravel is called when the player starts traveling
-function CVehicle:StartPlayerTravel()
+function CVehicle:StartPlayerTravel(guideId, spline)
+    log:debug("StartPlayerTravel %s", self.id)
+
+    self.spline = spline -- this pushes the AI statemachine
+    self.playerRegistered = true
+
     local mount = self.referenceHandle:getObject()
+
+    -- register guide
+    log:debug("\tregistering guide")
+    local guide = tes3.createReference {
+        object = guideId,
+        position = mount.position,
+        orientation = mount.orientation
+    }
+    guide.mobile.hello = 0
+    self:registerGuide(tes3.makeSafeObjectHandle(guide))
 
     -- register player
     log:debug("\tregistering player")
@@ -214,6 +231,7 @@ function CVehicle:StartPlayerTravel()
 end
 
 function CVehicle:EndPlayerTravel()
+    self.playerRegistered = false
     self:release()
 end
 
@@ -388,20 +406,20 @@ function CVehicle:Move(dt)
     local mount = self.referenceHandle:getObject()
 
     -- move on spline
-    if self.currentSpline == nil then
+    if self.spline == nil then
         return
     end
     -- move to next marker
-    if self.splineIndex > #self.currentSpline then
+    if self.splineIndex > #self.spline then
         return
     end
 
-    local nextPos = lib.vec(self.currentSpline[self.splineIndex])
+    local nextPos = lib.vec(self.spline[self.splineIndex])
     local isBehind = lib.isPointBehindObject(nextPos, mount.position, mount.forwardDirection)
     if isBehind then
         self.splineIndex = self.splineIndex + 1
     end
-    nextPos = lib.vec(self.currentSpline[self.splineIndex])
+    nextPos = lib.vec(self.spline[self.splineIndex])
 
     -- calculate position
     local position, facing, turn = self:CalculatePositions(nextPos)
@@ -878,9 +896,5 @@ function CVehicle:registerRefInHiddenSlot(handle)
 end
 
 --#endregion
-
---#region events
-
---#region events
 
 return CVehicle

@@ -7,13 +7,20 @@ local lib = require("ImmersiveTravel.lib")
 ---@field cameraOffset tes3vector3?
 local PlayerSteerState = {
     transitions = {
+        [CAiState.PLAYERTRAVEL] = function(ctx)
+            -- transition to on spline state if spline is not nil
+            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
+            if vehicle and vehicle.spline and vehicle.playerRegistered then
+                return true
+            end
+            return false
+        end,
         [CAiState.ONSPLINE] = function(ctx)
             -- transition to on spline state if spline is not nil
             local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-            if vehicle then
-                return vehicle.currentSpline ~= nil
+            if vehicle and vehicle.spline and not vehicle.playerRegistered then
+                return true
             end
-
             return false
         end,
         [CAiState.NONE] = function(ctx)

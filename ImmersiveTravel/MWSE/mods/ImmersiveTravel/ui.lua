@@ -1,6 +1,5 @@
 local lib = require("ImmersiveTravel.lib")
 local interop = require("ImmersiveTravel.interop")
-local log = lib.log
 
 local this = {}
 
@@ -50,19 +49,7 @@ local function StartTravel(start, destination, service, guide)
         return
     end
 
-    -- register guide
-
-    -- register guide
-    log:debug("\tregistering guide")
-    local guide2 = tes3.createReference {
-        object = guide.baseObject.id,
-        position = startPos,
-        orientation = orientation
-    }
-    guide2.mobile.hello = 0
-    vehicle:registerGuide(tes3.makeSafeObjectHandle(guide2))
-
-    vehicle.currentSpline = currentSpline -- this pushes the AI statemachine
+    vehicle:StartPlayerTravel(guide.baseObject.id, currentSpline)
 end
 
 --- Start Travel window
