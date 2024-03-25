@@ -21,19 +21,31 @@ function CAbstractState:new()
 end
 
 -- Method to enter the state
-function CAbstractState:enter()
+---@param scriptedObject CTickingEntity
+function CAbstractState:enter(scriptedObject)
     -- Add code to be executed when entering the state
 end
 
 -- Method to exit the state
-function CAbstractState:exit()
+---@param scriptedObject CTickingEntity
+function CAbstractState:exit(scriptedObject)
     -- Add code to be executed when exiting the state
 end
 
 -- Method to update the state
-function CAbstractState:update(dt)
+---@param scriptedObject CTickingEntity
+function CAbstractState:update(dt, scriptedObject)
     -- Add code to update the state based on the elapsed time (dt)
 end
+
+--#region events
+
+---@param scriptedObject CTickingEntity
+function CAbstractState:OnActivate(scriptedObject)
+    -- override in child classes
+end
+
+--#endregion
 
 -- Return the CAbstractState class
 return CAbstractState

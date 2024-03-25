@@ -12,11 +12,4 @@ this.log = logger.new {
     includeTimestamp = false
 }
 
---- check if valid mount
----@param id string
----@return boolean
-function this.validMount(id)
-    return lib.is_in(interop.vehicles, id)
-end
-
 return this

@@ -1,6 +1,6 @@
 local lib = require("ImmersiveTravel.lib")
 local TrackingManager = require("ImmersiveTravel.CTrackingManager")
-local CPlayerTravelManager = require("ImmersiveTravel.CPlayerTravelManager")
+local ui = require("ImmersiveTravel.ui")
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
@@ -58,7 +58,7 @@ local function onMenuDialog(e)
         if #destinations == 0 then return end
 
         lib.log:debug("createTravelButton for %s", npc.id)
-        CPlayerTravelManager.getInstance():createTravelButton(menuDialog, ref, service)
+        ui.createTravelButton(menuDialog, ref, service)
         menuDialog:updateLayout()
     end
 end

@@ -50,15 +50,15 @@ function CLocomotionState.IdleState:new()
     return newObj
 end
 
-function CLocomotionState.IdleState:enter()
+function CLocomotionState.IdleState:enter(scriptedObject)
     -- Implement idle state enter logic here
 end
 
-function CLocomotionState.IdleState:update(dt)
+function CLocomotionState.IdleState:update(dt, scriptedObject)
     -- Implement idle state update logic here
 end
 
-function CLocomotionState.IdleState:exit()
+function CLocomotionState.IdleState:exit(scriptedObject)
     -- Implement idle state exit logic here
 end
 
@@ -92,15 +92,15 @@ function CLocomotionState.MovingState:new()
     return newObj
 end
 
-function CLocomotionState.MovingState:enter()
+function CLocomotionState.MovingState:enter(scriptedObject)
     -- Implement moving state enter logic here
 end
 
-function CLocomotionState.MovingState:update(dt)
+function CLocomotionState.MovingState:update(dt, scriptedObject)
     -- Implement moving state update logic here
 end
 
-function CLocomotionState.MovingState:exit()
+function CLocomotionState.MovingState:exit(scriptedObject)
     -- Implement moving state exit logic here
 end
 
@@ -134,15 +134,26 @@ function CLocomotionState.AccelerateState:new()
     return newObj
 end
 
-function CLocomotionState.AccelerateState:enter()
+function CLocomotionState.AccelerateState:enter(scriptedObject)
     -- Implement accelerate state enter logic here
+
+    -- TODO move to locomotionStateMachine
+    -- -- play anim
+    -- if vehicle.accelerateAnimation then
+    --     tes3.loadAnimation({ reference = mountHandle:getObject() })
+    --     tes3.playAnimation({
+    --         reference = mountHandle:getObject(),
+    --         group = tes3.animationGroup
+    --             [vehicle.accelerateAnimation]
+    --     })
+    -- end
 end
 
-function CLocomotionState.AccelerateState:update(dt)
+function CLocomotionState.AccelerateState:update(dt, scriptedObject)
     -- Implement accelerate state update logic here
 end
 
-function CLocomotionState.AccelerateState:exit()
+function CLocomotionState.AccelerateState:exit(scriptedObject)
     -- Implement accelerate state exit logic here
 end
 
@@ -176,15 +187,15 @@ function CLocomotionState.DecelerateState:new()
     return newObj
 end
 
-function CLocomotionState.DecelerateState:enter()
+function CLocomotionState.DecelerateState:enter(scriptedObject)
     -- Implement decelerate state enter logic here
 end
 
-function CLocomotionState.DecelerateState:update(dt)
+function CLocomotionState.DecelerateState:update(dt, scriptedObject)
     -- Implement decelerate state update logic here
 end
 
-function CLocomotionState.DecelerateState:exit()
+function CLocomotionState.DecelerateState:exit(scriptedObject)
     -- Implement decelerate state exit logic here
 end
 

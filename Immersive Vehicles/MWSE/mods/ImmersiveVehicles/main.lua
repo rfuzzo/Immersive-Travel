@@ -1,5 +1,6 @@
 local lib = require("ImmersiveVehicles.lib")
-local CPlayerSteerManager = require("ImmersiveVehicles.CPlayerSteerManager")
+local CTrackingManager = require("ImmersiveTravel.CTrackingManager")
+local ui = require("ImmersiveVehicles.ui")
 
 local log = lib.log
 
@@ -118,7 +119,7 @@ event.register(tes3.event.simulated, simulatedCallback)
 
 --- @param e activateEventData
 local function activateCallback(e)
-    CPlayerSteerManager.getInstance():OnActivate(e.target)
+    CTrackingManager.getInstance():OnActivate(e.target)
 end
 event.register(tes3.event.activate, activateCallback)
 
@@ -132,10 +133,10 @@ local function onMenuDialog(e)
         local obj = ref.baseObject
         local npc = obj ---@cast obj tes3npc
 
-        -- TODO check if npc is Shipmaster
+        -- TODO add other mounts
         if npc.class.id == "Shipmaster" then
             log:debug("createPurchaseTopic for %s", npc.id)
-            CPlayerSteerManager.createPurchaseTopic(menuDialog, ref)
+            ui.createPurchaseTopic(menuDialog, ref)
             menuDialog:updateLayout()
         end
     end
@@ -153,7 +154,7 @@ interop.insertVehicle("a_sailboat_iv", "CSailboat")
 interop.insertVehicle("a_rowboat_iv", "CRowboat")
 interop.insertVehicle("a_telvcatboat_iv", "CTelvcatboat")
 interop.insertVehicle("a_canoe_01", "CCanoe")
--- creatures TODO
+-- TODO add other mounts
 -- interop.insertVehicle("a_cliffracer", nil)
 -- interop.insertVehicle("a_nix-hound", nil)
 
@@ -167,14 +168,14 @@ if not CraftingFramework then return end
 local enterVehicle = {
     text = "Get in/out",
     callback = function(e)
-        CPlayerSteerManager.getInstance():OnActivate(e.reference)
+        CTrackingManager.getInstance():OnActivate(e.reference)
     end
 }
 
 local destroyVehicle = {
     text = "Destroy",
     callback = function(e)
-        CPlayerSteerManager.getInstance():OnDestroy(e.reference)
+        CTrackingManager.getInstance().OnDestroy(e.reference)
     end
 }
 
@@ -220,7 +221,7 @@ local function getRecipeFor(id)
             additionalMenuOptions = { enterVehicle, destroyVehicle },
             -- secondaryMenu         = false,
             quickActivateCallback = function(_, e)
-                CPlayerSteerManager.getInstance():OnActivate(e.reference)
+                CTrackingManager.getInstance():OnActivate(e.reference)
             end
         }
 

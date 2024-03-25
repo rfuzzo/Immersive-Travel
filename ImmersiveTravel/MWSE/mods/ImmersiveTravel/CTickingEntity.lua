@@ -8,14 +8,7 @@ local CAiStateMachine = require("ImmersiveTravel.Statemachine.CAiStateMachine")
 ---@field id string?
 ---@field locomotionStateMachine CLocomotionStateMachine
 ---@field aiStateMachine CAiStateMachine
-local CTickingEntity = {
-    -- Reference handle to the entity
-    referenceHandle = tes3.makeSafeObjectHandle(nil),
-    id = nil,
-    locomotionStateMachine = CLocomotionStateMachine:new(),
-    aiStateMachine = CAiStateMachine:new()
-}
-
+local CTickingEntity = {}
 
 ---Constructor for CTickingEntity
 ---@return CTickingEntity
@@ -48,27 +41,7 @@ function CTickingEntity:create(reference)
 
     -- register all ticking entities with the CTrackingManager
     TrackingManager.getInstance():AddEntity(newObj)
-
     return newObj
-end
-
----Register the entity with the CTrackingManager
----@param reference tes3reference
-function CTickingEntity:register(reference)
-    self.referenceHandle = tes3.makeSafeObjectHandle(reference)
-    self:Attach()
-end
-
-function CTickingEntity:Attach()
-    -- register all ticking entities with the CTrackingManager
-    TrackingManager.getInstance():AddEntity(self)
-end
-
----Called on each tick of the timer
----@param dt number
-function CTickingEntity:OnTick(dt)
-    self.locomotionStateMachine:update(dt)
-    self.aiStateMachine:update(dt)
 end
 
 -- Define the base class CTickingEntity
@@ -81,9 +54,36 @@ function CTickingEntity:Delete()
     self:Detach()
 end
 
+---Called on each tick of the timer
+---@param dt number
+function CTickingEntity:OnTick(dt)
+    self.locomotionStateMachine:update(dt, self)
+    self.aiStateMachine:update(dt, self)
+end
+
+-- ---Register the entity with the CTrackingManager
+-- ---@param reference tes3reference
+-- function CTickingEntity:register(reference)
+--     self.referenceHandle = tes3.makeSafeObjectHandle(reference)
+--     self:Attach()
+-- end
+
+function CTickingEntity:Attach()
+    -- register all ticking entities with the CTrackingManager
+    TrackingManager.getInstance():AddEntity(self)
+end
+
 function CTickingEntity:Detach()
     -- remove the entity from the CTrackingManager
     TrackingManager.getInstance():RemoveEntity(self)
 end
+
+--#region events
+
+function CTickingEntity:OnActivate()
+    -- Override this method in the child class
+end
+
+--#endregion
 
 return CTickingEntity

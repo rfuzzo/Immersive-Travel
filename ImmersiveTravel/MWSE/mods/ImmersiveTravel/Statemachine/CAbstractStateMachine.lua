@@ -15,19 +15,32 @@ end
 
 -- update the current state
 ---@param dt number
-function CAbstractStateMachine:update(dt)
+---@param scriptedObject CTickingEntity
+function CAbstractStateMachine:update(dt, scriptedObject)
     -- transition to the new state if needed
     -- go through the transitions of the current state
     for state, transition in pairs(self.currentState.transitions) do
-        if transition() then
-            self.currentState:exit()
+        local ctx = {
+            scriptedObject = scriptedObject
+        }
+        if transition(ctx) then
+            self.currentState:exit(scriptedObject)
             self.currentState = self.states[state]
-            self.currentState:enter()
+            self.currentState:enter(scriptedObject)
         end
     end
 
     -- update the current state
-    self.currentState:update(dt)
+    self.currentState:update(dt, scriptedObject)
 end
+
+--#region events
+
+---@param scriptedObject CTickingEntity
+function CAbstractStateMachine:OnActivate(scriptedObject)
+    self.currentState:OnActivate(scriptedObject)
+end
+
+--#endregion
 
 return CAbstractStateMachine

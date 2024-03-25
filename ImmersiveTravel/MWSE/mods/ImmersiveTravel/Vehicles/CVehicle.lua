@@ -64,6 +64,7 @@ local log = lib.log
 ---@field splineIndex number
 ---@field virtualDestination tes3vector3?
 ---@field current_speed number
+---@field speedChange number
 local CVehicle = {
     -- Add properties here
     sound = {},
@@ -80,6 +81,7 @@ local CVehicle = {
     swayTime = 0,
     splineIndex = 1,
     current_speed = 0,
+    speedChange = 0,
 }
 setmetatable(CVehicle, { __index = CTickingEntity })
 
@@ -168,6 +170,10 @@ function CVehicle:OnCreate()
     end
 end
 
+function CVehicle:OnActivate()
+    self.aiStateMachine:OnActivate(self)
+end
+
 --#endregion
 
 --#region CVehicle methods
@@ -184,10 +190,9 @@ function CVehicle:StartPlayerSteer()
 
     -- register followers
     self:RegisterFollowers()
-
-    -- TODO push state PLAYERSTEER
 end
 
+--- EndPlayerSteer is called when the player leaves the vehicle
 function CVehicle:EndPlayerSteer()
     self:release()
 end
@@ -223,8 +228,6 @@ function CVehicle:StartPlayerTravel(spline, guideId)
 
     -- register passengers
     self:RegisterPassengers()
-
-    -- TODO push state ONSPLINE
 end
 
 function CVehicle:EndPlayerTravel()
@@ -291,6 +294,87 @@ function CVehicle:release()
     self:cleanup()
 end
 
+-- player is within the surface of the mount
+---@return boolean
+function CVehicle:isOnMount()
+    local mount = self.referenceHandle:getObject()
+
+
+    local inside = true
+
+    local volumeHeight = 200
+
+    local bbox = mount.object.boundingBox
+
+    local pos = tes3.player.position
+    local surfaceOffset = self.slots[1].position.z
+    local mountSurface = mount.position + tes3vector3.new(0, 0, surfaceOffset)
+
+    if pos.z < (mountSurface.z - volumeHeight) then inside = false end
+    if pos.z > (mountSurface.z + volumeHeight) then inside = false end
+
+    local max_xy_d = tes3vector3.new(bbox.max.x, bbox.max.y, 0):length()
+    local min_xy_d = tes3vector3.new(bbox.min.x, bbox.min.y, 0):length()
+    local dist = mountSurface:distance(pos)
+    local r = math.max(min_xy_d, max_xy_d) + 50
+    if dist > r then inside = false end
+
+    return inside
+end
+
+--- registers a ref in a random free slot
+---@param handle mwseSafeObjectHandle|nil
+---@return boolean
+function CVehicle:registerRefInRandomSlot(handle)
+    if handle and handle:valid() then
+        local i = self:getRandomFreeSlotIdx()
+        if not i then
+            log:debug("Could not register %s in normal slot", handle:getObject().id)
+            return false
+        end
+
+        self:registerInSlot(handle, i)
+        return true
+    end
+
+    return false
+end
+
+-- move player to next slot and rotate registered refs in slots
+function CVehicle:incrementSlot()
+    local playerIdx = nil
+    local idx = nil
+
+    -- find index of next slot
+    for index, slot in ipairs(self.slots) do
+        if slot.handle and slot.handle:getObject() == tes3.player then
+            idx = index + 1
+            if idx > #self.slots then idx = 1 end
+            playerIdx = index
+            break
+        end
+    end
+
+    -- register anew for anims
+    if playerIdx and idx then
+        local temp_handle = self.slots[idx].handle
+        self:registerInSlot(temp_handle, playerIdx)
+        self:registerInSlot(tes3.makeSafeObjectHandle(tes3.player), idx)
+    end
+end
+
+--- checks if player is slotted in guide slot
+---@return boolean
+function CVehicle:isPlayerInGuideSlot()
+    if self.guideSlot then
+        if self.guideSlot.handle:valid() then
+            return self.guideSlot.handle:getObject() == tes3.player
+        end
+    end
+
+    return false
+end
+
 --#endregion
 
 --#region CTickingEntity methods
@@ -329,7 +413,6 @@ function CVehicle:Move(dt)
     -- move to next marker
     if self.splineIndex > #self.currentSpline then
         CPlayerTravelManager.getInstance():OnDestinationReached()
-        -- TODO push state IDLE
         return
     end
 
@@ -602,247 +685,10 @@ end
 
 --#endregion
 
---#region CVehicle methods
-
-
-function CVehicle:PlayAnimation()
-    if self.forwardAnimation then
-        local mount = self.referenceHandle:getObject()
-        tes3.loadAnimation({ reference = mount })
-        local forwardAnimation = self.forwardAnimation
-        tes3.playAnimation({ reference = mount, group = tes3.animationGroup[forwardAnimation] })
-    end
-end
-
-function CVehicle:RegisterFollowers()
-    local followers = lib.getFollowers()
-    log:debug("\tregistering %s followers", #followers)
-    for index, follower in ipairs(followers) do
-        local handle = tes3.makeSafeObjectHandle(follower)
-        local result = self:registerRefInRandomSlot(handle)
-        if not result then
-            self:registerRefInHiddenSlot(handle)
-        end
-    end
-end
-
---- Registers the passengers for the vehicle.
-function CVehicle:RegisterPassengers()
-    local mount = self.referenceHandle:getObject()
-
-    -- register passengers
-    local maxPassengers = math.max(0, #self.slots - 2)
-    if maxPassengers > 0 then
-        local n = math.random(maxPassengers);
-        log:debug("\tregistering %s / %s passengers", n, maxPassengers)
-        for _i, value in ipairs(lib.getRandomNpcsInCell(n)) do
-            local passenger = tes3.createReference {
-                object = value,
-                position = mount.position,
-                orientation = mount.orientation
-            }
-            -- disable scripts
-            if passenger.baseObject.script then
-                passenger.attachments.variables.script = nil
-                passenger.data.rfuzzo_noscript = true;
-
-                log:debug("Disabled script %s on %s", passenger.baseObject.script.id, passenger.baseObject.id)
-            end
-
-            local refHandle = tes3.makeSafeObjectHandle(passenger)
-            self:registerRefInRandomSlot(refHandle)
-        end
-    end
-end
-
--- player is within the surface of the mount
----@return boolean
-function CVehicle:isOnMount()
-    local mount = self.referenceHandle:getObject()
-
-
-    local inside = true
-
-    local volumeHeight = 200
-
-    local bbox = mount.object.boundingBox
-
-    local pos = tes3.player.position
-    local surfaceOffset = self.slots[1].position.z
-    local mountSurface = mount.position + tes3vector3.new(0, 0, surfaceOffset)
-
-    if pos.z < (mountSurface.z - volumeHeight) then inside = false end
-    if pos.z > (mountSurface.z + volumeHeight) then inside = false end
-
-    local max_xy_d = tes3vector3.new(bbox.max.x, bbox.max.y, 0):length()
-    local min_xy_d = tes3vector3.new(bbox.min.x, bbox.min.y, 0):length()
-    local dist = mountSurface:distance(pos)
-    local r = math.max(min_xy_d, max_xy_d) + 50
-    if dist > r then inside = false end
-
-    return inside
-end
-
--- you can register a guide with the vehicle
----@param handle mwseSafeObjectHandle|nil
-function CVehicle:registerGuide(handle)
-    if self.guideSlot and handle and handle:valid() then
-        self.guideSlot.handle = handle
-        -- tcl
-        local reference = handle:getObject()
-        reference.mobile.movementCollision = false;
-        reference.data.rfuzzo_invincible = true;
-
-        -- play animation
-        local group = lib.getRandomAnimGroup(self.guideSlot)
-        tes3.loadAnimation({ reference = reference })
-        if self.guideSlot.animationFile then
-            tes3.loadAnimation({
-                reference = reference,
-                file = self.guideSlot.animationFile
-            })
-        end
-        tes3.playAnimation({ reference = reference, group = group })
-
-        log:debug("registered %s in guide slot with animgroup %s", reference.id, group)
-    end
-end
-
--- you can register clutter with the vehicle
----@param handle mwseSafeObjectHandle|nil
----@param i integer
-function CVehicle:registerStatic(handle, i)
-    self.clutter[i].handle = handle
-
-    if handle and handle:valid() then
-        log:debug("registered %s in static slot %s", handle:getObject().id, i)
-    end
-end
-
-local PASSENGER_HELLO = 10
-
---- registers a ref in a slot
----@param handle mwseSafeObjectHandle|nil
----@param idx integer
-function CVehicle:registerInSlot(handle, idx)
-    self.slots[idx].handle = handle
-
-    -- play animation
-    if handle and handle:valid() then
-        local slot = self.slots[idx]
-        local reference = handle:getObject()
-        -- disable physics
-        reference.mobile.movementCollision = false;
-
-        if reference ~= tes3.player then
-            -- disable greetings
-            reference.data.rfuzzo_invincible = true;
-            reference.mobile.hello = PASSENGER_HELLO;
-        end
-
-        local group = lib.getRandomAnimGroup(slot)
-        tes3.loadAnimation({ reference = reference })
-        if slot.animationFile then
-            tes3.loadAnimation({
-                reference = reference,
-                file = slot.animationFile
-            })
-        end
-        tes3.playAnimation({ reference = reference, group = group })
-
-        log:debug("registered %s in slot %s with animgroup %s", reference.id, idx, group)
-    end
-end
-
---- get a random free slot index
----@return integer|nil index
-function CVehicle:getRandomFreeSlotIdx()
-    local nilIndices = {}
-
-    -- Collect indices of nil entries
-    for index, value in ipairs(self.slots) do
-        if value.handle == nil then table.insert(nilIndices, index) end
-    end
-
-    -- Check if there are nil entries
-    if #nilIndices > 0 then
-        local randomIndex = math.random(1, #nilIndices)
-        return nilIndices[randomIndex]
-    else
-        return nil -- No nil entries found
-    end
-end
-
---- registers a ref in a random free slot
----@param handle mwseSafeObjectHandle|nil
----@return boolean
-function CVehicle:registerRefInRandomSlot(handle)
-    if handle and handle:valid() then
-        local i = self:getRandomFreeSlotIdx()
-        if not i then
-            log:debug("Could not register %s in normal slot", handle:getObject().id)
-            return false
-        end
-
-        self:registerInSlot(handle, i)
-        return true
-    end
-
-    return false
-end
-
----@param slotPosition tes3vector3
----@param boneOffset tes3vector3
-function CVehicle:getSlotTransform(slotPosition, boneOffset)
-    local transform = slotPosition
-    if self.nodeName then
-        local o = slotPosition - boneOffset
-        transform = tes3vector3.new(o.x, -o.z, o.y)
-    end
-    return transform
-end
-
--- register a ref in the hidden slot container
----@param handle mwseSafeObjectHandle|nil
-function CVehicle:registerRefInHiddenSlot(handle)
-    if self.hiddenSlot.handles == nil then self.hiddenSlot.handles = {} end
-
-    if handle and handle:valid() then
-        local idx = #self.hiddenSlot.handles + 1
-        self.hiddenSlot.handles[idx] = handle
-        -- tcl
-        local reference = handle:getObject()
-        reference.mobile.movementCollision = false;
-        reference.data.rfuzzo_invincible = true;
-
-        log:debug("registered %s in hidden slot #%s", reference.id, idx)
-    end
-end
-
--- move player to next slot and rotate registered refs in slots
-function CVehicle:incrementSlot()
-    local playerIdx = nil
-    local idx = nil
-
-    -- find index of next slot
-    for index, slot in ipairs(self.slots) do
-        if slot.handle and slot.handle:getObject() == tes3.player then
-            idx = index + 1
-            if idx > #self.slots then idx = 1 end
-            playerIdx = index
-            break
-        end
-    end
-
-    -- register anew for anims
-    if playerIdx and idx then
-        local temp_handle = self.slots[idx].handle
-        self:registerInSlot(temp_handle, playerIdx)
-        self:registerInSlot(tes3.makeSafeObjectHandle(tes3.player), idx)
-    end
-end
+--#region private CVehicle methods
 
 -- cleanup all variables
+---@private
 function CVehicle:cleanup()
     log:debug("CVehicle cleanup")
 
@@ -877,6 +723,187 @@ function CVehicle:cleanup()
     end
 end
 
+---@private
+function CVehicle:PlayAnimation()
+    if self.forwardAnimation then
+        local mount = self.referenceHandle:getObject()
+        tes3.loadAnimation({ reference = mount })
+        local forwardAnimation = self.forwardAnimation
+        tes3.playAnimation({ reference = mount, group = tes3.animationGroup[forwardAnimation] })
+    end
+end
+
+---@private
+function CVehicle:RegisterFollowers()
+    local followers = lib.getFollowers()
+    log:debug("\tregistering %s followers", #followers)
+    for index, follower in ipairs(followers) do
+        local handle = tes3.makeSafeObjectHandle(follower)
+        local result = self:registerRefInRandomSlot(handle)
+        if not result then
+            self:registerRefInHiddenSlot(handle)
+        end
+    end
+end
+
+--- Registers the passengers for the vehicle.
+---@private
+function CVehicle:RegisterPassengers()
+    local mount = self.referenceHandle:getObject()
+
+    -- register passengers
+    local maxPassengers = math.max(0, #self.slots - 2)
+    if maxPassengers > 0 then
+        local n = math.random(maxPassengers);
+        log:debug("\tregistering %s / %s passengers", n, maxPassengers)
+        for _i, value in ipairs(lib.getRandomNpcsInCell(n)) do
+            local passenger = tes3.createReference {
+                object = value,
+                position = mount.position,
+                orientation = mount.orientation
+            }
+            -- disable scripts
+            if passenger.baseObject.script then
+                passenger.attachments.variables.script = nil
+                passenger.data.rfuzzo_noscript = true;
+
+                log:debug("Disabled script %s on %s", passenger.baseObject.script.id, passenger.baseObject.id)
+            end
+
+            local refHandle = tes3.makeSafeObjectHandle(passenger)
+            self:registerRefInRandomSlot(refHandle)
+        end
+    end
+end
+
+-- you can register a guide with the vehicle
+---@param handle mwseSafeObjectHandle|nil
+---@private
+function CVehicle:registerGuide(handle)
+    if self.guideSlot and handle and handle:valid() then
+        self.guideSlot.handle = handle
+        -- tcl
+        local reference = handle:getObject()
+        reference.mobile.movementCollision = false;
+        reference.data.rfuzzo_invincible = true;
+
+        -- play animation
+        local group = lib.getRandomAnimGroup(self.guideSlot)
+        tes3.loadAnimation({ reference = reference })
+        if self.guideSlot.animationFile then
+            tes3.loadAnimation({
+                reference = reference,
+                file = self.guideSlot.animationFile
+            })
+        end
+        tes3.playAnimation({ reference = reference, group = group })
+
+        log:debug("registered %s in guide slot with animgroup %s", reference.id, group)
+    end
+end
+
+-- you can register clutter with the vehicle
+---@param handle mwseSafeObjectHandle|nil
+---@param i integer
+---@private
+function CVehicle:registerStatic(handle, i)
+    self.clutter[i].handle = handle
+
+    if handle and handle:valid() then
+        log:debug("registered %s in static slot %s", handle:getObject().id, i)
+    end
+end
+
+local PASSENGER_HELLO = 10
+
+--- registers a ref in a slot
+---@param handle mwseSafeObjectHandle|nil
+---@param idx integer
+---@private
+function CVehicle:registerInSlot(handle, idx)
+    self.slots[idx].handle = handle
+
+    -- play animation
+    if handle and handle:valid() then
+        local slot = self.slots[idx]
+        local reference = handle:getObject()
+        -- disable physics
+        reference.mobile.movementCollision = false;
+
+        if reference ~= tes3.player then
+            -- disable greetings
+            reference.data.rfuzzo_invincible = true;
+            reference.mobile.hello = PASSENGER_HELLO;
+        end
+
+        local group = lib.getRandomAnimGroup(slot)
+        tes3.loadAnimation({ reference = reference })
+        if slot.animationFile then
+            tes3.loadAnimation({
+                reference = reference,
+                file = slot.animationFile
+            })
+        end
+        tes3.playAnimation({ reference = reference, group = group })
+
+        log:debug("registered %s in slot %s with animgroup %s", reference.id, idx, group)
+    end
+end
+
+--- get a random free slot index
+---@return integer|nil index
+---@private
+function CVehicle:getRandomFreeSlotIdx()
+    local nilIndices = {}
+
+    -- Collect indices of nil entries
+    for index, value in ipairs(self.slots) do
+        if value.handle == nil then table.insert(nilIndices, index) end
+    end
+
+    -- Check if there are nil entries
+    if #nilIndices > 0 then
+        local randomIndex = math.random(1, #nilIndices)
+        return nilIndices[randomIndex]
+    else
+        return nil -- No nil entries found
+    end
+end
+
+---@param slotPosition tes3vector3
+---@param boneOffset tes3vector3
+---@private
+function CVehicle:getSlotTransform(slotPosition, boneOffset)
+    local transform = slotPosition
+    if self.nodeName then
+        local o = slotPosition - boneOffset
+        transform = tes3vector3.new(o.x, -o.z, o.y)
+    end
+    return transform
+end
+
+-- register a ref in the hidden slot container
+---@param handle mwseSafeObjectHandle|nil
+---@private
+function CVehicle:registerRefInHiddenSlot(handle)
+    if self.hiddenSlot.handles == nil then self.hiddenSlot.handles = {} end
+
+    if handle and handle:valid() then
+        local idx = #self.hiddenSlot.handles + 1
+        self.hiddenSlot.handles[idx] = handle
+        -- tcl
+        local reference = handle:getObject()
+        reference.mobile.movementCollision = false;
+        reference.data.rfuzzo_invincible = true;
+
+        log:debug("registered %s in hidden slot #%s", reference.id, idx)
+    end
+end
+
 --#endregion
+
+--#region events
+
+--#region events
 
 return CVehicle

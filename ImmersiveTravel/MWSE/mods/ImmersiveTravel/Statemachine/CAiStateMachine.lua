@@ -5,7 +5,9 @@ local AiState = require("ImmersiveTravel.Statemachine.CAiState")
 local CAiStateMachine = {
     currentState = AiState.NoneState:new(),
     states = {
-
+        [AiState.NONE] = AiState.NoneState:new(),
+        [AiState.ONSPLINE] = AiState.OnSplineState:new(),
+        [AiState.PLAYERSTEER] = AiState.PlayerSteerState:new(),
     }
 }
 

@@ -1,4 +1,5 @@
 local AbstractState = require("ImmersiveTravel.Statemachine.CAbstractState")
+local lib = require("ImmersiveTravel.lib")
 
 -- Abstract AI state machine class
 ---@class CAiState : CAbstractState
@@ -27,10 +28,15 @@ end
 ---@class NoneState : CAiState
 CAiState.NoneState = {
     transitions = {
-        [CAiState.ONSPLINE] = function()
+        [CAiState.ONSPLINE] = function(ctx)
             return false
         end,
-        [CAiState.PLAYERSTEER] = function()
+        [CAiState.PLAYERSTEER] = function(ctx)
+            -- transition to player steer state if player is in guide slot
+            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
+            if vehicle and vehicle:isPlayerInGuideSlot() then
+                return true
+            end
             return false
         end
     }
@@ -46,16 +52,11 @@ function CAiState.NoneState:new()
     return newObj
 end
 
-function CAiState.NoneState:enter()
-    -- Implement idle state enter logic here
-end
-
-function CAiState.NoneState:update(dt)
-    -- Implement idle state update logic here
-end
-
-function CAiState.NoneState:exit()
-    -- Implement idle state exit logic here
+---@param scriptedObject CTickingEntity
+function CAiState.NoneState:OnActivate(scriptedObject)
+    local vehicle = scriptedObject ---@cast vehicle CVehicle
+    vehicle:StartPlayerSteer()
+    -- transition to player steer state
 end
 
 --#endregion
@@ -85,34 +86,42 @@ function CAiState.OnSplineState:new()
     return newObj
 end
 
-function CAiState.OnSplineState:enter()
+function CAiState.OnSplineState:enter(scriptedObject)
     -- Implement on spline state enter logic here
 end
 
-function CAiState.OnSplineState:update(dt)
+function CAiState.OnSplineState:update(dt, scriptedObject)
     -- Implement on spline state update logic here
 end
 
-function CAiState.OnSplineState:exit()
+function CAiState.OnSplineState:exit(scriptedObject)
     -- Implement on spline state exit logic here
 end
 
 --#endregion
 
-
 --#region PlayerSteerState
 
 -- player steer state class
 ---@class PlayerSteerState : CAiState
+---@field trackedVehicle CVehicle?
+---@field cameraOffset tes3vector3?
 CAiState.PlayerSteerState = {
     transitions = {
-        [CAiState.NONE] = function()
-            return false
+        [CAiState.NONE] = function(ctx)
+            -- only stay in state if player is in guide slot
+            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
+            if vehicle and vehicle:isPlayerInGuideSlot() then
+                return false
+            end
+            return true
         end,
         [CAiState.ONSPLINE] = function()
             return false
         end
-    }
+    },
+    trackedVehicle = nil,
+    cameraOffset = nil,
 }
 
 -- constructor for PlayerSteerState
@@ -125,16 +134,290 @@ function CAiState.PlayerSteerState:new()
     return newObj
 end
 
-function CAiState.PlayerSteerState:enter()
-    -- Implement player steer state enter logic here
+--#region events
+
+--- hold w or s to change speed
+--- @param e keyDownEventData
+function CAiState.PlayerSteerState:mountKeyDownCallback(e)
+    local vehicle = self.trackedVehicle
+    if not vehicle then
+        return
+    end
+
+    if e.keyCode == tes3.scanCode["w"] then
+        -- increment speed
+        if vehicle.current_speed < vehicle.maxSpeed then
+            vehicle.speedChange = 1
+        end
+    elseif e.keyCode == tes3.scanCode["s"] then
+        -- decrement speed
+        if vehicle.current_speed > vehicle.minSpeed then
+            vehicle.speedChange = -1
+        end
+    end
 end
 
-function CAiState.PlayerSteerState:update(dt)
+--- release w or s to stop changing speed
+--- @param e keyUpEventData
+function CAiState.PlayerSteerState:keyUpCallback(e)
+    local vehicle = self.trackedVehicle
+    if not vehicle then
+        return
+    end
+
+    local mountData = vehicle.userData
+    if not mountData then
+        return
+    end
+    local mountHandle = vehicle.referenceHandle
+
+    if mountHandle and mountHandle:valid() then
+        if e.keyCode == tes3.scanCode["w"] or e.keyCode == tes3.scanCode["s"] then
+            -- stop increment speed
+            vehicle.speedChange = 0
+            -- play anim
+            if vehicle.forwardAnimation then
+                tes3.loadAnimation({ reference = mountHandle:getObject() })
+                tes3.playAnimation({
+                    reference = mountHandle:getObject(),
+                    group = tes3.animationGroup[vehicle.forwardAnimation]
+                })
+            end
+
+            -- if DEBUG then
+            --     tes3.messageBox("Current Speed: " .. tostring(vehicle.current_speed))
+            -- end
+        end
+    end
+end
+
+--- set virtual position
+--- @param e simulatedEventData
+function CAiState.PlayerSteerState:mountSimulatedCallback(e)
+    local vehicle = self.trackedVehicle
+    if not vehicle then
+        return
+    end
+
+    local mountHandle = vehicle.referenceHandle
+
+    -- update next pos
+    if mountHandle and mountHandle:valid() then
+        local mount = mountHandle:getObject()
+        local dist = 2048
+        if vehicle.freedomtype == "ground" then
+            dist = 100
+        end
+        local target = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * dist
+
+        local isControlDown = tes3.worldController.inputController:isControlDown()
+        if isControlDown then
+            target = mount.sceneNode.worldTransform * tes3vector3.new(0, 2048, 0)
+        end
+        if vehicle.freedomtype == "boat" then
+            -- pin to waterlevel
+            target.z = 0
+        elseif vehicle.freedomtype == "ground" then
+            -- pin to groundlevel
+            local z = lib.getGroundZ(target + tes3vector3.new(0, 0, 100))
+            if not z then
+                target.z = 0
+            else
+                target.z = z + 50
+            end
+        end
+
+        vehicle.virtualDestination = target
+
+        -- TODO debug
+        -- if DEBUG and travelMarker then
+        --     travelMarker.translation = target
+        --     local m = tes3matrix33.new()
+        --     if isControlDown then
+        --         m:fromEulerXYZ(mount.orientation.x, mount.orientation.y, mount.orientation.z)
+        --     else
+        --         m:fromEulerXYZ(tes3.player.orientation.x, tes3.player.orientation.y, tes3.player.orientation.z)
+        --     end
+        --     travelMarker.rotation = m
+        --     travelMarker:update()
+        -- end
+    end
+end
+
+--#endregion
+
+---@param scriptedObject CTickingEntity
+function CAiState.PlayerSteerState:enter(scriptedObject)
+    local vehicle = scriptedObject ---@cast vehicle CVehicle
+    self.trackedVehicle = vehicle
+
+    -- fade out
+    tes3.fadeOut({ duration = 1 })
+
+    -- fade back in
+    timer.start({
+        type = timer.simulate,
+        iterations = 1,
+        duration = 1,
+        callback = (function()
+            tes3.fadeIn({ duration = 1 })
+
+            -- position mount at ground level
+            local mount = vehicle.referenceHandle:getObject()
+            if vehicle.freedomtype ~= "boat" then
+                local top = tes3vector3.new(0, 0, mount.object.boundingBox.max.z)
+                local z = lib.getGroundZ(mount.position + top)
+                if not z then
+                    z = tes3.player.position.z
+                end
+                mount.position = tes3vector3.new(mount.position.x, mount.position.y,
+                    z + (vehicle.offset * vehicle.scale))
+            end
+            mount.orientation = tes3.player.orientation
+
+            -- start vehicle funcs
+            vehicle:StartPlayerSteer()
+
+            self.cameraOffset = tes3.get3rdPersonCameraOffset()
+
+            -- visualize debug marker
+            -- TODO debug
+            -- if DEBUG and travelMarkerMesh then
+            --     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
+            --     local child = travelMarkerMesh:clone()
+            --     local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
+            --     child.translation = from
+            --     child.appCulled = false
+            --     ---@diagnostic disable-next-line: param-type-mismatch
+            --     vfxRoot:attachChild(child)
+            --     vfxRoot:update()
+            --     travelMarker = child
+            -- end
+        end)
+    })
+
+    -- register events
+    event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
+    event.register(tes3.event.keyDown, self.mountKeyDownCallback)
+    event.register(tes3.event.keyUp, self.keyUpCallback)
+    event.register(tes3.event.simulated, self.mountSimulatedCallback)
+end
+
+---@param dt number
+---@param scriptedObject CTickingEntity
+function CAiState.PlayerSteerState:update(dt, scriptedObject)
     -- Implement player steer state update logic here
+    local mountHandle = scriptedObject.referenceHandle
+    ---@cast scriptedObject CVehicle
+    local vehicle = scriptedObject
+
+    -- collision
+    if mountHandle and mountHandle:valid() then
+        -- raytest at sealevel to detect shore transition
+        local box = mountHandle:getObject().object.boundingBox
+        local max = box.max * vehicle.scale
+        local min = box.min * vehicle.scale
+        local t = mountHandle:getObject().sceneNode.worldTransform
+
+        if vehicle.current_speed > 0 then
+            -- detect shore
+            if vehicle.freedomtype == "boat" then
+                local bowPos = t * tes3vector3.new(0, max.y, min.z + (vehicle.offset * vehicle.scale))
+                local hitResult1 = tes3.rayTest({
+                    position = bowPos,
+                    direction = tes3vector3.new(0, 0, -1),
+                    root = tes3.game.worldLandscapeRoot,
+                    --maxDistance = 4096
+                })
+                if (hitResult1 == nil) then
+                    vehicle.current_speed = 0
+                    -- if DEBUG then
+                    --     tes3.messageBox("HIT Shore Fwd")
+                    --     log:debug("HIT Shore Fwd")
+                    -- end
+                end
+            end
+
+            -- raytest from above to detect objects in water
+            local bowPosTop = t * tes3vector3.new(0, max.y, max.z)
+            local hitResult2 = tes3.rayTest({
+                position = bowPosTop,
+                direction = tes3vector3.new(0, 0, -1),
+                root = tes3.game.worldObjectRoot,
+                ignore = { mountHandle:getObject() },
+                maxDistance = max.z * vehicle.scale
+            })
+            if (hitResult2 ~= nil) then
+                vehicle.current_speed = 0
+                -- if DEBUG then
+                --     tes3.messageBox("HIT Object Fwd")
+                --     log:debug("HIT Object Fwd")
+                -- end
+            end
+        elseif vehicle.current_speed < 0 then
+            -- detect shore
+            if vehicle.freedomtype == "boat" then
+                local sternPos = t * tes3vector3.new(0, min.y, min.z + (vehicle.offset * vehicle.scale))
+                local hitResult1 = tes3.rayTest({
+                    position = sternPos,
+                    direction = tes3vector3.new(0, 0, -1),
+                    root = tes3.game.worldLandscapeRoot,
+                    --maxDistance = 4096
+                })
+                if (hitResult1 == nil) then
+                    vehicle.current_speed = 0
+                    -- if DEBUG then
+                    --     tes3.messageBox("HIT Shore Back")
+                    --     log:debug("HIT Shore Back")
+                    -- end
+                end
+            end
+
+            -- raytest from above to detect objects in water
+            local sternPosTop = t * tes3vector3.new(0, min.y, max.z)
+            local hitResult2 = tes3.rayTest({
+                position = sternPosTop,
+                direction = tes3vector3.new(0, 0, -1),
+                root = tes3.game.worldObjectRoot,
+                ignore = { mountHandle:getObject() },
+                maxDistance = max.z
+            })
+            if (hitResult2 ~= nil) then
+                vehicle.current_speed = 0
+                -- if DEBUG then
+                --     tes3.messageBox("HIT Object Back")
+                --     log:debug("HIT Object Back")
+                -- end
+            end
+        end
+    end
 end
 
-function CAiState.PlayerSteerState:exit()
-    -- Implement player steer state exit logic here
+---@param scriptedObject CTickingEntity
+function CAiState.PlayerSteerState:exit(scriptedObject)
+    -- reset camera
+    if self.cameraOffset then
+        tes3.set3rdPersonCameraOffset({ offset = self.cameraOffset })
+    end
+
+    local vehicle = scriptedObject ---@cast vehicle CVehicle
+
+    vehicle:EndPlayerSteer()
+
+    -- don't delete ref since we may want to use the mount later
+    vehicle:Detach()
+
+    -- unregister events
+    event.unregister(tes3.event.mouseWheel, lib.mouseWheelCallback)
+    event.unregister(tes3.event.keyDown, self.mountKeyDownCallback)
+    event.unregister(tes3.event.keyUp, self.keyUpCallback)
+    event.unregister(tes3.event.simulated, self.mountSimulatedCallback)
+end
+
+---@param scriptedObject CTickingEntity
+function CAiState.PlayerSteerState:OnActivate(scriptedObject)
+    local vehicle = scriptedObject ---@cast vehicle CVehicle
+    vehicle:EndPlayerSteer()
 end
 
 --#endregion

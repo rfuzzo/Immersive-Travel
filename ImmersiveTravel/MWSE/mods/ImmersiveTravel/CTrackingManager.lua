@@ -1,4 +1,5 @@
 local lib = require("ImmersiveTravel.lib")
+local interop = require("ImmersiveTravel.interop")
 
 -- TODO modified false on save
 
@@ -38,6 +39,9 @@ end
 function TrackingManager:AddEntity(entity)
     table.insert(self.trackingList, entity)
 
+    -- TODO is this a good idea?
+    entity.referenceHandle:getObject().tempData.scriptedEntity = entity
+
     lib.log:debug("Added %s to tracking list", entity.id)
     lib.log:debug("Tracking list size: %s", #self.trackingList)
 end
@@ -46,6 +50,8 @@ end
 ---@param entity CTickingEntity
 function TrackingManager:RemoveEntity(entity)
     table.removevalue(self.trackingList, entity)
+
+    entity.referenceHandle:getObject().tempData.scriptedEntity = nil
 
     lib.log:debug("Removed %s from tracking list", entity.id)
     lib.log:debug("Tracking list size: %s", #self.trackingList)
@@ -79,5 +85,43 @@ function TrackingManager:Cleanup()
 
     lib.log:debug("TrackingManager cleaned up")
 end
+
+--#region events
+
+--- activate the entity
+---@param reference tes3reference
+function TrackingManager:OnActivate(reference)
+    if interop.isScriptedEntity(reference.id) then
+        -- check if entity is already in tracking list
+        if reference.tempData.scriptedEntity then
+            -- get it from table and delegate to entity
+            reference.tempData.scriptedEntity:OnActivate()
+        else
+            -- make new scripted class and register it
+            local scriptedEntity = interop.newVehicle(reference.id)
+            if scriptedEntity then
+                scriptedEntity.referenceHandle = tes3.makeSafeObjectHandle(reference)
+                self:AddEntity(scriptedEntity)
+
+                scriptedEntity:OnActivate()
+            end
+        end
+    end
+end
+
+--- delete the entity
+---@param reference tes3reference
+function TrackingManager.OnDestroy(reference)
+    if interop.isScriptedEntity(reference.id) then
+        if reference.tempData.scriptedEntity then
+            -- TODO get it from table and delegate to entity
+            reference.tempData.scriptedEntity:Delete()
+        else
+            reference:delete()
+        end
+    end
+end
+
+--#endregion
 
 return TrackingManager

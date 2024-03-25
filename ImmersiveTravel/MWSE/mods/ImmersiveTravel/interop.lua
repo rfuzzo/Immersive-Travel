@@ -60,6 +60,13 @@ function this.getVehicleStaticData(mountId)
     return nil
 end
 
+--- check if valid mount
+---@param id string
+---@return boolean
+function this.isScriptedEntity(id)
+    return this.vehicles[id] ~= nil
+end
+
 --#endregion
 
 --#region quips
