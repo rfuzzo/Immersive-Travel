@@ -4,30 +4,9 @@ local CAiState = require("ImmersiveTravel.Statemachine.ai.CAiState")
 ---@class NoneState : CAiState
 local NoneState = {
     transitions = {
-        [CAiState.PLAYERSTEER] = function(ctx)
-            -- transition to player steer state if player is in guide slot
-            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-            if vehicle and vehicle:isPlayerInGuideSlot() then
-                return true
-            end
-            return false
-        end,
-        [CAiState.PLAYERTRAVEL] = function(ctx)
-            -- transition to on spline state if spline is not nil
-            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-            if vehicle and vehicle.spline and vehicle.playerRegistered then
-                return true
-            end
-            return false
-        end,
-        [CAiState.ONSPLINE] = function(ctx)
-            -- transition to on spline state if spline is not nil
-            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-            if vehicle and vehicle.spline and not vehicle.playerRegistered then
-                return true
-            end
-            return false
-        end,
+        [CAiState.PLAYERSTEER] = CAiState.ToPlayerSteer,
+        [CAiState.PLAYERTRAVEL] = CAiState.ToPlayerTravel,
+        [CAiState.ONSPLINE] = CAiState.ToOnSpline,
     }
 }
 

@@ -10,6 +10,16 @@ this.log = logger.new {
     includeTimestamp = false
 }
 
+this.ANIM_CHANGE_FREQ = 10   -- change passenger animations every 10 seconds
+this.SWAY_MAX_AMPL = 3       -- how much the ship can sway in a turn
+this.SWAY_AMPL_CHANGE = 0.01 -- how much the ship can sway in a turn
+this.SWAY_FREQ = 0.12        -- how fast the mount sways
+this.SWAY_AMPL = 0.014       -- how much the mount sways
+this.PASSENGER_HELLO = 10
+
+--#endregion
+
+
 --#endregion
 
 ---@class ReferenceRecord

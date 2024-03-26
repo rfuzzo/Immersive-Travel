@@ -7,31 +7,9 @@ local lib = require("ImmersiveTravel.lib")
 ---@field cameraOffset tes3vector3?
 local PlayerSteerState = {
     transitions = {
-        [CAiState.PLAYERTRAVEL] = function(ctx)
-            -- transition to on spline state if spline is not nil
-            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-            if vehicle and vehicle.spline and vehicle.playerRegistered then
-                return true
-            end
-            return false
-        end,
-        [CAiState.ONSPLINE] = function(ctx)
-            -- transition to on spline state if spline is not nil
-            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-            if vehicle and vehicle.spline and not vehicle.playerRegistered then
-                return true
-            end
-            return false
-        end,
-        [CAiState.NONE] = function(ctx)
-            -- only stay in state if player is in guide slot
-            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-            if vehicle and vehicle:isPlayerInGuideSlot() then
-                return false
-            end
-
-            return true
-        end
+        [CAiState.PLAYERTRAVEL] = CAiState.ToPlayerTravel,
+        [CAiState.ONSPLINE] = CAiState.ToOnSpline,
+        [CAiState.NONE] = CAiState.ToNone,
     },
     trackedVehicle = nil,
     cameraOffset = nil,
@@ -88,15 +66,6 @@ function PlayerSteerState:keyUpCallback(e)
         if e.keyCode == tes3.scanCode["w"] or e.keyCode == tes3.scanCode["s"] then
             -- stop increment speed
             vehicle.speedChange = 0
-            -- play anim
-            if vehicle.forwardAnimation then
-                tes3.loadAnimation({ reference = mountHandle:getObject() })
-                tes3.playAnimation({
-                    reference = mountHandle:getObject(),
-                    group = tes3.animationGroup[vehicle.forwardAnimation]
-                })
-            end
-
             -- if DEBUG then
             --     tes3.messageBox("Current Speed: " .. tostring(vehicle.current_speed))
             -- end

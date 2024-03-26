@@ -114,7 +114,6 @@ end
 function TrackingManager.OnDestroy(reference)
     if interop.isScriptedEntity(reference.id) then
         if reference.tempData.scriptedEntity then
-            -- TODO get it from table and delegate to entity
             reference.tempData.scriptedEntity:Delete()
         else
             reference:delete()

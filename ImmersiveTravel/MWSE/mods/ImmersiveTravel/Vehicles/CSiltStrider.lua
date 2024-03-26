@@ -18,7 +18,6 @@ local CSiltStrider = {
     turnspeed = 30,
     hasFreeMovement = false,
     freedomtype = "ground",
-    forwardAnimation = "runForward",
     nodeName = "Body",
     nodeOffset = tes3vector3.new(0, 56, 1005),
     guideSlot = {
@@ -41,6 +40,10 @@ local CSiltStrider = {
             animationGroup = {},
             position = tes3vector3.new(81, 40, 1230)
         },
+    },
+    animation = {
+        forward = tes3.animationGroup.runForward,
+        idle = tes3.animationGroup.idle
     }
 }
 setmetatable(CSiltStrider, { __index = CVehicle })
@@ -78,22 +81,6 @@ function CSiltStrider:create(position, orientation, facing)
     newObj:OnCreate()
 
     return newObj
-end
-
--- overrides
-
-function CSiltStrider:PlayAnimation()
-    if self.forwardAnimation then
-        local mount = self.referenceHandle:getObject()
-
-        local forwardAnimation = self.forwardAnimation
-        if config.a_siltstrider_forwardAnimation then
-            forwardAnimation = config.a_siltstrider_forwardAnimation
-        end
-
-        tes3.loadAnimation({ reference = mount })
-        tes3.playAnimation({ reference = mount, group = tes3.animationGroup[forwardAnimation] })
-    end
 end
 
 return CSiltStrider

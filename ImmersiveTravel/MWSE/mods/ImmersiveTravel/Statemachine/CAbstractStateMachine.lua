@@ -1,3 +1,6 @@
+local lib = require("ImmersiveTravel.lib")
+local log = lib.log
+
 -- Define the CAbstractStateMachine class
 ---@class CAbstractStateMachine
 ---@field currentState CAbstractState
@@ -24,9 +27,12 @@ function CAbstractStateMachine:update(dt, scriptedObject)
             scriptedObject = scriptedObject
         }
         if transition(ctx) then
+            log:debug("Transitioning to state: %s", state)
             self.currentState:exit(scriptedObject)
+            log:debug("Exiting state: %s", self.currentState)
             self.currentState = self.states[state]
             self.currentState:enter(scriptedObject)
+            log:debug("Entering state: %s", self.currentState)
         end
     end
 
@@ -38,6 +44,7 @@ end
 
 ---@param scriptedObject CTickingEntity
 function CAbstractStateMachine:OnActivate(scriptedObject)
+    log:debug("CAbstractStateMachine:OnActivate")
     self.currentState:OnActivate(scriptedObject)
 end
 

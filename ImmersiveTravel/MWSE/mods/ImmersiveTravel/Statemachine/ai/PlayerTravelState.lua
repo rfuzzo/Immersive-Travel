@@ -9,31 +9,9 @@ local interop = require("ImmersiveTravel.interop")
 ---@field free_movement boolean
 local PlayerTravelState = {
     transitions = {
-        [CAiState.NONE] = function(ctx)
-            -- transition to none state if spline is nil
-            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-            if vehicle then
-                return vehicle.spline == nil
-            end
-
-            return true
-        end,
-        [CAiState.ONSPLINE] = function(ctx)
-            -- transition to on spline state if spline is not nil
-            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-            if vehicle and vehicle.spline and not vehicle.playerRegistered then
-                return true
-            end
-            return false
-        end,
-        [CAiState.PLAYERSTEER] = function(ctx)
-            -- transition to player steer state if player is in guide slot
-            local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-            if vehicle and vehicle:isPlayerInGuideSlot() then
-                return true
-            end
-            return false
-        end
+        [CAiState.NONE] = CAiState.ToNone,
+        [CAiState.ONSPLINE] = CAiState.ToOnSpline,
+        [CAiState.PLAYERSTEER] = CAiState.ToPlayerSteer
     }
 }
 
@@ -247,6 +225,11 @@ function PlayerTravelState:update(dt, scriptedObject)
     if vehicle.splineIndex > #vehicle.spline then
         -- reached end of spline
         vehicle.spline = nil
+    end
+
+    -- handle player leaving vehicle
+    if vehicle:isPlayerInMountBounds() then
+        self.playerRegistered = false
     end
 end
 

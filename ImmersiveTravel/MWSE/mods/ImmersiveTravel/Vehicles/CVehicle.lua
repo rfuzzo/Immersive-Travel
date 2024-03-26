@@ -27,6 +27,11 @@ local log = lib.log
 ---@field name string? -- name of the mount
 ---@field price number? -- price of the mount
 
+---@class AnimationData
+---@field idle tes3.animationGroup? -- walk animation
+---@field forward tes3.animationGroup? -- walk animation
+---@field accelerate tes3.animationGroup? -- animation to play while accelerating. slowing
+
 -- Define the CVehicle class inheriting from CTickingEntity
 ---@class CVehicle : CTickingEntity
 ---@field id string
@@ -50,9 +55,8 @@ local log = lib.log
 ---@field scale number?
 ---@field nodeName string? -- niNode, slots are relative tho this
 ---@field nodeOffset tes3vector3? -- position of the nodeName relative to sceneNode
----@field forwardAnimation string? -- walk animation
----@field accelerateAnimation string? -- animation to play while accelerating. slowing
 ---@field userData UserData?
+---@field animation AnimationData?
 -- runtime data
 ---@field last_position tes3vector3
 ---@field last_forwardDirection tes3vector3
@@ -63,6 +67,7 @@ local log = lib.log
 ---@field splineIndex number
 ---@field virtualDestination tes3vector3?
 ---@field current_speed number
+---@field current_sound string?
 ---@field speedChange number
 ---@field playerRegistered boolean
 local CVehicle = {
@@ -85,14 +90,6 @@ local CVehicle = {
     playerRegistered = false
 }
 setmetatable(CVehicle, { __index = CTickingEntity })
-
---#region variables
-local ANIM_CHANGE_FREQ = 10   -- change passenger animations every 10 seconds
-local SWAY_MAX_AMPL = 3       -- how much the ship can sway in a turn
-local SWAY_AMPL_CHANGE = 0.01 -- how much the ship can sway in a turn
-local SWAY_FREQ = 0.12        -- how fast the mount sways
-local SWAY_AMPL = 0.014       -- how much the mount sways
---#endregion
 
 ---Constructor for CVehicle
 ---@return CVehicle
@@ -126,20 +123,6 @@ function CVehicle:OnCreate()
     self.last_forwardDirection = mount.forwardDirection
     self.last_facing = mount.facing
     self.last_sway = 0
-
-    -- animation
-    self:PlayAnimation()
-
-    -- sounds
-    if self.loopSound then
-        local sound = self.sound[math.random(1, #self.sound)]
-        log:debug("\tset sound %s", sound)
-        tes3.playSound({
-            sound = sound,
-            reference = mount,
-            loop = true
-        })
-    end
 
     -- register statics
     if self.clutter then
@@ -195,6 +178,8 @@ end
 
 --- EndPlayerSteer is called when the player leaves the vehicle
 function CVehicle:EndPlayerSteer()
+    self.virtualDestination = nil
+
     self:release()
 end
 
@@ -295,34 +280,6 @@ function CVehicle:release()
     self:cleanup()
 end
 
--- player is within the surface of the mount
----@return boolean
-function CVehicle:isOnMount()
-    local mount = self.referenceHandle:getObject()
-
-
-    local inside = true
-
-    local volumeHeight = 200
-
-    local bbox = mount.object.boundingBox
-
-    local pos = tes3.player.position
-    local surfaceOffset = self.slots[1].position.z
-    local mountSurface = mount.position + tes3vector3.new(0, 0, surfaceOffset)
-
-    if pos.z < (mountSurface.z - volumeHeight) then inside = false end
-    if pos.z > (mountSurface.z + volumeHeight) then inside = false end
-
-    local max_xy_d = tes3vector3.new(bbox.max.x, bbox.max.y, 0):length()
-    local min_xy_d = tes3vector3.new(bbox.min.x, bbox.min.y, 0):length()
-    local dist = mountSurface:distance(pos)
-    local r = math.max(min_xy_d, max_xy_d) + 50
-    if dist > r then inside = false end
-
-    return inside
-end
-
 --- registers a ref in a random free slot
 ---@param handle mwseSafeObjectHandle|nil
 ---@return boolean
@@ -374,6 +331,34 @@ function CVehicle:isPlayerInGuideSlot()
     return false
 end
 
+-- player is within the surface of the mount
+---@return boolean
+function CVehicle:isPlayerInMountBounds()
+    local mount = self.referenceHandle:getObject()
+
+
+    local inside = true
+
+    local volumeHeight = 200
+
+    local bbox = mount.object.boundingBox
+
+    local pos = tes3.player.position
+    local surfaceOffset = self.slots[1].position.z
+    local mountSurface = mount.position + tes3vector3.new(0, 0, surfaceOffset)
+
+    if pos.z < (mountSurface.z - volumeHeight) then inside = false end
+    if pos.z > (mountSurface.z + volumeHeight) then inside = false end
+
+    local max_xy_d = tes3vector3.new(bbox.max.x, bbox.max.y, 0):length()
+    local min_xy_d = tes3vector3.new(bbox.min.x, bbox.min.y, 0):length()
+    local dist = mountSurface:distance(pos)
+    local r = math.max(min_xy_d, max_xy_d) + 50
+    if dist > r then inside = false end
+
+    return inside
+end
+
 --#endregion
 
 --#region CTickingEntity methods
@@ -393,134 +378,6 @@ function CVehicle:OnTick(dt)
     CTickingEntity.OnTick(self, dt)
 
     self:UpdatePlayerCollision()
-
-    -- TODO states
-    self:Move(dt)
-end
-
----@param dt number
-function CVehicle:Move(dt)
-    if not self.referenceHandle:valid() then
-        return
-    end
-    local mount = self.referenceHandle:getObject()
-
-    -- move on spline
-    if self.spline == nil then
-        return
-    end
-    -- move to next marker
-    if self.splineIndex > #self.spline then
-        return
-    end
-
-    local nextPos = lib.vec(self.spline[self.splineIndex])
-    local isBehind = lib.isPointBehindObject(nextPos, mount.position, mount.forwardDirection)
-    if isBehind then
-        self.splineIndex = self.splineIndex + 1
-    end
-    nextPos = lib.vec(self.spline[self.splineIndex])
-
-    -- calculate position
-    local position, facing, turn = self:CalculatePositions(nextPos)
-
-    -- move the reference
-    mount.facing = facing
-    mount.position = position
-    -- save positions
-    self.last_position = mount.position
-    self.last_forwardDirection = mount.forwardDirection
-    self.last_facing = mount.facing
-
-    -- sway
-    mount.orientation = self:calculateOrientation(dt, turn)
-
-    -- update slots
-    self:UpdateSlots(dt)
-end
-
----@param nextPos tes3vector3
----@return tes3vector3, number, number
-function CVehicle:CalculatePositions(nextPos)
-    local mount = self.referenceHandle:getObject()
-
-    -- calculate diffs
-    local mountOffset = tes3vector3.new(0, 0, self.offset)
-    local currentPos = self.last_position - mountOffset
-    local forwardDirection = self.last_forwardDirection
-    forwardDirection:normalize()
-    local d = (nextPos - currentPos):normalized()
-    local lerp = forwardDirection:lerp(d, self.turnspeed / 10):normalized()
-    local forward = tes3vector3.new(mount.forwardDirection.x, mount.forwardDirection.y, lerp.z):normalized()
-    local delta = forward * self.speed
-    local position = currentPos + delta + mountOffset
-
-    -- calculate facing
-    local new_facing = math.atan2(d.x, d.y)
-    local turn = 0
-    local current_facing = self.last_facing
-    local facing = new_facing
-    local diff = new_facing - current_facing
-    if diff < -math.pi then diff = diff + 2 * math.pi end
-    if diff > math.pi then diff = diff - 2 * math.pi end
-    local angle = self.turnspeed / 10000
-    if diff > 0 and diff > angle then
-        facing = current_facing + angle
-        turn = 1
-    elseif diff < 0 and diff < -angle then
-        facing = current_facing - angle
-        turn = -1
-    else
-        facing = new_facing
-    end
-
-    return position, facing, turn
-end
-
----@param dt number
----@param turn number
-function CVehicle:calculateOrientation(dt, turn)
-    local mount = self.referenceHandle:getObject()
-
-    local amplitude = SWAY_AMPL * self.sway
-    local sway_change = amplitude * SWAY_AMPL_CHANGE
-
-    self.swayTime = self.swayTime + dt
-    if self.swayTime > (2000 * SWAY_FREQ) then self.swayTime = dt end
-
-    -- periodically change anims and play sounds
-    local i, f = math.modf(self.swayTime)
-    if i > 0 and f < dt and math.fmod(i, ANIM_CHANGE_FREQ) == 0 then
-        if not self.loopSound and math.random() > 0.5 then
-            local sound = self.sound[math.random(1, #self.sound)]
-            tes3.playSound({
-                sound = sound,
-                reference = mount
-            })
-        end
-    end
-
-    local sway = amplitude *
-        math.sin(2 * math.pi * SWAY_FREQ * self.swayTime)
-    -- offset roll during turns
-    if turn > 0 then
-        local max = (SWAY_MAX_AMPL * amplitude)
-        sway = math.clamp(self.last_sway - sway_change, -max, max) -- - sway
-    elseif turn < 0 then
-        local max = (SWAY_MAX_AMPL * amplitude)
-        sway = math.clamp(self.last_sway + sway_change, -max, max) -- + sway
-    else
-        -- normalize back
-        if self.last_sway < (sway - sway_change) then
-            sway = self.last_sway + sway_change -- + sway
-        elseif self.last_sway > (sway + sway_change) then
-            sway = self.last_sway - sway_change -- - sway
-        end
-    end
-    self.last_sway = sway
-    local newOrientation = lib.toWorldOrientation(tes3vector3.new(0.0, sway, 0.0), mount.orientation)
-
-    return newOrientation
 end
 
 ---@param dt number
@@ -532,7 +389,7 @@ function CVehicle:UpdateSlots(dt)
 
     local changeAnims = false
     local i, f = math.modf(self.swayTime)
-    if i > 0 and f < dt and math.fmod(i, ANIM_CHANGE_FREQ) == 0 then
+    if i > 0 and f < dt and math.fmod(i, lib.ANIM_CHANGE_FREQ) == 0 then
         changeAnims = true
     end
 
@@ -664,21 +521,6 @@ function CVehicle:GetRootBone()
     return rootBone
 end
 
-function CVehicle:UpdatePlayerCollision()
-    -- move player when on vehicle
-    local rootBone = self:GetRootBone()
-    if rootBone then
-        local playerShipLocal = rootBone.worldTransform:invert() * tes3.player.position
-        -- check if player is in freemovement mode
-        if self.hasFreeMovement and self:isOnMount() then
-            -- this is needed to enable collisions :todd:
-            tes3.dataHandler:updateCollisionGroupsForActiveCells {}
-            self.referenceHandle:getObject().sceneNode:update()
-            tes3.player.position = rootBone.worldTransform * playerShipLocal
-        end
-    end
-end
-
 -- you can register a guide with the vehicle
 ---@param handle mwseSafeObjectHandle|nil
 function CVehicle:registerGuide(handle)
@@ -707,6 +549,22 @@ end
 --#endregion
 
 --#region private CVehicle methods
+
+---@private
+function CVehicle:UpdatePlayerCollision()
+    -- move player when on vehicle
+    local rootBone = self:GetRootBone()
+    if rootBone then
+        local playerShipLocal = rootBone.worldTransform:invert() * tes3.player.position
+        -- check if player is in freemovement mode
+        if self.hasFreeMovement and self:isPlayerInMountBounds() then
+            -- this is needed to enable collisions :todd:
+            tes3.dataHandler:updateCollisionGroupsForActiveCells {}
+            self.referenceHandle:getObject().sceneNode:update()
+            tes3.player.position = rootBone.worldTransform * playerShipLocal
+        end
+    end
+end
 
 -- cleanup all variables
 ---@private
@@ -741,16 +599,6 @@ function CVehicle:cleanup()
                 clutter.handle = nil
             end
         end
-    end
-end
-
----@private
-function CVehicle:PlayAnimation()
-    if self.forwardAnimation then
-        local mount = self.referenceHandle:getObject()
-        tes3.loadAnimation({ reference = mount })
-        local forwardAnimation = self.forwardAnimation
-        tes3.playAnimation({ reference = mount, group = tes3.animationGroup[forwardAnimation] })
     end
 end
 
@@ -809,8 +657,6 @@ function CVehicle:registerStatic(handle, i)
     end
 end
 
-local PASSENGER_HELLO = 10
-
 --- registers a ref in a slot
 ---@param handle mwseSafeObjectHandle|nil
 ---@param idx integer
@@ -828,7 +674,7 @@ function CVehicle:registerInSlot(handle, idx)
         if reference ~= tes3.player then
             -- disable greetings
             reference.data.rfuzzo_invincible = true;
-            reference.mobile.hello = PASSENGER_HELLO;
+            reference.mobile.hello = lib.PASSENGER_HELLO;
         end
 
         local group = lib.getRandomAnimGroup(slot)
