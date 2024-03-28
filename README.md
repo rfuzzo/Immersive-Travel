@@ -1,79 +1,81 @@
-# TES3 mods
+# Immersive Travel - MWSE
 
-My TES3 Morrowind mods and modding utility tools.
+A mod that adds real-time travel with smooth movement on striders, boats, ships, gondolas and river striders (with TR). The mod also has many quality of life features.
 
-## Mods
+➡️ To start a trip talk to a Caravaner or Shipmaster and select the "Take me to..." dialogue option.
 
-### 🚧 ImmersiveTravelAddonWorld
->
-> nightly link: <https://rfuzzo.github.io/tes3-mods/ImmersiveTravelAddonWorld.zip>
->
-> nexus link:<https://www.nexusmods.com/morrowind/mods/54336>
+While on a mount you can freely move around the ships and river striders, or sit down and enjoy the trip.
 
-This mod expands upon the Immersive Travel mod by adding Silt Striders and boats to various locations in the world. These new transportation options will follow the predefined routes. [Readme](/MagicSynergies/README.md)
+- You always start a trip in a fixed slot
+- The `W`, `A`, `D` keys let you move to different spots on the vehicle
+- Pressing `S` lets you get up and freely move around the vehicle (only available on ships currently)
+- Talk to the guide again to sit down in a slot
 
-### 🚧 Magic Synergies
->
-> nightly link: <https://rfuzzo.github.io/tes3-mods/MagicSynergies.zip>
->
-> nexus link:
+💡 Resting (default `T` key) while travelling lets you skip to the travel destination.
 
-Magic effects with environment and school synergies. [Readme](/MagicSynergies/README.md)
+## Features
 
-### ✅ Immersive Vehicles
->
-> nightly link: <https://rfuzzo.github.io/tes3-mods/ImmersiveVehicles.zip>
->
-> nexus link: <https://www.nexusmods.com/morrowind/mods/54333>
+- real-time travel between vanilla travel destinations.
+- smooth turning and vehicle movement
+- random passengers on the vehicles with you
+- companions travel with you
+- various QoL features like
+- different vehicles on different routes (small longboats connect the fishing villages, while bigger ships connect the towns)
+- vehicle customization
 
-Usable vehicles with smooth movement. [Readme](/Immersive%20Vehicles/README.md)
+## Downloads
 
-### ✅ Immersive Travel
->
-> nightly link: <https://rfuzzo.github.io/tes3-mods/ImmersiveTravel.zip>
->
-> nexus link: <https://www.nexusmods.com/morrowind/mods/54063>
+### Dev builds
 
-Real-time travel with smooth movement. [Readme](/Immersive%20Travel/README.md)
+- <https://rfuzzo.github.io/Immersive-Travel/ImmersiveTravel.zip>
+- <https://rfuzzo.github.io/Immersive-Travel/ImmersiveVehicles.zip>
+- <https://rfuzzo.github.io/Immersive-Travel/ImmersiveTravelAddonWorld.zip>
 
-### ✅ Lockpick Minigame
->
-> nexus link: <https://www.nexusmods.com/morrowind/mods/52813>
+### Released versions
 
-Implements a gothic-like lockpicking minigame.
+TODO
 
-### ✅ Simple Levelup Skills Persist
->
-> nexus link: <https://www.nexusmods.com/morrowind/mods/52794>
+## Add-ons
 
-On level up, simply carry over unused attributes. If you pick an attribute when levelling up, all skill level ups for that attributes are lost.
+- easy modding compatibility and configurability (see: [In-game editor docs](./docs/editor.md))
+- Immersive vehicles
+- World Addon
 
-### ✅ Pickpocket Minigame
->
-> nexus link: <https://www.nexusmods.com/morrowind/mods/52793>
+## Compatibility
 
-Replaces the vanilla pickpocket mechanic with a KCD-inspired minigame.
+Compatible with everything that does not move the vanilla travel services or alter the routes/landscape too much.
 
-### ✅ Immersive Maps
->
-> nexus link: <https://www.nexusmods.com/morrowind/mods/52683>
+Out-of the box compatible with:
 
-A simple mod that disables the vanilla map menu and replaces it with textured maps when you read a map or a guide book. Also Integrates with various Map & Compass map packs.
+- ✅ [The Great Seawall of Vivec](https://www.nexusmods.com/morrowind/mods/53544)
 
-### ✅ Immersive Bosmer Corpse Disposal
->
-> nexus link: <https://www.nexusmods.com/morrowind/mods/51123>
+Patches are available for:
 
-This mod changes the "dispose corpse" button to "eat corpse" if you are playing as a Bosmer and adds some buffs for eating your felled enemies. Includes some logic for use as an Ashfall-addon.
+- ☑️ Beautiful Cities of Morrowind
+- ☑️ Tamriel Rebuilt
+- ☑️ TOTSP
+- ☑️ Gnisis Docks
 
-### ✅ MWSE Compare Tooltips
->
-> nexus link: <https://www.nexusmods.com/morrowind/mods/51087>
+## Installation
 
-This mod adds compare tooltips for looked-at or equipped items against the equipped item of the same category. The mod has multiple MCM options to configure the comparison style.
+- Make sure you have the latest MWSE update
+- Install the zip file with a mod manager
+- Choose the patch options
 
-### ✅ MWSE Loading Splash Screens
->
-> nexus link: <https://www.nexusmods.com/morrowind/mods/51076>
+## Screenshots
 
-This mod uses MWSE to display splash screens during cell loading instead of freezing the frame as vanilla does.
+![screenshot](/_assets/immersive%20travel/Morrowind%202023-08-23%2015.48.51.900.png)
+![screenshot](/_assets/immersive%20travel/Morrowind%202024-02-02%2013.45.52.755.png)
+![screenshot](/_assets/immersive%20travel/Morrowind%202023-08-22%2011.11.23.347.png)
+![screenshot](/_assets/immersive%20travel/tr_travel.png)
+
+## Special thanks to
+
+- Juidius for their lamp models
+- Stele for their Silt strider animations and models
+- VidiAquam for the sitting animations and help with anims
+- Greatness7, Null, Hrnchamd and Herbert for answering all my stupid math questions
+- VonDjangos, Voig and Merlord for help on the mod
+- the rest of the MCM community for immense help on diverse features over the long time I worked on this mod
+- The MWSE team for MWSE
+- The CSSE team for CSSE
