@@ -34,7 +34,7 @@ end
 local function toMovingState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
     return (vehicle.spline or vehicle.virtualDestination) and
-        (vehicle.speed > 0.5 or vehicle.speed < -0.5)
+        (vehicle.current_speed > 0.5 or vehicle.current_speed < -0.5)
 end
 
 --- transition to idle state
@@ -48,7 +48,7 @@ local function toIdleState(ctx)
         return true
     end
 
-    return vehicle.speed < 0.5 and vehicle.speed > -0.5
+    return vehicle.current_speed < 0.5 and vehicle.current_speed > -0.5
 end
 
 --- transition to accelerate state
@@ -244,7 +244,7 @@ local function CalculatePositions(vehicle, nextPos)
     local d = (virtualpos - currentPos):normalized()
     local lerp = forwardDirection:lerp(d, vehicle.turnspeed / 10):normalized()
     local forward = tes3vector3.new(mount.forwardDirection.x, mount.forwardDirection.y, lerp.z):normalized()
-    local delta = forward * vehicle.speed
+    local delta = forward * vehicle.current_speed
     local position = currentPos + delta + mountOffset
 
     -- calculate facing

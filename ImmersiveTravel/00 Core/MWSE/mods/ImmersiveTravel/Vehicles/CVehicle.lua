@@ -187,11 +187,42 @@ function CVehicle:EndPlayerSteer()
     self:release()
 end
 
+--- Starts the vehicle on the spline
+---@param spline PositionRecord[]
+---@param service ServiceData
+function CVehicle:StartOnSpline(spline, service)
+    log:debug("StartOnSpline %s", self.id)
+
+    self.spline = spline -- this pushes the AI statemachine
+    self.current_speed = self.speed
+
+    local mount = self.referenceHandle:getObject()
+
+    -- register guide
+    local guides = service.guide
+    if guides then
+        local randomIndex = math.random(1, #guides)
+        local guideId = guides[randomIndex]
+        local guide = tes3.createReference {
+            object = guideId,
+            position = mount.position,
+            orientation = mount.orientation
+        }
+        log:debug("> registering guide")
+        self:registerGuide(tes3.makeSafeObjectHandle(guide))
+    end
+
+    -- register passengers
+    self:RegisterPassengers()
+end
+
 --- StartPlayerTravel is called when the player starts traveling
 function CVehicle:StartPlayerTravel(guideId, spline)
     log:debug("StartPlayerTravel %s", self.id)
 
     self.spline = spline -- this pushes the AI statemachine
+    self.current_speed = self.speed
+
     self.playerRegistered = true
 
     local mount = self.referenceHandle:getObject()
@@ -203,8 +234,9 @@ function CVehicle:StartPlayerTravel(guideId, spline)
         position = mount.position,
         orientation = mount.orientation
     }
-    guide.mobile.hello = 0
     self:registerGuide(tes3.makeSafeObjectHandle(guide))
+
+    guide.mobile.hello = 0
 
     -- register player
     log:debug("\tregistering player")

@@ -58,8 +58,9 @@ local function doSpawn(point)
     local service = services[point.serviceId]
     local idx = point.splineIndex
 
-    local startPoint = lib.vec(splines[service.class][point.routeId][idx])
-    local nr = splines[service.class][point.routeId][idx + 1]
+    local spline = splines[service.class][point.routeId]
+    local startPoint = lib.vec(spline[idx])
+    local nr = spline[idx + 1]
     if not nr then return end
     local nextPoint = lib.vec(nr)
     local orientation = nextPoint - startPoint
@@ -84,6 +85,8 @@ local function doSpawn(point)
     if not vehicle then
         return
     end
+
+    vehicle:StartOnSpline(spline, service)
 
     log:debug("%s spawned at: %s", mountId, lib.vec(point.point))
 end
