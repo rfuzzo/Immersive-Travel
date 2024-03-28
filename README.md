@@ -33,7 +33,7 @@ While on a mount you can freely move around the ships and river striders, or sit
 
 ### Released versions
 
-TODO
+On Nexus:
 
 ## Add-ons
 
