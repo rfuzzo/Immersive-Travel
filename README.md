@@ -35,6 +35,8 @@ While on a mount you can freely move around the ships and river striders, or sit
 
 On Nexus:
 
+- <https://www.nexusmods.com/morrowind/mods/54063>
+
 ## Add-ons
 
 - easy modding compatibility and configurability (see: [In-game editor docs](./docs/editor.md))
