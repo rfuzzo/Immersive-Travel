@@ -3,7 +3,7 @@ local interop = require("ImmersiveTravel.interop")
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
-local config = require("rfuzzo.ImmersiveTravelEditor.config")
+local config = require("ImmersiveTravelEditor.config")
 
 local logger = require("logging.logger")
 local log = logger.new {
@@ -803,4 +803,4 @@ event.register(tes3.event.load, editloadCallback)
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIG
-require("rfuzzo.ImmersiveTravelEditor.mcm")
+require("ImmersiveTravelEditor.mcm")
