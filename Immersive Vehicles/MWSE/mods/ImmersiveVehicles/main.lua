@@ -4,8 +4,9 @@ local ui = require("ImmersiveVehicles.ui")
 
 local log = lib.log
 
-local DEBUG = false
+--#region debugging
 
+local DEBUG = false
 
 -- CONSTANTS
 
@@ -116,6 +117,9 @@ event.register(tes3.event.simulated, simulatedCallback)
 --     travelMarkerMesh = tes3.loadMesh(travelMarkerId)
 -- end
 -- event.register(tes3.event.load, loadCallback)
+
+--#endregion
+
 
 --- @param e activateEventData
 local function activateCallback(e)

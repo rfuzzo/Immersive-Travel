@@ -26,9 +26,19 @@ function CTickingEntity:new()
 end
 
 ---Create a new instance of CTickingEntity
----@param reference tes3reference
+---@param position tes3vector3
+---@param orientation tes3vector3
+---@param facing number
 ---@return CTickingEntity
-function CTickingEntity:create(reference)
+function CTickingEntity:create(position, orientation, facing)
+    -- create reference
+    local reference = tes3.createReference {
+        object = self.id,
+        position = position,
+        orientation = orientation
+    }
+    reference.facing = facing
+
     ---@type CTickingEntity
     local newObj = {
         referenceHandle = tes3.makeSafeObjectHandle(reference),

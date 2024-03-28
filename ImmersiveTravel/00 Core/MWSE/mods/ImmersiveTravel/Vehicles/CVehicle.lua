@@ -101,10 +101,14 @@ function CVehicle:new()
     return newObj
 end
 
----@param reference tes3reference
+---@param position tes3vector3
+---@param orientation tes3vector3
+---@param facing number
 ---@return CVehicle
-function CVehicle:create(reference)
-    local newObj = CTickingEntity:create(reference)
+function CVehicle:create(position, orientation, facing)
+    local mountOffset = tes3vector3.new(0, 0, self.offset)
+
+    local newObj = CTickingEntity:create(position + mountOffset, orientation, facing)
     self.__index = self
     setmetatable(newObj, self)
     ---@cast newObj CVehicle
@@ -500,7 +504,7 @@ function CVehicle:UpdateSlots(dt)
     end
 end
 
----@return nil
+---@return niNode?
 function CVehicle:GetRootBone()
     if not self.referenceHandle then
         return nil

@@ -1,18 +1,20 @@
-local AbstractState = require("ImmersiveTravel.Statemachine.CAbstractState")
-local lib = require("ImmersiveTravel.lib")
-local log = lib.log
+local AbstractState         = require("ImmersiveTravel.Statemachine.CAbstractState")
+local lib                   = require("ImmersiveTravel.lib")
+local log                   = lib.log
+local CTrackingManager      = require("ImmersiveTravel.CTrackingManager")
+local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
 
 -- Abstract locomotion state machine class
 ---@class CLocomotionState : CAbstractState
-local CLocomotionState = {
+local CLocomotionState      = {
     transitions = {}
 }
 
 --#region methods
 
 -- enum for locomotion states
-CLocomotionState.IDLE = "IDLE"
-CLocomotionState.MOVING = "MOVING"
+CLocomotionState.IDLE       = "IDLE"
+CLocomotionState.MOVING     = "MOVING"
 CLocomotionState.ACCELERATE = "ACCELERATE"
 CLocomotionState.DECELERATE = "DECELERATE"
 
@@ -145,18 +147,101 @@ end
 
 --#region methods
 
+---comment
+---@param origin tes3vector3
+---@param forwardVector tes3vector3
+---@param target tes3vector3
+---@param coneRadius number
+---@param coneAngle number
+---@return boolean
+local function isPointInCone(origin, forwardVector, target, coneRadius,
+                             coneAngle)
+    -- Calculate the vector from the origin to the target point
+    local toTarget = target - origin
+
+    -- Calculate the cosine of the angle between the forward vector and the vector to the target
+    local dotProduct = forwardVector:dot(toTarget)
+
+    -- Calculate the magnitudes of both vectors
+    local forwardMagnitude = forwardVector:length()
+    local toTargetMagnitude = toTarget:length()
+
+    -- Calculate the cosine of the angle between the vectors
+    local cosAngle = dotProduct / (forwardMagnitude * toTargetMagnitude)
+
+    -- Calculate the angle in radians
+    local angleInRadians = math.acos(cosAngle)
+
+    -- Check if the angle is less than or equal to half of the cone angle and the distance is within the cone radius
+    if angleInRadians <= coneAngle / 2 and toTargetMagnitude <= coneRadius then
+        return true
+    else
+        return false
+    end
+end
+
+---@param referenceVector tes3vector3
+---@param targetVector tes3vector3
+---@return boolean
+local function isVectorRight(referenceVector, targetVector)
+    local crossProduct =
+        referenceVector.x * targetVector.y - referenceVector.y * targetVector.x
+
+    if crossProduct > 0 then
+        return true  -- "right"
+    elseif crossProduct < 0 then
+        return false -- "left"
+    else
+        return false --- "collinear"  -- The vectors are collinear
+    end
+end
+
 ---@param vehicle CVehicle
 ---@param nextPos tes3vector3
 ---@return tes3vector3, number, number
 local function CalculatePositions(vehicle, nextPos)
     local mount = vehicle.referenceHandle:getObject()
 
-    -- calculate diffs
     local mountOffset = tes3vector3.new(0, 0, vehicle.offset)
     local currentPos = vehicle.last_position - mountOffset
+
+    -- change position when about to collide
+    local virtualpos = nextPos
+    -- only in onspline AI states
+    if vehicle.aiStateMachine.currentState == CAiState.ONSPLINE then
+        local evade_right = false
+        local collision = false
+        -- get tracked
+        for index, value in ipairs(CTrackingManager.getInstance().trackingList) do
+            -- TODO only get vehicles
+            ---@cast value CVehicle
+            if value ~= vehicle and currentPos:distance(value.last_position) < 8192 then
+                -- TODO what values to use here?
+                local check = isPointInCone(currentPos, vehicle.last_forwardDirection, value.last_position, 6144, 0.785)
+                if check then
+                    collision = true
+                    evade_right = isVectorRight(vehicle.last_forwardDirection, value.last_position - currentPos)
+                    break
+                end
+            end
+        end
+        -- evade
+        if collision then
+            -- override the next position temporarily
+            if evade_right then
+                -- evade to the right
+                virtualpos = vehicle:GetRootBone().worldTransform * tes3vector3.new(1204, 1024, nextPos.z)
+            else
+                -- evade to the left
+                virtualpos = vehicle:GetRootBone().worldTransform * tes3vector3.new(-1204, 1024, nextPos.z)
+            end
+        end
+    end
+
+    -- calculate diffs
     local forwardDirection = vehicle.last_forwardDirection
     forwardDirection:normalize()
-    local d = (nextPos - currentPos):normalized()
+    local d = (virtualpos - currentPos):normalized()
     local lerp = forwardDirection:lerp(d, vehicle.turnspeed / 10):normalized()
     local forward = tes3vector3.new(mount.forwardDirection.x, mount.forwardDirection.y, lerp.z):normalized()
     local delta = forward * vehicle.speed

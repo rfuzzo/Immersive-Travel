@@ -1,5 +1,6 @@
-local lib = require("ImmersiveTravel.lib")
-local interop = require("ImmersiveTravel.interop")
+local lib                  = require("ImmersiveTravel.lib")
+local CAiState             = require("ImmersiveTravel.Statemachine.ai.CAiState")
+local interop              = require("ImmersiveTravel.interop")
 
 -- TODO modified false on save
 
@@ -8,7 +9,7 @@ local interop = require("ImmersiveTravel.interop")
 ---@field trackingList CTickingEntity[]
 ---@field timer mwseTimer?
 ---@field TIMER_TICK number
-local TrackingManager = {
+local TrackingManager      = {
     trackingList = {},
     timer = nil
 }
@@ -64,6 +65,8 @@ function TrackingManager:StartTimer()
         type = timer.simulate,
         iterations = -1, -- Repeat indefinitely
         callback = function()
+            self:doCull()
+
             for _, entity in ipairs(self.trackingList) do
                 entity:OnTick(self.TIMER_TICK)
             end
@@ -118,6 +121,52 @@ function TrackingManager.OnDestroy(reference)
         else
             reference:delete()
         end
+    end
+end
+
+--- @param e saveEventData
+local function saveCallback(e)
+    -- go through all tracked objects and set .modified = false
+    for index, s in ipairs(TrackingManager.getInstance().trackingList) do
+        if s.referenceHandle and s.referenceHandle:valid() then
+            s.referenceHandle:getObject().modified = false
+        end
+    end
+end
+event.register(tes3.event.save, saveCallback)
+
+--#endregion
+
+--#region cull
+
+--- cull nodes in distance
+function TrackingManager:doCull()
+    local toremove = {}
+    for _, s in ipairs(self.trackingList) do
+        -- TODO only get vehicles
+        local vehicle = s ---@cast vehicle CVehicle
+        -- only cull vehicles that are in onspline ai state
+        if vehicle.aiStateMachine and vehicle.aiStateMachine.currentState == CAiState.ONSPLINE then
+            local d = tes3.player.position:distance(vehicle.last_position)
+            -- TODO set cull radius in config config.cullRadius
+            if d > 4 * 8192 then
+                table.insert(toremove, s)
+            end
+            -- if d > mge.distantLandRenderConfig.drawDistance * 8192 then
+            --     table.insert(toremove, s)
+            -- end
+        end
+    end
+
+    for _, s in ipairs(toremove) do
+        s:Delete()
+
+        lib.log:debug("Culled %s", s.id)
+    end
+
+    if #toremove > 0 then
+        lib.log:debug("Tracked: " .. #self.trackingList)
+        tes3.messageBox("Tracked: " .. #self.trackingList)
     end
 end
 

@@ -25,9 +25,15 @@ local function StartTravel(start, destination, service, guide)
     local currentSpline = lib.loadSpline(start, destination, service)
     if currentSpline == nil then return end
 
+    -- get spawn position
+    local startPos = lib.vec(currentSpline[1])
+    local nextPos = lib.vec(currentSpline[2])
+    local orientation = nextPos - startPos
+    orientation:normalize()
+    local facing = math.atan2(orientation.x, orientation.y)
+
     -- vehicle id
     local mountId = service.mount
-    -- override mounts
     if service.override_mount then
         for _, o in ipairs(service.override_mount) do
             if lib.is_in(o.points, start) and
@@ -39,11 +45,6 @@ local function StartTravel(start, destination, service, guide)
     end
 
     -- create vehicle
-    local startPos = lib.vec(currentSpline[1])
-    local nextPos = lib.vec(currentSpline[2])
-    local orientation = nextPos - startPos
-    orientation:normalize()
-    local facing = math.atan2(orientation.x, orientation.y)
     local vehicle = interop.createVehicle(mountId, startPos, orientation, facing)
     if not vehicle then
         return

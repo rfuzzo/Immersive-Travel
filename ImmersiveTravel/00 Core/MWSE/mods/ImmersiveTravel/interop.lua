@@ -28,6 +28,7 @@ function this.createVehicle(mountId, startPos, orientation, facing)
     -- get from vehicles table
     if this.vehicles[mountId] then
         local vehicle = require("ImmersiveTravel.Vehicles." .. this.vehicles[mountId])
+        ---@cast vehicle CVehicle
         return vehicle:create(startPos, orientation, facing)
     end
 

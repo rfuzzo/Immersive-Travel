@@ -19,10 +19,12 @@ function CBoat:new()
     return newObj
 end
 
----@param reference tes3reference
+---@param position tes3vector3
+---@param orientation tes3vector3
+---@param facing number
 ---@return CBoat
-function CBoat:create(reference)
-    local newObj = CVehicle:create(reference)
+function CBoat:create(position, orientation, facing)
+    local newObj = CVehicle:create(position, orientation, facing)
     self.__index = self
     setmetatable(newObj, self)
     ---@cast newObj CBoat
