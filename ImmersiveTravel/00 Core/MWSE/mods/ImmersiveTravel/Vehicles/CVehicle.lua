@@ -101,14 +101,16 @@ function CVehicle:new()
     return newObj
 end
 
+---Create a new instance of CVehicle
+---@param id string
 ---@param position tes3vector3
 ---@param orientation tes3vector3
 ---@param facing number
 ---@return CVehicle
-function CVehicle:create(position, orientation, facing)
+function CVehicle:create(id, position, orientation, facing)
     local mountOffset = tes3vector3.new(0, 0, self.offset)
 
-    local newObj = CTickingEntity:create(position + mountOffset, orientation, facing)
+    local newObj = CTickingEntity:create(id, position + mountOffset, orientation, facing)
     self.__index = self
     setmetatable(newObj, self)
     ---@cast newObj CVehicle
@@ -217,13 +219,16 @@ function CVehicle:StartOnSpline(spline, service)
 end
 
 --- StartPlayerTravel is called when the player starts traveling
+---@param guideId string
+---@param spline PositionRecord[]
 function CVehicle:StartPlayerTravel(guideId, spline)
     log:debug("StartPlayerTravel %s", self.id)
 
-    self.spline = spline -- this pushes the AI statemachine
-    self.current_speed = self.speed
-
+    -- these push the AI statemachine
     self.playerRegistered = true
+    -- this pushes the locomotion statemachine
+    self.spline = spline
+    self.current_speed = self.speed
 
     local mount = self.referenceHandle:getObject()
 

@@ -26,14 +26,15 @@ function CTickingEntity:new()
 end
 
 ---Create a new instance of CTickingEntity
+---@param id string
 ---@param position tes3vector3
 ---@param orientation tes3vector3
 ---@param facing number
 ---@return CTickingEntity
-function CTickingEntity:create(position, orientation, facing)
+function CTickingEntity:create(id, position, orientation, facing)
     -- create reference
     local reference = tes3.createReference {
-        object = self.id,
+        object = id,
         position = position,
         orientation = orientation
     }
@@ -42,7 +43,6 @@ function CTickingEntity:create(position, orientation, facing)
     ---@type CTickingEntity
     local newObj = {
         referenceHandle = tes3.makeSafeObjectHandle(reference),
-        id = reference.id,
         locomotionStateMachine = CLocomotionStateMachine:new(),
         aiStateMachine = CAiStateMachine:new()
     }
@@ -67,8 +67,8 @@ end
 ---Called on each tick of the timer
 ---@param dt number
 function CTickingEntity:OnTick(dt)
-    self.locomotionStateMachine:update(dt, self)
     self.aiStateMachine:update(dt, self)
+    self.locomotionStateMachine:update(dt, self)
 end
 
 -- ---Register the entity with the CTrackingManager

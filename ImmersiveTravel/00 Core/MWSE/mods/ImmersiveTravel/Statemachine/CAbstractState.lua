@@ -2,20 +2,18 @@
 
 -- Define the CAbstractState class
 ---@class CAbstractState
+---@field name? string
 ---@field transitions table<string, function>
-local CAbstractState = {
-    transitions = {}
-}
-CAbstractState.__index = CAbstractState
+local CAbstractState = {}
 
 -- Constructor
 ---@return CAbstractState
 function CAbstractState:new()
-    ---@type CAbstractState
+    -----@type CAbstractState
     local newObj = {
-        transitions = {}
+        --    transitions = {}
     }
-    setmetatable(newObj, CAbstractState)
+    setmetatable(newObj, self)
     self.__index = self
     return newObj
 end
@@ -33,6 +31,7 @@ function CAbstractState:exit(scriptedObject)
 end
 
 -- Method to update the state
+---@param dt number
 ---@param scriptedObject CTickingEntity
 function CAbstractState:update(dt, scriptedObject)
     -- Add code to update the state based on the elapsed time (dt)

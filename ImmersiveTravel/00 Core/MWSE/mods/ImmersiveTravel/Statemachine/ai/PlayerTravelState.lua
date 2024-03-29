@@ -8,12 +8,14 @@ local interop = require("ImmersiveTravel.interop")
 ---@field cameraOffset tes3vector3?
 ---@field free_movement boolean
 local PlayerTravelState = {
+    name = CAiState.PLAYERTRAVEL,
     transitions = {
         [CAiState.NONE] = CAiState.ToNone,
         [CAiState.ONSPLINE] = CAiState.ToOnSpline,
         [CAiState.PLAYERSTEER] = CAiState.ToPlayerSteer
     }
 }
+setmetatable(PlayerTravelState, { __index = CAiState })
 
 -- constructor for PlayerTravelState
 ---@return PlayerTravelState

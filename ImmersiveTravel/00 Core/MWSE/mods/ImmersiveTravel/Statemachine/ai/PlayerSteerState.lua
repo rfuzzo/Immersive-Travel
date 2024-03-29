@@ -6,6 +6,7 @@ local lib = require("ImmersiveTravel.lib")
 ---@field trackedVehicle CVehicle?
 ---@field cameraOffset tes3vector3?
 local PlayerSteerState = {
+    name = CAiState.PLAYERSTEER,
     transitions = {
         [CAiState.PLAYERTRAVEL] = CAiState.ToPlayerTravel,
         [CAiState.ONSPLINE] = CAiState.ToOnSpline,
@@ -14,6 +15,7 @@ local PlayerSteerState = {
     trackedVehicle = nil,
     cameraOffset = nil,
 }
+setmetatable(PlayerSteerState, { __index = CAiState })
 
 -- constructor for PlayerSteerState
 ---@return PlayerSteerState

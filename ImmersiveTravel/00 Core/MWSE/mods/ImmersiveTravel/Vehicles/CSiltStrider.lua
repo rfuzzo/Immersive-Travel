@@ -59,12 +59,14 @@ function CSiltStrider:new()
     return newObj
 end
 
+---Create a new instance of CSiltStrider
+---@param id string
 ---@param position tes3vector3
 ---@param orientation tes3vector3
 ---@param facing number
 ---@return CSiltStrider
-function CSiltStrider:create(position, orientation, facing)
-    local newObj = CVehicle:create(position, orientation, facing)
+function CSiltStrider:create(id, position, orientation, facing)
+    local newObj = CVehicle:create(id, position, orientation, facing)
     self.__index = self
     setmetatable(newObj, self)
     ---@cast newObj CSiltStrider

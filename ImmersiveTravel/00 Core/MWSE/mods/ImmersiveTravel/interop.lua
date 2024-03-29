@@ -19,17 +19,17 @@ function this.insertVehicle(id, className)
 end
 
 --- get vehicle
----@param mountId string
----@param startPos tes3vector3
+---@param id string
+---@param position tes3vector3
 ---@param orientation tes3vector3
 ---@param facing number
 ---@return CVehicle?
-function this.createVehicle(mountId, startPos, orientation, facing)
+function this.createVehicle(id, position, orientation, facing)
     -- get from vehicles table
-    if this.vehicles[mountId] then
-        local vehicle = require("ImmersiveTravel.Vehicles." .. this.vehicles[mountId])
+    if this.vehicles[id] then
+        local vehicle = require("ImmersiveTravel.Vehicles." .. this.vehicles[id])
         ---@cast vehicle CVehicle
-        return vehicle:create(startPos, orientation, facing)
+        return vehicle:create(id, position, orientation, facing)
     end
 
     return nil

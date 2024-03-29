@@ -6,9 +6,9 @@ local log = lib.log
 ---@field currentState CAbstractState
 ---@field states table<string, CAbstractState>
 local CAbstractStateMachine = {}
-CAbstractStateMachine.__index = CAbstractStateMachine
 
 -- Constructor
+---@return CAbstractStateMachine
 function CAbstractStateMachine:new()
     local newObj = {}
     self.__index = self
@@ -22,17 +22,17 @@ end
 function CAbstractStateMachine:update(dt, scriptedObject)
     -- transition to the new state if needed
     -- go through the transitions of the current state
+    local ctx = {
+        scriptedObject = scriptedObject
+    }
     for state, transition in pairs(self.currentState.transitions) do
-        local ctx = {
-            scriptedObject = scriptedObject
-        }
         if transition(ctx) then
             log:debug("Transitioning to state: %s", state)
             self.currentState:exit(scriptedObject)
-            log:debug("Exiting state: %s", self.currentState)
+            log:debug("Exiting state: %s", self.currentState.name)
             self.currentState = self.states[state]
             self.currentState:enter(scriptedObject)
-            log:debug("Entering state: %s", self.currentState)
+            log:debug("Entering state: %s", self.currentState.name)
         end
     end
 

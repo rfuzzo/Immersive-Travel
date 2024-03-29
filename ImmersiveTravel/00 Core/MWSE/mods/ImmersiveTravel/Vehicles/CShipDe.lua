@@ -86,12 +86,14 @@ function CShipDe:new()
     return newObj
 end
 
+---Create a new instance of CShipDe
+---@param id string
 ---@param position tes3vector3
 ---@param orientation tes3vector3
 ---@param facing number
 ---@return CShipDe
-function CShipDe:create(position, orientation, facing)
-    local newObj = CBoat:create(position, orientation, facing)
+function CShipDe:create(id, position, orientation, facing)
+    local newObj = CBoat:create(id, position, orientation, facing)
     self.__index = self
     setmetatable(newObj, self)
     ---@cast newObj CShipDe

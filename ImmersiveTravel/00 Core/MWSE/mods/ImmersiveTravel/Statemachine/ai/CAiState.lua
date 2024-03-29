@@ -1,11 +1,11 @@
-local AbstractState = require("ImmersiveTravel.Statemachine.CAbstractState")
+local CAbstractState = require("ImmersiveTravel.Statemachine.CAbstractState")
 local lib = require("ImmersiveTravel.lib")
 
 -- Abstract AI state machine class
 ---@class CAiState : CAbstractState
 local CAiState = {
-    transitions = {}
 }
+setmetatable(CAiState, { __index = CAbstractState })
 
 -- enum for AI states
 CAiState.NONE = "NONE"
@@ -16,7 +16,7 @@ CAiState.PLAYERTRAVEL = "PLAYERTRAVEL"
 ---Constructor for AI State
 ---@return CAiState
 function CAiState:new()
-    local newObj = AbstractState:new()
+    local newObj = CAbstractState:new()
     self.__index = self
     setmetatable(newObj, self)
     ---@cast newObj CAiState

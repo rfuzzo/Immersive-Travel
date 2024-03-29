@@ -1,14 +1,14 @@
-local AbstractState         = require("ImmersiveTravel.Statemachine.CAbstractState")
-local lib                   = require("ImmersiveTravel.lib")
-local log                   = lib.log
-local CTrackingManager      = require("ImmersiveTravel.CTrackingManager")
-local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
+local CAbstractState   = require("ImmersiveTravel.Statemachine.CAbstractState")
+local lib              = require("ImmersiveTravel.lib")
+local CTrackingManager = require("ImmersiveTravel.CTrackingManager")
+local CAiState         = require("ImmersiveTravel.Statemachine.ai.CAiState")
 
 -- Abstract locomotion state machine class
 ---@class CLocomotionState : CAbstractState
-local CLocomotionState      = {
+local CLocomotionState = {
     transitions = {}
 }
+setmetatable(CLocomotionState, { __index = CAbstractState })
 
 --#region methods
 
@@ -21,7 +21,7 @@ CLocomotionState.DECELERATE = "DECELERATE"
 ---Constructor for LocomotionState
 ---@return CLocomotionState
 function CLocomotionState:new()
-    local newObj = AbstractState:new()
+    local newObj = CAbstractState:new()
     self.__index = self
     setmetatable(newObj, self)
     ---@cast newObj CLocomotionState
@@ -76,12 +76,14 @@ end
 -- Idle state class
 ---@class IdleState : CLocomotionState
 CLocomotionState.IdleState = {
+    name = CLocomotionState.IDLE,
     transitions = {
         [CLocomotionState.MOVING] = toMovingState,
         [CLocomotionState.ACCELERATE] = toAccelerateState,
         [CLocomotionState.DECELERATE] = toDecelerateState
     }
 }
+setmetatable(CLocomotionState.IdleState, { __index = CLocomotionState })
 
 -- constructor for IdleState
 ---@return IdleState
@@ -113,14 +115,6 @@ function CLocomotionState.IdleState:enter(scriptedObject)
     end
 end
 
-function CLocomotionState.IdleState:update(dt, scriptedObject)
-    -- Implement idle state update logic here
-end
-
-function CLocomotionState.IdleState:exit(scriptedObject)
-    -- Implement idle state exit logic here
-end
-
 --#endregion
 
 --#region MovingState
@@ -128,12 +122,14 @@ end
 -- Moving state class
 ---@class MovingState : CLocomotionState
 CLocomotionState.MovingState = {
+    name = CLocomotionState.MOVING,
     transitions = {
         [CLocomotionState.IDLE] = toIdleState,
         [CLocomotionState.ACCELERATE] = toAccelerateState,
         [CLocomotionState.DECELERATE] = toDecelerateState
     }
 }
+setmetatable(CLocomotionState.MovingState, { __index = CLocomotionState })
 
 -- constructor for MovingState
 ---@return MovingState
@@ -415,10 +411,6 @@ function CLocomotionState.MovingState:update(dt, scriptedObject)
     Move(vehicle, dt)
 end
 
-function CLocomotionState.MovingState:exit(scriptedObject)
-    -- Implement moving state exit logic here
-end
-
 --#endregion
 
 --#region AccelerateState
@@ -426,12 +418,14 @@ end
 -- Accelerate state class
 ---@class AccelerateState : CLocomotionState
 CLocomotionState.AccelerateState = {
+    name = CLocomotionState.ACCELERATE,
     transitions = {
         [CLocomotionState.IDLE] = toIdleState,
         [CLocomotionState.MOVING] = toMovingState,
         [CLocomotionState.DECELERATE] = toDecelerateState
     }
 }
+setmetatable(CLocomotionState.AccelerateState, { __index = CLocomotionState })
 
 -- constructor for MovingState
 ---@return AccelerateState
@@ -455,14 +449,6 @@ function CLocomotionState.AccelerateState:enter(scriptedObject)
     end
 end
 
-function CLocomotionState.AccelerateState:update(dt, scriptedObject)
-    -- Implement accelerate state update logic here
-end
-
-function CLocomotionState.AccelerateState:exit(scriptedObject)
-    -- Implement accelerate state exit logic here
-end
-
 --#endregion
 
 --#region DecelerateState
@@ -470,12 +456,14 @@ end
 -- Decelerate state class
 ---@class DecelerateState : CLocomotionState
 CLocomotionState.DecelerateState = {
+    name = CLocomotionState.DECELERATE,
     transitions = {
         [CLocomotionState.IDLE] = toIdleState,
         [CLocomotionState.MOVING] = toMovingState,
         [CLocomotionState.ACCELERATE] = toAccelerateState
     }
 }
+setmetatable(CLocomotionState.DecelerateState, { __index = CLocomotionState })
 
 -- constructor for MovingState
 ---@return DecelerateState
@@ -485,18 +473,6 @@ function CLocomotionState.DecelerateState:new()
     setmetatable(newObj, self)
     ---@cast newObj DecelerateState
     return newObj
-end
-
-function CLocomotionState.DecelerateState:enter(scriptedObject)
-    -- Implement decelerate state enter logic here
-end
-
-function CLocomotionState.DecelerateState:update(dt, scriptedObject)
-    -- Implement decelerate state update logic here
-end
-
-function CLocomotionState.DecelerateState:exit(scriptedObject)
-    -- Implement decelerate state exit logic here
 end
 
 --#endregion

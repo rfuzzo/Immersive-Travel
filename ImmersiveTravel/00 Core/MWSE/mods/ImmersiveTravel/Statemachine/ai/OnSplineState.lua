@@ -3,12 +3,14 @@ local CAiState = require("ImmersiveTravel.Statemachine.ai.CAiState")
 -- on spline state class
 ---@class OnSplineState : CAiState
 local OnSplineState = {
+    name = CAiState.ONSPLINE,
     transitions = {
         [CAiState.NONE] = CAiState.ToNone,
         [CAiState.PLAYERSTEER] = CAiState.ToPlayerSteer,
         [CAiState.PLAYERTRAVEL] = CAiState.ToPlayerTravel,
     }
 }
+setmetatable(OnSplineState, { __index = CAiState })
 
 -- constructor for OnSplineState
 ---@return OnSplineState

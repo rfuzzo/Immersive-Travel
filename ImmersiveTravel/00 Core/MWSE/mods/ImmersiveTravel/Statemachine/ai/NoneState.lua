@@ -3,12 +3,14 @@ local CAiState = require("ImmersiveTravel.Statemachine.ai.CAiState")
 -- None State class
 ---@class NoneState : CAiState
 local NoneState = {
+    name = CAiState.NONE,
     transitions = {
         [CAiState.PLAYERSTEER] = CAiState.ToPlayerSteer,
         [CAiState.PLAYERTRAVEL] = CAiState.ToPlayerTravel,
         [CAiState.ONSPLINE] = CAiState.ToOnSpline,
     }
 }
+setmetatable(NoneState, { __index = CAiState })
 
 -- constructor for NoneState
 ---@return NoneState
