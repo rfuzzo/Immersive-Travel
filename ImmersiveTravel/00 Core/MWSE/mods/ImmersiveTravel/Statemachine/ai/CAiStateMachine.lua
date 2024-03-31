@@ -9,6 +9,7 @@ local PlayerTravelState     = require("ImmersiveTravel.Statemachine.ai.PlayerTra
 ---@class CAiStateMachine : CAbstractStateMachine
 local CAiStateMachine       = {
     currentState = NoneState:new(),
+    name = "AiStateMachine",
     states = {
         [AiState.NONE] = NoneState:new(),
         [AiState.ONSPLINE] = OnSplineState:new(),

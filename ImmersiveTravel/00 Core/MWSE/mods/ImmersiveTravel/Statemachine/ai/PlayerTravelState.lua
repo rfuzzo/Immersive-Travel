@@ -195,33 +195,23 @@ function PlayerTravelState:enter(scriptedObject)
     self.trackedVehicle = vehicle
     self.free_movement = false
 
-    -- fade out
-    tes3.fadeOut({ duration = 1 })
-
-    -- fade back in
-    timer.start({
-        type = timer.simulate,
-        iterations = 1,
-        duration = 1,
-        callback = (function()
-            tes3.fadeIn({ duration = 1 })
-
-            -- register travel events
-            event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
-            event.register(tes3.event.damage, damageInvincibilityGate)
-            event.register(tes3.event.activate, self.activateCallback)
-            event.register(tes3.event.combatStart, forcedPacifism)
-            event.register(tes3.event.uiObjectTooltip, uiObjectTooltipCallback)
-            event.register(tes3.event.keyDown, self.keyDownCallback)
-            event.register(tes3.event.save, saveCallback)
-            event.register(tes3.event.preventRest, preventRestCallback)
-            event.register(tes3.event.cellChanged, cellChangedCallback)
-            event.register(tes3.event.uiShowRestMenu, self.uiShowRestMenuCallback)
-        end)
-    })
+    -- register travel events
+    event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
+    event.register(tes3.event.damage, damageInvincibilityGate)
+    event.register(tes3.event.activate, PlayerTravelState.activateCallback)
+    event.register(tes3.event.combatStart, forcedPacifism)
+    event.register(tes3.event.uiObjectTooltip, uiObjectTooltipCallback)
+    event.register(tes3.event.keyDown, PlayerTravelState.keyDownCallback)
+    event.register(tes3.event.save, saveCallback)
+    event.register(tes3.event.preventRest, preventRestCallback)
+    event.register(tes3.event.cellChanged, cellChangedCallback)
+    event.register(tes3.event.uiShowRestMenu, self:uiShowRestMenuCallback)
 end
 
 function PlayerTravelState:update(dt, scriptedObject)
+    -- call super update
+    CAiState.update(self, dt, scriptedObject)
+
     -- Implement on spline state update logic here
     local vehicle = scriptedObject ---@cast vehicle CVehicle
     if vehicle.splineIndex > #vehicle.spline then
@@ -230,7 +220,7 @@ function PlayerTravelState:update(dt, scriptedObject)
     end
 
     -- handle player leaving vehicle
-    if vehicle:isPlayerInMountBounds() then
+    if not vehicle:isPlayerInMountBounds() then
         self.playerRegistered = false
     end
 end
@@ -241,14 +231,14 @@ function PlayerTravelState:exit(scriptedObject)
     -- unregister events
     event.unregister(tes3.event.mouseWheel, lib.mouseWheelCallback)
     event.unregister(tes3.event.damage, damageInvincibilityGate)
-    event.unregister(tes3.event.activate, self.activateCallback)
+    event.unregister(tes3.event.activate, PlayerTravelState.activateCallback)
     event.unregister(tes3.event.combatStart, forcedPacifism)
     event.unregister(tes3.event.uiObjectTooltip, uiObjectTooltipCallback)
-    event.unregister(tes3.event.keyDown, self.keyDownCallback)
+    event.unregister(tes3.event.keyDown, PlayerTravelState.keyDownCallback)
     event.unregister(tes3.event.save, saveCallback)
     event.unregister(tes3.event.preventRest, preventRestCallback)
     event.unregister(tes3.event.cellChanged, cellChangedCallback)
-    event.unregister(tes3.event.uiShowRestMenu, self.uiShowRestMenuCallback)
+    event.unregister(tes3.event.uiShowRestMenu, PlayerTravelState.uiShowRestMenuCallback)
 
     tes3.fadeOut()
 

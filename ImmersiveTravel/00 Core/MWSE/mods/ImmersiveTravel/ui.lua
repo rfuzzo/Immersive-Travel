@@ -25,32 +25,45 @@ local function StartTravel(start, destination, service, guide)
     local currentSpline = lib.loadSpline(start, destination, service)
     if currentSpline == nil then return end
 
-    -- get spawn position
-    local startPos = lib.vec(currentSpline[1])
-    local nextPos = lib.vec(currentSpline[2])
-    local orientation = nextPos - startPos
-    orientation:normalize()
-    local facing = math.atan2(orientation.x, orientation.y)
+    -- fade out
+    tes3.fadeOut({ duration = 1 })
 
-    -- vehicle id
-    local mountId = service.mount
-    if service.override_mount then
-        for _, o in ipairs(service.override_mount) do
-            if lib.is_in(o.points, start) and
-                lib.is_in(o.points, destination) then
-                mountId = o.id
-                break
+    -- fade back in
+    timer.start({
+        type = timer.simulate,
+        iterations = 1,
+        duration = 1,
+        callback = (function()
+            tes3.fadeIn({ duration = 1 })
+
+            -- get spawn position
+            local startPos = lib.vec(currentSpline[1])
+            local nextPos = lib.vec(currentSpline[2])
+            local orientation = nextPos - startPos
+            orientation:normalize()
+            local facing = math.atan2(orientation.x, orientation.y)
+
+            -- vehicle id
+            local mountId = service.mount
+            if service.override_mount then
+                for _, o in ipairs(service.override_mount) do
+                    if lib.is_in(o.points, start) and
+                        lib.is_in(o.points, destination) then
+                        mountId = o.id
+                        break
+                    end
+                end
             end
-        end
-    end
 
-    -- create vehicle
-    local vehicle = interop.createVehicle(mountId, startPos, orientation, facing)
-    if not vehicle then
-        return
-    end
+            -- create vehicle
+            local vehicle = interop.createVehicle(mountId, startPos, orientation, facing)
+            if not vehicle then
+                return
+            end
 
-    vehicle:StartPlayerTravel(guide.baseObject.id, currentSpline)
+            vehicle:StartPlayerTravel(guide.baseObject.id, currentSpline)
+        end)
+    })
 end
 
 --- Start Travel window

@@ -42,7 +42,7 @@ local CSiltStrider = {
         },
     },
     animation = {
-        forward = tes3.animationGroup.runForward,
+        forward = tes3.animationGroup.walkForward,
         idle = tes3.animationGroup.idle
     }
 }

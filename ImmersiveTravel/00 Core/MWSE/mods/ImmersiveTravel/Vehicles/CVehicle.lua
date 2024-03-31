@@ -365,7 +365,7 @@ end
 --- checks if player is slotted in guide slot
 ---@return boolean
 function CVehicle:isPlayerInGuideSlot()
-    if self.guideSlot.handle:valid() then
+    if self.guideSlot.handle and self.guideSlot.handle:valid() then
         return self.guideSlot.handle:getObject() == tes3.player
     end
 

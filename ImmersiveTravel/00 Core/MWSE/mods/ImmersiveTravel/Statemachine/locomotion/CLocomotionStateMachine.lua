@@ -4,6 +4,7 @@ local LocomotionState = require("ImmersiveTravel.Statemachine.locomotion.CLocomo
 ---@class CLocomotionStateMachine : CAbstractStateMachine
 local CLocomotionStateMachine = {
     currentState = LocomotionState.IdleState:new(),
+    name = "LocomotionStateMachine",
     states = {
         [LocomotionState.IDLE] = LocomotionState.IdleState:new(),
         [LocomotionState.MOVING] = LocomotionState.MovingState:new(),
