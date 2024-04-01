@@ -1,9 +1,9 @@
 local CAiState = require("ImmersiveTravel.Statemachine.ai.CAiState")
+local CPlayerVehicleManager = require("ImmersiveTravel.CPlayerVehicleManager")
 local lib = require("ImmersiveTravel.lib")
 
 -- player steer state class
 ---@class PlayerSteerState : CAiState
----@field trackedVehicle CVehicle?
 ---@field cameraOffset tes3vector3?
 local PlayerSteerState = {
     name = CAiState.PLAYERSTEER,
@@ -12,7 +12,6 @@ local PlayerSteerState = {
         [CAiState.ONSPLINE] = CAiState.ToOnSpline,
         [CAiState.NONE] = CAiState.ToNone,
     },
-    trackedVehicle = nil,
     cameraOffset = nil,
 }
 setmetatable(PlayerSteerState, { __index = CAiState })
@@ -31,8 +30,8 @@ end
 
 --- hold w or s to change speed
 --- @param e keyDownEventData
-function PlayerSteerState:mountKeyDownCallback(e)
-    local vehicle = self.trackedVehicle
+local function mountKeyDownCallback(e)
+    local vehicle = CPlayerVehicleManager.getInstance().trackedVehicle
     if not vehicle then
         return
     end
@@ -52,8 +51,8 @@ end
 
 --- release w or s to stop changing speed
 --- @param e keyUpEventData
-function PlayerSteerState:keyUpCallback(e)
-    local vehicle = self.trackedVehicle
+local function keyUpCallback(e)
+    local vehicle = CPlayerVehicleManager.getInstance().trackedVehicle
     if not vehicle then
         return
     end
@@ -77,8 +76,8 @@ end
 
 --- set virtual position
 --- @param e simulatedEventData
-function PlayerSteerState:mountSimulatedCallback(e)
-    local vehicle = self.trackedVehicle
+local function mountSimulatedCallback(e)
+    local vehicle = CPlayerVehicleManager.getInstance().trackedVehicle
     if not vehicle then
         return
     end
@@ -88,29 +87,33 @@ function PlayerSteerState:mountSimulatedCallback(e)
     -- update next pos
     if mountHandle and mountHandle:valid() then
         local mount = mountHandle:getObject()
+
+        -- get lookat position
         local dist = 2048
         if vehicle.freedomtype == "ground" then
             dist = 100
         end
         local target = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * dist
-
         local isControlDown = tes3.worldController.inputController:isControlDown()
         if isControlDown then
             target = mount.sceneNode.worldTransform * tes3vector3.new(0, 2048, 0)
         end
+
+        -- adjust for vehicle type
         if vehicle.freedomtype == "boat" then
             -- pin to waterlevel
-            target.z = 0
+            target = tes3vector3.new(target.x, target.y, 0)
         elseif vehicle.freedomtype == "ground" then
             -- pin to groundlevel
             local z = lib.getGroundZ(target + tes3vector3.new(0, 0, 100))
             if not z then
-                target.z = 0
+                target = tes3vector3.new(target.x, target.y, 0)
             else
-                target.z = z + 50
+                target = tes3vector3.new(target.x, target.y, target.z + 50)
             end
         end
 
+        -- delegate to vehicle
         vehicle.virtualDestination = target
 
         -- TODO debug
@@ -133,58 +136,29 @@ end
 ---@param scriptedObject CTickingEntity
 function PlayerSteerState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    self.trackedVehicle = vehicle
-
-    -- fade out
-    tes3.fadeOut({ duration = 1 })
-
-    -- fade back in
-    timer.start({
-        type = timer.simulate,
-        iterations = 1,
-        duration = 1,
-        callback = (function()
-            tes3.fadeIn({ duration = 1 })
-
-            -- position mount at ground level
-            local mount = vehicle.referenceHandle:getObject()
-            if vehicle.freedomtype ~= "boat" then
-                local top = tes3vector3.new(0, 0, mount.object.boundingBox.max.z)
-                local z = lib.getGroundZ(mount.position + top)
-                if not z then
-                    z = tes3.player.position.z
-                end
-                mount.position = tes3vector3.new(mount.position.x, mount.position.y,
-                    z + (vehicle.offset * vehicle.scale))
-            end
-            mount.orientation = tes3.player.orientation
-
-            -- start vehicle funcs
-            vehicle:StartPlayerSteer()
-
-            self.cameraOffset = tes3.get3rdPersonCameraOffset()
-
-            -- visualize debug marker
-            -- TODO debug
-            -- if DEBUG and travelMarkerMesh then
-            --     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-            --     local child = travelMarkerMesh:clone()
-            --     local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
-            --     child.translation = from
-            --     child.appCulled = false
-            --     ---@diagnostic disable-next-line: param-type-mismatch
-            --     vfxRoot:attachChild(child)
-            --     vfxRoot:update()
-            --     travelMarker = child
-            -- end
-        end)
-    })
+    CPlayerVehicleManager.getInstance().trackedVehicle = vehicle
 
     -- register events
     event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
-    event.register(tes3.event.keyDown, self.mountKeyDownCallback)
-    event.register(tes3.event.keyUp, self.keyUpCallback)
-    event.register(tes3.event.simulated, self.mountSimulatedCallback)
+    event.register(tes3.event.keyDown, mountKeyDownCallback)
+    event.register(tes3.event.keyUp, keyUpCallback)
+    event.register(tes3.event.simulated, mountSimulatedCallback)
+
+    self.cameraOffset = tes3.get3rdPersonCameraOffset()
+
+    -- visualize debug marker
+    -- TODO debug
+    -- if DEBUG and travelMarkerMesh then
+    --     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
+    --     local child = travelMarkerMesh:clone()
+    --     local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
+    --     child.translation = from
+    --     child.appCulled = false
+    --     ---@diagnostic disable-next-line: param-type-mismatch
+    --     vfxRoot:attachChild(child)
+    --     vfxRoot:update()
+    --     travelMarker = child
+    -- end
 end
 
 ---@param dt number
@@ -290,13 +264,13 @@ function PlayerSteerState:exit(scriptedObject)
 
     -- don't delete ref since we may want to use the mount later
     vehicle:Detach()
-    self.trackedVehicle = nil
+    CPlayerVehicleManager.getInstance().trackedVehicle = nil
 
     -- unregister events
     event.unregister(tes3.event.mouseWheel, lib.mouseWheelCallback)
-    event.unregister(tes3.event.keyDown, self.mountKeyDownCallback)
-    event.unregister(tes3.event.keyUp, self.keyUpCallback)
-    event.unregister(tes3.event.simulated, self.mountSimulatedCallback)
+    event.unregister(tes3.event.keyDown, mountKeyDownCallback)
+    event.unregister(tes3.event.keyUp, keyUpCallback)
+    event.unregister(tes3.event.simulated, mountSimulatedCallback)
 end
 
 ---@param scriptedObject CTickingEntity

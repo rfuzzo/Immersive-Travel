@@ -1,12 +1,11 @@
 local CAiState = require("ImmersiveTravel.Statemachine.ai.CAiState")
+local CPlayerVehicleManager = require("ImmersiveTravel.CPlayerVehicleManager")
 local lib = require("ImmersiveTravel.lib")
 local interop = require("ImmersiveTravel.interop")
 
 -- on spline state class
 ---@class PlayerTravelState : CAiState
----@field trackedVehicle CVehicle?
 ---@field cameraOffset tes3vector3?
----@field free_movement boolean
 local PlayerTravelState = {
     name = CAiState.PLAYERTRAVEL,
     transitions = {
@@ -56,78 +55,11 @@ local function forcedPacifism(e)
     return false
 end
 
-
---- Disable all activate while in travel
---- @param e activateEventData
-function PlayerTravelState:activateCallback(e)
-    if (e.activator ~= tes3.player) then return end
-
-    local mount = self.trackedVehicle
-    if not mount then return end
-
-    if e.target.id == mount.guideSlot.handle:getObject().id and
-        self.free_movement then
-        -- register player in slot
-        tes3ui.showMessageMenu {
-            message = "Do you want to sit down?",
-            buttons = {
-                {
-                    text = "Yes",
-                    callback = function()
-                        self.free_movement = false
-                        lib.log:debug("register player")
-                        tes3.player.facing = mount.referenceHandle:getObject().facing
-                        mount:registerRefInRandomSlot(tes3.makeSafeObjectHandle(tes3.player))
-                    end
-                }
-            },
-            cancels = true
-        }
-
-        return false
-    end
-
-    return false
-end
-
 --- Disable tooltips while in travel
 --- @param e uiObjectTooltipEventData
 local function uiObjectTooltipCallback(e)
     e.tooltip.visible = false
     return false
-end
-
--- key down callbacks while in travel
---- @param e keyDownEventData
-function PlayerTravelState:keyDownCallback(e)
-    local vehicle = self.trackedVehicle
-    if not vehicle then return end
-
-
-    -- move
-    if not self.free_movement then
-        if e.keyCode == tes3.scanCode["w"] or e.keyCode == tes3.scanCode["a"] or
-            e.keyCode == tes3.scanCode["d"] then
-            vehicle:incrementSlot()
-        end
-
-        if e.keyCode == tes3.scanCode["s"] then
-            if vehicle.hasFreeMovement then
-                -- remove from slot
-                for index, slot in ipairs(vehicle.slots) do
-                    if slot.handle and slot.handle:valid() and
-                        slot.handle:getObject() == tes3.player then
-                        slot.handle = nil
-                        self.free_movement = true
-                        -- free animations
-                        tes3.mobilePlayer.movementCollision = true;
-                        tes3.loadAnimation({ reference = tes3.player })
-                        tes3.playAnimation({ reference = tes3.player, group = 0 })
-                    end
-                end
-            end
-        end
-    end
 end
 
 -- prevent saving while travelling
@@ -145,7 +77,7 @@ end
 
 -- resting while travelling skips to end
 --- @param e uiShowRestMenuEventData
-function PlayerTravelState:uiShowRestMenuCallback(e)
+local function uiShowRestMenuCallback(e)
     -- always allow resting on a mount
     e.allowRest = true
 
@@ -166,7 +98,7 @@ function PlayerTravelState:uiShowRestMenuCallback(e)
                             tes3.fadeIn({ duration = 1 })
 
                             -- teleport to last marker
-                            local mount = self.trackedVehicle
+                            local mount = CPlayerVehicleManager.getInstance().trackedVehicle
                             if mount then
                                 -- teleport to last position
                                 tes3.positionCell({
@@ -188,24 +120,84 @@ function PlayerTravelState:uiShowRestMenuCallback(e)
     return false
 end
 
+-- key down callbacks while in travel
+--- @param e keyDownEventData
+local function keyDownCallback(e)
+    local vehicle = CPlayerVehicleManager.getInstance().trackedVehicle;
+    if not vehicle then return end
+    if CPlayerVehicleManager.getInstance().free_movement then return end
+
+    -- move
+    if e.keyCode == tes3.scanCode["w"] or e.keyCode == tes3.scanCode["a"] or
+        e.keyCode == tes3.scanCode["d"] then
+        vehicle:incrementSlot()
+    elseif e.keyCode == tes3.scanCode["s"] then
+        if vehicle.hasFreeMovement then
+            -- remove from slot
+            for index, slot in ipairs(vehicle.slots) do
+                if slot.handle and slot.handle:valid() and
+                    slot.handle:getObject() == tes3.player then
+                    slot.handle = nil
+                    CPlayerVehicleManager.getInstance().free_movement = true
+                    -- free animations
+                    tes3.mobilePlayer.movementCollision = true;
+                    tes3.loadAnimation({ reference = tes3.player })
+                    tes3.playAnimation({ reference = tes3.player, group = 0 })
+                end
+            end
+        end
+    end
+end
+
+--- Disable all activate while in travel
+--- @param e activateEventData
+local function activateCallback(e)
+    if (e.activator ~= tes3.player) then return end
+    local vehicle = CPlayerVehicleManager.getInstance().trackedVehicle
+    if not vehicle then return end
+
+    if e.target.id == vehicle.guideSlot.handle:getObject().id and
+        CPlayerVehicleManager.getInstance().free_movement then
+        -- register player in slot
+        tes3ui.showMessageMenu {
+            message = "Do you want to sit down?",
+            buttons = {
+                {
+                    text = "Yes",
+                    callback = function()
+                        CPlayerVehicleManager.getInstance().free_movement = false
+                        lib.log:debug("register player")
+                        tes3.player.facing = vehicle.referenceHandle:getObject().facing
+                        vehicle:registerRefInRandomSlot(tes3.makeSafeObjectHandle(tes3.player))
+                    end
+                }
+            },
+            cancels = true
+        }
+    end
+
+    return false
+end
+
 --#endregion
 
 function PlayerTravelState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    self.trackedVehicle = vehicle
-    self.free_movement = false
+    CPlayerVehicleManager.getInstance().trackedVehicle = vehicle
+    CPlayerVehicleManager.getInstance().free_movement = false
 
-    -- register travel events
+    -- TODO register travel events
     event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
     event.register(tes3.event.damage, damageInvincibilityGate)
-    event.register(tes3.event.activate, PlayerTravelState.activateCallback)
     event.register(tes3.event.combatStart, forcedPacifism)
     event.register(tes3.event.uiObjectTooltip, uiObjectTooltipCallback)
-    event.register(tes3.event.keyDown, PlayerTravelState.keyDownCallback)
     event.register(tes3.event.save, saveCallback)
     event.register(tes3.event.preventRest, preventRestCallback)
     event.register(tes3.event.cellChanged, cellChangedCallback)
-    event.register(tes3.event.uiShowRestMenu, self:uiShowRestMenuCallback)
+
+    event.register(tes3.event.activate, activateCallback)
+    event.register(tes3.event.keyDown, keyDownCallback)
+    event.register(tes3.event.uiShowRestMenu, uiShowRestMenuCallback)
 end
 
 function PlayerTravelState:update(dt, scriptedObject)
@@ -231,14 +223,14 @@ function PlayerTravelState:exit(scriptedObject)
     -- unregister events
     event.unregister(tes3.event.mouseWheel, lib.mouseWheelCallback)
     event.unregister(tes3.event.damage, damageInvincibilityGate)
-    event.unregister(tes3.event.activate, PlayerTravelState.activateCallback)
     event.unregister(tes3.event.combatStart, forcedPacifism)
     event.unregister(tes3.event.uiObjectTooltip, uiObjectTooltipCallback)
-    event.unregister(tes3.event.keyDown, PlayerTravelState.keyDownCallback)
     event.unregister(tes3.event.save, saveCallback)
     event.unregister(tes3.event.preventRest, preventRestCallback)
     event.unregister(tes3.event.cellChanged, cellChangedCallback)
-    event.unregister(tes3.event.uiShowRestMenu, PlayerTravelState.uiShowRestMenuCallback)
+    event.unregister(tes3.event.activate, activateCallback)
+    event.unregister(tes3.event.keyDown, keyDownCallback)
+    event.unregister(tes3.event.uiShowRestMenu, uiShowRestMenuCallback)
 
     tes3.fadeOut()
 
@@ -253,7 +245,7 @@ function PlayerTravelState:exit(scriptedObject)
             vehicle:EndPlayerTravel()
 
             vehicle:Delete()
-            self.trackedVehicle = nil
+            CPlayerVehicleManager.getInstance().trackedVehicle = nil
         end)
     })
 end

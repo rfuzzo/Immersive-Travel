@@ -173,7 +173,7 @@ function CVehicle:StartPlayerSteer()
     log:debug("StartPlayerSteer %s", self.id)
     self:OnCreate()
 
-    -- register player
+    -- register player as guide
     log:debug("\tregistering player")
     self:registerGuide(tes3.makeSafeObjectHandle(tes3.player))
     tes3.player.facing = self.referenceHandle:getObject().facing
