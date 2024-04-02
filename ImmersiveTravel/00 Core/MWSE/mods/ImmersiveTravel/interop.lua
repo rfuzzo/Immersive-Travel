@@ -3,13 +3,11 @@ local this = {}
 --#region vehicles
 
 ---@type table<string, string?>
-this.vehicles = {
-    -- travel
-    ["a_siltstrider"] = "CSiltStrider",
-    ["a_gondola_01"] = "CGondola",
-    ["a_longboat"] = "CLongboat",
-    ["a_DE_ship"] = "CShipDe",
-}
+this.vehicles = {}
+this.vehicles["a_siltstrider"] = "CSiltStrider"
+this.vehicles["a_gondola_01"] = "CGondola"
+this.vehicles["a_longboat"] = "CLongboat"
+this.vehicles["a_DE_ship"] = "CShipDe"
 
 -- insert to table
 ---@param id string

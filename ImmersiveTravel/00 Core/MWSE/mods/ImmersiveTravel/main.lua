@@ -1,6 +1,7 @@
 local lib = require("ImmersiveTravel.lib")
 local TrackingManager = require("ImmersiveTravel.CTrackingManager")
 local ui = require("ImmersiveTravel.ui")
+local interop = require("ImmersiveTravel.interop")
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
@@ -16,6 +17,11 @@ local function loadedCallback(e)
     TrackingManager.getInstance():Cleanup()
     TrackingManager.getInstance():StartTimer()
     lib.log:debug("TrackingManager started")
+
+    -- found vehicles
+    for id, className in pairs(interop.vehicles) do
+        lib.log:debug("found vehicle %s", id)
+    end
 end
 event.register(tes3.event.loaded, loadedCallback)
 

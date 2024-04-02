@@ -1,6 +1,7 @@
-local CTickingEntity = require("ImmersiveTravel.CTickingEntity")
-local lib = require("ImmersiveTravel.lib")
-local log = lib.log
+local CTickingEntity        = require("ImmersiveTravel.CTickingEntity")
+local CPlayerVehicleManager = require("ImmersiveTravel.CPlayerVehicleManager")
+local lib                   = require("ImmersiveTravel.lib")
+local log                   = lib.log
 
 ---@class Slot
 ---@field position tes3vector3 slot
@@ -31,6 +32,7 @@ local log = lib.log
 ---@field idle tes3.animationGroup? -- walk animation
 ---@field forward tes3.animationGroup? -- walk animation
 ---@field accelerate tes3.animationGroup? -- animation to play while accelerating. slowing
+---@field decelerate tes3.animationGroup? -- animation to play while accelerating. slowing
 
 -- Define the CVehicle class inheriting from CTickingEntity
 ---@class CVehicle : CTickingEntity
@@ -70,7 +72,7 @@ local log = lib.log
 ---@field current_sound string?
 ---@field speedChange number
 ---@field playerRegistered boolean
-local CVehicle = {
+local CVehicle              = {
     -- Add properties here
     sound = {},
     loopSound = false,
@@ -459,29 +461,32 @@ function CVehicle:UpdateSlots(dt)
         reference = guide,
         position = rootBone.worldTransform * self:getSlotTransform(self.guideSlot.position, boneOffset)
     })
-    guide.facing = mount.facing
-    -- only change anims if behind player
-    if changeAnims and
-        lib.isPointBehindObject(guide.position, tes3.player.position,
-            tes3.player.forwardDirection) then
-        local group = lib.getRandomAnimGroup(self.guideSlot)
-        local animController = guide.mobile.animationController
-        if animController then
-            local currentAnimationGroup =
-                animController.animationData.currentAnimGroups[tes3.animationBodySection.upper]
-            log:trace("%s switching to animgroup %s", guide.id, group)
-            if group ~= currentAnimationGroup then
-                tes3.loadAnimation({ reference = guide })
-                if self.guideSlot.animationFile then
-                    tes3.loadAnimation({
-                        reference = guide,
-                        file = self.guideSlot.animationFile
-                    })
+    if guide ~= tes3.player then
+        guide.facing = mount.facing
+        -- only change anims if behind player
+        if changeAnims and
+            lib.isPointBehindObject(guide.position, tes3.player.position,
+                tes3.player.forwardDirection) then
+            local group = lib.getRandomAnimGroup(self.guideSlot)
+            local animController = guide.mobile.animationController
+            if animController then
+                local currentAnimationGroup =
+                    animController.animationData.currentAnimGroups[tes3.animationBodySection.upper]
+                log:trace("%s switching to animgroup %s", guide.id, group)
+                if group ~= currentAnimationGroup then
+                    tes3.loadAnimation({ reference = guide })
+                    if self.guideSlot.animationFile then
+                        tes3.loadAnimation({
+                            reference = guide,
+                            file = self.guideSlot.animationFile
+                        })
+                    end
+                    tes3.playAnimation({ reference = guide, group = group })
                 end
-                tes3.playAnimation({ reference = guide, group = group })
             end
         end
     end
+
 
     -- passengers
     for index, slot in ipairs(self.slots) do
@@ -598,7 +603,8 @@ function CVehicle:UpdatePlayerCollision()
     if rootBone then
         local playerShipLocal = rootBone.worldTransform:invert() * tes3.player.position
         -- check if player is in freemovement mode
-        if self.hasFreeMovement and self:isPlayerInMountBounds() then
+        if self.hasFreeMovement and CPlayerVehicleManager.getInstance().free_movement and self:isPlayerInMountBounds() then
+            log:debug("Update player collision")
             -- this is needed to enable collisions :todd:
             tes3.dataHandler:updateCollisionGroupsForActiveCells {}
             self.referenceHandle:getObject().sceneNode:update()
@@ -617,8 +623,10 @@ function CVehicle:cleanup()
 
     -- delete guide
     if self.guideSlot.handle and self.guideSlot.handle:valid() then
-        self.guideSlot.handle:getObject():delete()
-        self.guideSlot.handle = nil
+        if self.guideSlot.handle:getObject() ~= tes3.player then
+            self.guideSlot.handle:getObject():delete()
+            self.guideSlot.handle = nil
+        end
     end
 
     -- delete passengers

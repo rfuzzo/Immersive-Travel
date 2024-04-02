@@ -23,4 +23,4 @@ function PlayerVehicleManager.getInstance()
     return instance
 end
 
-return
+return PlayerVehicleManager

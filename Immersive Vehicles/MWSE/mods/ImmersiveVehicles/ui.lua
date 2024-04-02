@@ -180,7 +180,9 @@ function this.createPurchaseTopic(menu, ref)
     button:register("mouseClick", function()
         local buttons = {}
 
-        for _, id in ipairs(interop.vehicles) do
+        for id, className in pairs(interop.vehicles) do
+            log:debug("Checking %s", id)
+
             local class = interop.getVehicleStaticData(id)
             if not class then
                 goto continue
@@ -189,6 +191,8 @@ function this.createPurchaseTopic(menu, ref)
             if not data then
                 goto continue
             end
+
+            log:debug("Found %s", data.name)
 
             -- check if data is a boat
             -- TODO add other mounts
@@ -220,6 +224,7 @@ function this.createPurchaseTopic(menu, ref)
             ::continue::
         end
 
+        log:debug("Showing purchase menu with %s buttons", #buttons)
         tes3ui.showMessageMenu({ message = "Purchase a mount", buttons = buttons, cancels = true })
     end)
     menu:registerAfter("update", function() updatePurchaseButton(menu) end)

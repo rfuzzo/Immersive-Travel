@@ -33,7 +33,7 @@ end
 ---@return boolean
 local function toMovingState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return (vehicle.spline or vehicle.virtualDestination) and
+    return (vehicle.spline or vehicle.virtualDestination) and vehicle.speedChange == 0 and
         (vehicle.current_speed > 0.5 or vehicle.current_speed < -0.5)
 end
 
@@ -48,6 +48,10 @@ local function toIdleState(ctx)
         return true
     end
 
+    if vehicle.speedChange ~= 0 then
+        return false
+    end
+
     return vehicle.current_speed < 0.5 and vehicle.current_speed > -0.5
 end
 
@@ -56,8 +60,7 @@ end
 ---@return boolean
 local function toAccelerateState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return (vehicle.spline or vehicle.virtualDestination) and
-        vehicle.speedChange > 0
+    return (vehicle.spline or vehicle.virtualDestination) and vehicle.speedChange > 0
 end
 
 --- transition to decelerate state
@@ -65,8 +68,7 @@ end
 ---@return boolean
 local function toDecelerateState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return (vehicle.spline or vehicle.virtualDestination) and
-        vehicle.speedChange < 0
+    return (vehicle.spline or vehicle.virtualDestination) and vehicle.speedChange < 0
 end
 
 --#endregion
@@ -98,7 +100,6 @@ end
 function CLocomotionState.IdleState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
 
-    -- TODO idle sounds
     if vehicle.current_sound then
         local mount = vehicle.referenceHandle:getObject()
         tes3.removeSound({ reference = mount, sound = vehicle.current_sound })
@@ -106,7 +107,7 @@ function CLocomotionState.IdleState:enter(scriptedObject)
     end
 
     -- play anim
-    if vehicle.animation.idle then
+    if vehicle.animation and vehicle.animation.idle then
         tes3.loadAnimation({ reference = vehicle.referenceHandle:getObject() })
         tes3.playAnimation({
             reference = vehicle.referenceHandle:getObject(),
@@ -353,6 +354,18 @@ local function Move(vehicle, dt)
         return
     end
 
+    -- speed change
+    if vehicle.speedChange > 0 then
+        local change = vehicle.current_speed + (vehicle.changeSpeed * dt)
+        vehicle.current_speed = math.clamp(change, vehicle.minSpeed, vehicle.maxSpeed)
+    elseif vehicle.speedChange < 0 then
+        local change = vehicle.current_speed - (vehicle.changeSpeed * dt)
+        vehicle.current_speed = math.clamp(change, vehicle.minSpeed, vehicle.maxSpeed)
+    end
+
+    -- skip
+    if vehicle.current_speed < vehicle.minSpeed then return end
+
     local position, facing, turn = CalculatePositions(vehicle, nextPos)
 
     -- move the reference
@@ -389,7 +402,7 @@ function CLocomotionState.MovingState:enter(scriptedObject)
     end
 
     -- play anim
-    if vehicle.animation.forward then
+    if vehicle.animation and vehicle.animation.forward then
         -- local forwardAnimation = self.forwardAnimation
         -- if config.a_siltstrider_forwardAnimation then
         --     forwardAnimation = config.a_siltstrider_forwardAnimation
@@ -440,13 +453,21 @@ end
 function CLocomotionState.AccelerateState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
     -- play anim
-    if vehicle.animation.accelerate then
+    if vehicle.animation and vehicle.animation.accelerate then
         tes3.loadAnimation({ reference = vehicle.referenceHandle:getObject() })
         tes3.playAnimation({
             reference = vehicle.referenceHandle:getObject(),
             group = vehicle.animation.accelerate
         })
     end
+end
+
+---@param dt number
+---@param scriptedObject CTickingEntity
+function CLocomotionState.AccelerateState:update(dt, scriptedObject)
+    -- Implement moving state update logic here
+    local vehicle = scriptedObject ---@cast vehicle CVehicle
+    Move(vehicle, dt)
 end
 
 --#endregion
@@ -473,6 +494,26 @@ function CLocomotionState.DecelerateState:new()
     setmetatable(newObj, self)
     ---@cast newObj DecelerateState
     return newObj
+end
+
+function CLocomotionState.DecelerateState:enter(scriptedObject)
+    local vehicle = scriptedObject ---@cast vehicle CVehicle
+    -- play anim
+    if vehicle.animation and vehicle.animation.decelerate then
+        tes3.loadAnimation({ reference = vehicle.referenceHandle:getObject() })
+        tes3.playAnimation({
+            reference = vehicle.referenceHandle:getObject(),
+            group = vehicle.animation.decelerate
+        })
+    end
+end
+
+---@param dt number
+---@param scriptedObject CTickingEntity
+function CLocomotionState.DecelerateState:update(dt, scriptedObject)
+    -- Implement moving state update logic here
+    local vehicle = scriptedObject ---@cast vehicle CVehicle
+    Move(vehicle, dt)
 end
 
 --#endregion

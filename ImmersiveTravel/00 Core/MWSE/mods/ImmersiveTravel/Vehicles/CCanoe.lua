@@ -50,7 +50,7 @@ local CCanoe = {
         }
     },
     userData = {
-        name = "Gondola",
+        name = "Canoe",
         price = 300,
         materials = {
             { material = "wood",   count = 12 },

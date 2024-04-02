@@ -2,8 +2,6 @@ local lib                  = require("ImmersiveTravel.lib")
 local CAiState             = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local interop              = require("ImmersiveTravel.interop")
 
--- TODO modified false on save
-
 -- Define a class to manage the tracking list and timer
 ---@class CTrackingManager
 ---@field trackingList CTickingEntity[]
@@ -40,7 +38,6 @@ end
 function TrackingManager:AddEntity(entity)
     table.insert(self.trackingList, entity)
 
-    -- TODO is this a good idea?
     entity.referenceHandle:getObject().tempData.scriptedEntity = entity
 
     lib.log:debug("Added %s to tracking list", entity.id)
@@ -128,8 +125,13 @@ end
 local function saveCallback(e)
     -- go through all tracked objects and set .modified = false
     for index, s in ipairs(TrackingManager.getInstance().trackingList) do
-        if s.referenceHandle and s.referenceHandle:valid() then
-            s.referenceHandle:getObject().modified = false
+        -- only if ai state is onspline or playertravel or non
+        if s.aiStateMachine and (s.aiStateMachine.currentState == CAiState.ONSPLINE
+                or s.aiStateMachine.currentState == CAiState.PLAYERTRAVEL
+                or s.aiStateMachine.currentState == CAiState.NONE) then
+            if s.referenceHandle and s.referenceHandle:valid() then
+                s.referenceHandle:getObject().modified = false
+            end
         end
     end
 end

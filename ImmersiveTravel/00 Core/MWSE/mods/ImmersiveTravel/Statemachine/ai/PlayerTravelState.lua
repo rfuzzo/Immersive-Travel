@@ -95,8 +95,7 @@ local function uiShowRestMenuCallback(e)
                         iterations = 1,
                         duration = 1,
                         callback = (function()
-                            tes3.fadeIn({ duration = 1 })
-
+                            tes3.fadeOut({ duration = 1 })
                             -- teleport to last marker
                             local mount = CPlayerVehicleManager.getInstance().trackedVehicle
                             if mount then
@@ -186,7 +185,7 @@ function PlayerTravelState:enter(scriptedObject)
     CPlayerVehicleManager.getInstance().trackedVehicle = vehicle
     CPlayerVehicleManager.getInstance().free_movement = false
 
-    -- TODO register travel events
+    -- register travel events
     event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
     event.register(tes3.event.damage, damageInvincibilityGate)
     event.register(tes3.event.combatStart, forcedPacifism)

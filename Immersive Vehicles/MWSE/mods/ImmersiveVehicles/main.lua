@@ -234,52 +234,28 @@ local function getRecipeFor(id)
     return nil
 end
 
----@diagnostic disable-next-line: undefined-doc-name
----@type CraftingFramework.Recipe.data[]
-local recipes = {}
-local mounts = interop.vehicles
-for _, id in ipairs(mounts) do
-    local r = getRecipeFor(id)
-    if r then
-        table.insert(recipes, r)
-    end
-end
+
 
 local function registerRecipes(e)
+    ---@diagnostic disable-next-line: undefined-doc-name
+    ---@type CraftingFramework.Recipe.data[]
+    local recipes = {}
+
+    for id, className in pairs(interop.vehicles) do
+        local r = getRecipeFor(id)
+        if r then
+            lib.log:debug("registering recipe for %s", id)
+            table.insert(recipes, r)
+        end
+    end
+
+    lib.log:debug("register %s Recipes", #recipes)
+    for index, value in ipairs(recipes) do
+        lib.log:debug("found recipe %s", value.id)
+    end
+
     if e.menuActivator then e.menuActivator:registerRecipes(recipes) end
 end
 event.register("Ashfall:ActivateBushcrafting:Registered", registerRecipes)
 
 --#endregion
-
---[[
-
--- boats
-
-Mount a_gondola_01
-  Bounding Box min: (-71.20,-356.43,-86.24)
-  Bounding Box max: (71.20,356.43,86.24)
-Mount a_mushroomdola_iv
-  Bounding Box min: (-192.74,-332.32,-86.24)
-  Bounding Box max: (183.23,453.84,223.41)
-Mount a_rowboat_iv
-  Bounding Box min: (-67.72,-175.68,-36.73)
-  Bounding Box max: (67.75,179.42,36.73)
-Mount a_sailboat_iv
-  Bounding Box min: (-108.11,-320.38,-74.86)
-  Bounding Box max: (210.41,444.66,809.85)
-Mount a_telvcatboat_iv
-  Bounding Box min: (-283.74,-908.30,-282.73)
-  Bounding Box max: (225.16,830.83,658.28)
-
-
--- creatures
-
-Mount a_cliffracer
-  Bounding Box min: (-205.65,-420.28,-67.17)
-  Bounding Box max: (205.41,41.53,251.36)
-Mount a_nix-hound
-  Bounding Box min: (-75.46,-230.34,-34.39)
-  Bounding Box max: (135.54,11.85,161.92)
-
-]]

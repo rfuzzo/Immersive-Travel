@@ -30,7 +30,7 @@ end
 ---@return boolean
 function CAiState.ToNone(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return not vehicle.spline
+    return not vehicle.spline and not vehicle.playerRegistered and not vehicle:isPlayerInGuideSlot()
 end
 
 ---transition to on spline state if spline is not nil
@@ -38,7 +38,7 @@ end
 ---@return boolean?
 function CAiState.ToOnSpline(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return vehicle.spline and not vehicle.playerRegistered
+    return vehicle.spline and not vehicle.playerRegistered and not vehicle:isPlayerInGuideSlot()
 end
 
 ---transition to player steer state if player is in guide slot
