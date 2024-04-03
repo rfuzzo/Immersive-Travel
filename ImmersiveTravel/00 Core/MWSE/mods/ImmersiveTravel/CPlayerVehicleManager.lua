@@ -2,7 +2,12 @@
 ---@class CPlayerVehicleManager
 ---@field trackedVehicle CVehicle?
 ---@field free_movement boolean
+---@field travelMarkerId  string
+---@field travelMarkerMesh any?
+---@field travelMarker     niNode?
 local PlayerVehicleManager = {
+    -- debug
+    travelMarkerId = "marker_arrow.nif"
 }
 
 function PlayerVehicleManager:new()
@@ -19,6 +24,12 @@ local instance = nil
 function PlayerVehicleManager.getInstance()
     if instance == nil then
         instance = PlayerVehicleManager:new()
+
+        -- init
+        instance.trackedVehicle = nil
+        instance.free_movement = false
+        instance.travelMarkerMesh = tes3.loadMesh(instance.travelMarkerId)
+        instance.travelMarker = nil
     end
     return instance
 end

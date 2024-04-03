@@ -36,7 +36,6 @@ local function canSpawn(p)
     if #CTrackingManager.getInstance().trackingList >= config.budget then return false end
 
     for _, s in ipairs(CTrackingManager.getInstance().trackingList) do
-        -- TODO only get vehicles
         local vehicle = s ---@cast vehicle CVehicle
         if vehicle.last_position then
             local d = lib.vec(p.point):distance(vehicle.last_position)

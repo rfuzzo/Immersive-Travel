@@ -1,13 +1,14 @@
-local CAiState = require("ImmersiveTravel.Statemachine.ai.CAiState")
+local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local CPlayerVehicleManager = require("ImmersiveTravel.CPlayerVehicleManager")
-local lib = require("ImmersiveTravel.lib")
+local lib                   = require("ImmersiveTravel.lib")
+local config                = require("ImmersiveTravel.config")
 
 -- player steer state class
 ---@class PlayerSteerState : CAiState
 ---@field cameraOffset tes3vector3?
-local PlayerSteerState = {
-    name = CAiState.PLAYERSTEER,
-    transitions = {
+local PlayerSteerState      = {
+    name         = CAiState.PLAYERSTEER,
+    transitions  = {
         [CAiState.PLAYERTRAVEL] = CAiState.ToPlayerTravel,
         [CAiState.ONSPLINE] = CAiState.ToOnSpline,
         [CAiState.NONE] = CAiState.ToNone,
@@ -82,52 +83,43 @@ local function mountSimulatedCallback(e)
         return
     end
 
-    local mountHandle = vehicle.referenceHandle
-
     -- update next pos
-    if mountHandle and mountHandle:valid() then
-        local mount = mountHandle:getObject()
+    if vehicle.referenceHandle and vehicle.referenceHandle:valid() then
+        local mount = vehicle.referenceHandle:getObject()
 
-        -- get lookat position
+        -- get virtual target in circle around player
         local dist = 2048
         if vehicle.freedomtype == "ground" then
             dist = 100
         end
-        local target = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * dist
+
+        --local lookat = tes3.getPlayerEyeVector()
+        -- local target = tes3.player.position +
+        --     (tes3vector3.new(tes3.getPlayerEyeVector().x, tes3.getPlayerEyeVector().y, 0):normalized() * dist)
+
+        local target = tes3.getPlayerEyePosition() + (tes3.getPlayerEyeVector() * dist)
         local isControlDown = tes3.worldController.inputController:isControlDown()
         if isControlDown then
-            target = mount.sceneNode.worldTransform * tes3vector3.new(0, 2048, 0)
+            target = mount.sceneNode.worldTransform * (tes3vector3.new(0, 1, 0) * dist)
         end
-
-        -- adjust for vehicle type
-        if vehicle.freedomtype == "boat" then
-            -- pin to waterlevel
-            target = tes3vector3.new(target.x, target.y, 0)
-        elseif vehicle.freedomtype == "ground" then
-            -- pin to groundlevel
-            local z = lib.getGroundZ(target + tes3vector3.new(0, 0, 100))
-            if not z then
-                target = tes3vector3.new(target.x, target.y, 0)
-            else
-                target = tes3vector3.new(target.x, target.y, target.z + 50)
-            end
-        end
+        target.z = 0
 
         -- delegate to vehicle
         vehicle.virtualDestination = target
 
-        -- TODO debug
-        -- if DEBUG and travelMarker then
-        --     travelMarker.translation = target
-        --     local m = tes3matrix33.new()
-        --     if isControlDown then
-        --         m:fromEulerXYZ(mount.orientation.x, mount.orientation.y, mount.orientation.z)
-        --     else
-        --         m:fromEulerXYZ(tes3.player.orientation.x, tes3.player.orientation.y, tes3.player.orientation.z)
-        --     end
-        --     travelMarker.rotation = m
-        --     travelMarker:update()
-        -- end
+        -- debug
+        local manager = CPlayerVehicleManager.getInstance()
+        if config.logLevel == "DEBUG" and manager.travelMarker then
+            manager.travelMarker.translation = target
+            local m = tes3matrix33.new()
+            if isControlDown then
+                m:fromEulerXYZ(mount.orientation.x, mount.orientation.y, mount.orientation.z)
+            else
+                m:fromEulerXYZ(tes3.player.orientation.x, tes3.player.orientation.y, tes3.player.orientation.z)
+            end
+            manager.travelMarker.rotation = m
+            manager.travelMarker:update()
+        end
     end
 end
 
@@ -147,18 +139,18 @@ function PlayerSteerState:enter(scriptedObject)
     self.cameraOffset = tes3.get3rdPersonCameraOffset()
 
     -- visualize debug marker
-    -- TODO debug
-    -- if DEBUG and travelMarkerMesh then
-    --     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-    --     local child = travelMarkerMesh:clone()
-    --     local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
-    --     child.translation = from
-    --     child.appCulled = false
-    --     ---@diagnostic disable-next-line: param-type-mismatch
-    --     vfxRoot:attachChild(child)
-    --     vfxRoot:update()
-    --     travelMarker = child
-    -- end
+    local manager = CPlayerVehicleManager.getInstance()
+    if config.logLevel == "DEBUG" and manager.travelMarkerMesh then
+        local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
+        local child = manager.travelMarkerMesh:clone()
+        local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
+        child.translation = from
+        child.appCulled = false
+        ---@diagnostic disable-next-line: param-type-mismatch
+        vfxRoot:attachChild(child)
+        vfxRoot:update()
+        manager.travelMarker = child
+    end
 end
 
 ---@param dt number
@@ -275,6 +267,10 @@ end
 
 ---@param scriptedObject CTickingEntity
 function PlayerSteerState:OnActivate(scriptedObject)
+    -- exit state manually
+    self:exit(scriptedObject)
+
+    -- stop ticking
     local vehicle = scriptedObject ---@cast vehicle CVehicle
     vehicle:EndPlayerSteer()
 end

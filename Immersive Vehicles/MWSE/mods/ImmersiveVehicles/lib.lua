@@ -1,9 +1,11 @@
+local config = require("ImmersiveVehicles.config")
+
 local this = {}
 
 local logger = require("logging.logger")
 this.log = logger.new {
-    name = "Immersive Vehicles",
-    logLevel = "DEBUG", -- TODO add to mcm?
+    name = config.mod,
+    logLevel = config.logLevel,
     logToConsole = false,
     includeTimestamp = false
 }

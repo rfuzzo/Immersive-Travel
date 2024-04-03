@@ -178,7 +178,7 @@ function CVehicle:StartPlayerSteer()
     -- register player as guide
     log:debug("\tregistering player")
     self:registerGuide(tes3.makeSafeObjectHandle(tes3.player))
-    tes3.player.facing = self.referenceHandle:getObject().facing
+    -- tes3.player.facing = self.referenceHandle:getObject().facing
 
     -- register followers
     self:RegisterFollowers()
@@ -186,8 +186,9 @@ end
 
 --- EndPlayerSteer is called when the player leaves the vehicle
 function CVehicle:EndPlayerSteer()
-    self.virtualDestination = nil
+    log:debug("EndPlayerSteer")
 
+    self.virtualDestination = nil
     self:release()
 end
 
@@ -259,6 +260,8 @@ function CVehicle:StartPlayerTravel(guideId, spline)
 end
 
 function CVehicle:EndPlayerTravel()
+    log:debug("EndPlayerTravel")
+
     self.playerRegistered = false
     self:release()
 end
@@ -457,10 +460,7 @@ function CVehicle:UpdateSlots(dt)
 
     -- guide
     local guide = self.guideSlot.handle:getObject()
-    tes3.positionCell({
-        reference = guide,
-        position = rootBone.worldTransform * self:getSlotTransform(self.guideSlot.position, boneOffset)
-    })
+    guide.position = rootBone.worldTransform * self:getSlotTransform(self.guideSlot.position, boneOffset)
     if guide ~= tes3.player then
         guide.facing = mount.facing
         -- only change anims if behind player

@@ -210,7 +210,6 @@ local function CalculatePositions(vehicle, nextPos)
         local collision = false
         -- get tracked
         for index, value in ipairs(CTrackingManager.getInstance().trackingList) do
-            -- TODO only get vehicles
             ---@cast value CVehicle
             if value ~= vehicle and currentPos:distance(value.last_position) < 8192 then
                 -- TODO what values to use here?

@@ -1,11 +1,13 @@
+local config = require("ImmersiveTravel.config")
+
 local this = {}
 
 --#region global
 
 local logger = require("logging.logger")
 this.log = logger.new {
-    name = "Immersive Travel",
-    logLevel = "DEBUG",
+    name = config.mod,
+    logLevel = config.logLevel,
     logToConsole = false,
     includeTimestamp = false
 }

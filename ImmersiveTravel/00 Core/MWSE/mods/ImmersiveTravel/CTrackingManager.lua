@@ -145,7 +145,6 @@ event.register(tes3.event.save, saveCallback)
 function TrackingManager:doCull()
     local toremove = {}
     for _, s in ipairs(self.trackingList) do
-        -- TODO only get vehicles
         local vehicle = s ---@cast vehicle CVehicle
         -- only cull vehicles that are in onspline ai state
         if vehicle.aiStateMachine and vehicle.aiStateMachine.currentState == CAiState.ONSPLINE then

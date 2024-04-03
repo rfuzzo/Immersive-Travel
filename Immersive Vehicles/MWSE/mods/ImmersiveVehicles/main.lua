@@ -1,34 +1,30 @@
-local lib = require("ImmersiveVehicles.lib")
 local CTrackingManager = require("ImmersiveTravel.CTrackingManager")
-local ui = require("ImmersiveVehicles.ui")
+local interop          = require("ImmersiveTravel.interop")
 
-local log = lib.log
+local lib              = require("ImmersiveVehicles.lib")
+local ui               = require("ImmersiveVehicles.ui")
+local config           = require("ImmersiveVehicles.config")
+
+local log              = lib.log
 
 --#region debugging
 
-local DEBUG = false
-
 -- CONSTANTS
 
-local localmodpath = "mods\\ImmersiveVehicles\\"
-local fullmodpath = "Data Files\\MWSE\\" .. localmodpath
+local localmodpath     = "mods\\ImmersiveVehicles\\"
+local fullmodpath      = "Data Files\\MWSE\\" .. localmodpath
 
--- TODO debug
-local travelMarkerId = "marker_arrow.nif"
-local travelMarkerMesh = nil
-local mountMarkerMesh = nil
-local travelMarker = nil ---@type niNode?
-local mountMarker = nil ---@type niNode?
-local editmode = false
-
---[[
-
-local dbg_mount_id = nil ---@type string?
+-- debug
+local mountMarkerMesh  = nil
+local mountMarker      = nil ---@type niNode?
+local editmode         = false
+local mountData        = nil ---@type CVehicle?
+local dbg_mount_id     = nil ---@type string?
 
 --- @param e keyDownEventData
 local function keyDownCallback(e)
     -- leave editor and spawn vehicle
-    if DEBUG then
+    if config.logLevel == "DEBUG" then
         if e.keyCode == tes3.scanCode["o"] and editmode and mountMarker and dbg_mount_id then
             -- spawn vehicle
             local obj = tes3.createReference {
@@ -44,14 +40,13 @@ local function keyDownCallback(e)
             vfxRoot:detachChild(mountMarker)
             mountMarker = nil
             editmode = false
-        elseif e.keyCode == tes3.scanCode["o"] and not editmode and not is_on_mount then
+        elseif e.keyCode == tes3.scanCode["o"] and not editmode then
             local buttons = {}
-            local mounts = loadMountNames()
-            for _, id in ipairs(mounts) do
+            for id, className in pairs(interop.vehicles) do
                 table.insert(buttons, {
                     text = id,
                     callback = function(e)
-                        mountData = loadMountData(getMountForId(id))
+                        mountData = interop.getVehicleStaticData(id)
                         if not mountData then return nil end
                         -- visualize placement node
                         local target = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * (256 / mountData.scale)
@@ -84,13 +79,13 @@ event.register(tes3.event.keyDown, keyDownCallback)
 --- @param e simulatedEventData
 local function simulatedCallback(e)
     -- visualize mount scene node
-    if DEBUG then
+    if config.logLevel == "DEBUG" then
         if editmode and mountMarker and mountData then
             local from = tes3.getPlayerEyePosition() + (tes3.getPlayerEyeVector() * 500.0 * mountData.scale)
             if mountData.freedomtype == "boat" then
                 from.z = mountData.offset * mountData.scale
             elseif mountData.freedomtype == "ground" then
-                local z = getGroundZ(from + tes3vector3.new(0, 0, 200))
+                local z = lib.getGroundZ(from + tes3vector3.new(0, 0, 200))
                 if not z then
                     from.z = 0
                 else
@@ -109,7 +104,6 @@ end
 event.register(tes3.event.simulated, simulatedCallback)
 
 
-]]
 
 -- --- Cleanup on save load
 -- --- @param e loadEventData
@@ -249,13 +243,17 @@ local function registerRecipes(e)
         end
     end
 
-    lib.log:debug("register %s Recipes", #recipes)
-    for index, value in ipairs(recipes) do
-        lib.log:debug("found recipe %s", value.id)
-    end
+    -- lib.log:debug("register %s Recipes", #recipes)
+    -- for index, value in ipairs(recipes) do
+    --     lib.log:debug("found recipe %s", value.id)
+    -- end
 
     if e.menuActivator then e.menuActivator:registerRecipes(recipes) end
 end
 event.register("Ashfall:ActivateBushcrafting:Registered", registerRecipes)
 
 --#endregion
+
+-- /////////////////////////////////////////////////////////////////////////////////////////
+-- ////////////// CONFIG
+require("ImmersiveVehicles.mcm")
