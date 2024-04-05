@@ -4,6 +4,7 @@ local interop = require("ImmersiveTravel.interop")
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
+---@type ITWAConfig
 local config = require("ImmersiveTravelAddonWorld.config")
 local logger = require("logging.logger")
 local log = logger.new {
@@ -33,13 +34,17 @@ local SPAWN_DRAW_DISTANCE = 1
 ---@param p SPointDto
 ---@return boolean
 local function canSpawn(p)
-    if #CTrackingManager.getInstance().trackingList >= config.budget then return false end
+    if #CTrackingManager.getInstance().trackingList >= config.budget then
+        return false
+    end
 
     for _, s in ipairs(CTrackingManager.getInstance().trackingList) do
         local vehicle = s ---@cast vehicle CVehicle
         if vehicle.last_position then
             local d = lib.vec(p.point):distance(vehicle.last_position)
-            if d < config.spawnExlusionRadius * 8192 then return false end
+            if d < config.spawnExlusionRadius * 8192 then
+                return false
+            end
         end
     end
 
@@ -49,6 +54,7 @@ end
 --- spawn an object on the vfx node and register it
 ---@param point SPointDto
 local function doSpawn(point)
+    log:debug("doSpawn")
     if not services then return end
 
     local split = string.split(point.routeId, "_")
@@ -80,14 +86,13 @@ local function doSpawn(point)
         end
     end
     -- create and register the vehicle
+    log:debug("Spawning %s at: %s", mountId, lib.vec(point.point))
     local vehicle = interop.createVehicle(mountId, startPoint, orientation, facing)
     if not vehicle then
         return
     end
 
     vehicle:StartOnSpline(spline, service)
-
-    log:debug("%s spawned at: %s", mountId, lib.vec(point.point))
 end
 
 local function shuffle(tbl)
@@ -135,7 +140,9 @@ local function trySpawn(spawnCandidates)
         local roll = math.random(100)
         if roll < config.spawnChance then
             -- check if can spawn
-            if canSpawn(p) then doSpawn(p) end
+            if canSpawn(p) then
+                doSpawn(p)
+            end
         end
     end
 end
@@ -155,8 +162,9 @@ local function initializedCallback(e)
     end
 
     -- load routes into memory
+    log:debug("Found %s services", table.size(services))
     for key, service in pairs(services) do
-        log:info(service.class)
+        log:info("\tAdding %s service", service.class)
 
         lib.loadRoutes(service)
         local destinations = service.routes
@@ -196,6 +204,10 @@ local function initializedCallback(e)
             end
         end
     end
+
+    log:debug("Loaded %s splines", table.size(splines))
+    log:debug("Loaded %s points", table.size(map))
+    log:info("%s Initialized", config.mod)
 end
 event.register(tes3.event.initialized, initializedCallback)
 
@@ -205,6 +217,9 @@ local function cellChangedCallback(e)
     if not config.modEnabled then return end
 
     local spawnCandidates = getSpawnCandidates()
+
+    -- log:debug("Spawn candidates: %s", #spawnCandidates)
+
     trySpawn(spawnCandidates)
 end
 event.register(tes3.event.cellChanged, cellChangedCallback)

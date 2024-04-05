@@ -205,7 +205,7 @@ local function CalculatePositions(vehicle, nextPos)
     -- change position when about to collide
     local virtualpos = nextPos
     -- only in onspline AI states
-    if vehicle.aiStateMachine.currentState == CAiState.ONSPLINE then
+    if vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
         local evade_right = false
         local collision = false
         -- get tracked
@@ -332,10 +332,14 @@ local function getNextPositionHeading(vehicle)
 
     local mount = vehicle.referenceHandle:getObject()
     local nextPos = lib.vec(vehicle.spline[vehicle.splineIndex])
-    local isBehind = lib.isPointBehindObject(nextPos, mount.position, mount.forwardDirection)
+    local isBehind = lib.isPointBehindObject(nextPos, vehicle.last_position, vehicle.last_forwardDirection)
     if isBehind then
         vehicle.splineIndex = vehicle.splineIndex + 1
     end
+    if vehicle.splineIndex > #vehicle.spline then
+        return nil
+    end
+
     nextPos = lib.vec(vehicle.spline[vehicle.splineIndex])
 
     return nextPos
@@ -363,7 +367,11 @@ local function Move(vehicle, dt)
     end
 
     -- skip
-    if vehicle.current_speed < vehicle.minSpeed then return end
+    if vehicle.minSpeed then
+        if vehicle.current_speed < vehicle.minSpeed then
+            return
+        end
+    end
 
     local position, facing, turn = CalculatePositions(vehicle, nextPos)
 

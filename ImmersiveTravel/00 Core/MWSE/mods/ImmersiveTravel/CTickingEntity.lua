@@ -49,8 +49,6 @@ function CTickingEntity:create(id, position, orientation, facing)
     setmetatable(newObj, self)
     self.__index = self
 
-    -- register all ticking entities with the CTrackingManager
-    TrackingManager.getInstance():AddEntity(newObj)
     return newObj
 end
 
@@ -70,13 +68,6 @@ function CTickingEntity:OnTick(dt)
     self.aiStateMachine:update(dt, self)
     self.locomotionStateMachine:update(dt, self)
 end
-
--- ---Register the entity with the CTrackingManager
--- ---@param reference tes3reference
--- function CTickingEntity:register(reference)
---     self.referenceHandle = tes3.makeSafeObjectHandle(reference)
---     self:Attach()
--- end
 
 function CTickingEntity:Attach()
     -- register all ticking entities with the CTrackingManager

@@ -1,6 +1,7 @@
 local lib                  = require("ImmersiveTravel.lib")
 local CAiState             = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local interop              = require("ImmersiveTravel.interop")
+local log                  = lib.log
 
 -- Define a class to manage the tracking list and timer
 ---@class CTrackingManager
@@ -40,8 +41,8 @@ function TrackingManager:AddEntity(entity)
 
     entity.referenceHandle:getObject().tempData.scriptedEntity = entity
 
-    lib.log:debug("Added %s to tracking list", entity.id)
-    lib.log:debug("Tracking list size: %s", #self.trackingList)
+    log:debug("Added %s to tracking list", entity.id)
+    log:debug("Tracking list size: %s", #self.trackingList)
 end
 
 --- Remove an entity from the tracking list
@@ -51,8 +52,8 @@ function TrackingManager:RemoveEntity(entity)
 
     entity.referenceHandle:getObject().tempData.scriptedEntity = nil
 
-    lib.log:debug("Removed %s from tracking list", entity.id)
-    lib.log:debug("Tracking list size: %s", #self.trackingList)
+    log:debug("Removed %s from tracking list", entity.id)
+    log:debug("Tracking list size: %s", #self.trackingList)
 end
 
 -- Start the timer to call OnTick on each entity in the tracking list
@@ -65,6 +66,7 @@ function TrackingManager:StartTimer()
             self:doCull()
 
             for _, entity in ipairs(self.trackingList) do
+                -- log:debug("OnTick %s", entity.id)
                 entity:OnTick(self.TIMER_TICK)
             end
         end
@@ -83,7 +85,7 @@ function TrackingManager:Cleanup()
     self:StopTimer()
     self.trackingList = {}
 
-    lib.log:debug("TrackingManager cleaned up")
+    log:debug("TrackingManager cleaned up")
 end
 
 --#region events
@@ -126,9 +128,9 @@ local function saveCallback(e)
     -- go through all tracked objects and set .modified = false
     for index, s in ipairs(TrackingManager.getInstance().trackingList) do
         -- only if ai state is onspline or playertravel or non
-        if s.aiStateMachine and (s.aiStateMachine.currentState == CAiState.ONSPLINE
-                or s.aiStateMachine.currentState == CAiState.PLAYERTRAVEL
-                or s.aiStateMachine.currentState == CAiState.NONE) then
+        if s.aiStateMachine and (s.aiStateMachine.currentState.name == CAiState.ONSPLINE
+                or s.aiStateMachine.currentState.name == CAiState.PLAYERTRAVEL
+                or s.aiStateMachine.currentState.name == CAiState.NONE) then
             if s.referenceHandle and s.referenceHandle:valid() then
                 s.referenceHandle:getObject().modified = false
             end
@@ -143,13 +145,14 @@ event.register(tes3.event.save, saveCallback)
 
 --- cull nodes in distance
 function TrackingManager:doCull()
+    ---@type CTickingEntity[]
     local toremove = {}
     for _, s in ipairs(self.trackingList) do
         local vehicle = s ---@cast vehicle CVehicle
         -- only cull vehicles that are in onspline ai state
-        if vehicle.aiStateMachine and vehicle.aiStateMachine.currentState == CAiState.ONSPLINE then
+        if vehicle.aiStateMachine and vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
             local d = tes3.player.position:distance(vehicle.last_position)
-            -- TODO set cull radius in config config.cullRadius
+            -- TODO set cull radius in config config.cullRadius 4
             if d > 4 * 8192 then
                 table.insert(toremove, s)
             end
@@ -159,14 +162,16 @@ function TrackingManager:doCull()
         end
     end
 
+
+
     for _, s in ipairs(toremove) do
         s:Delete()
 
-        lib.log:debug("Culled %s", s.id)
+        log:debug("Culled %s", s.id)
     end
 
     if #toremove > 0 then
-        lib.log:debug("Tracked: " .. #self.trackingList)
+        log:debug("Tracked: " .. #self.trackingList)
         tes3.messageBox("Tracked: " .. #self.trackingList)
     end
 end

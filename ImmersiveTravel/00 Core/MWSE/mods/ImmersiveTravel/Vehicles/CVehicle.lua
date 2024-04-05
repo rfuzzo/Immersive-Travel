@@ -1,5 +1,6 @@
 local CTickingEntity        = require("ImmersiveTravel.CTickingEntity")
 local CPlayerVehicleManager = require("ImmersiveTravel.CPlayerVehicleManager")
+local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local lib                   = require("ImmersiveTravel.lib")
 local log                   = lib.log
 
@@ -198,6 +199,8 @@ end
 function CVehicle:StartOnSpline(spline, service)
     log:debug("StartOnSpline %s", self.id)
 
+    self:Attach()
+
     self.spline = spline -- this pushes the AI statemachine
     self.current_speed = self.speed
 
@@ -213,12 +216,12 @@ function CVehicle:StartOnSpline(spline, service)
             position = mount.position,
             orientation = mount.orientation
         }
-        log:debug("> registering guide")
+        log:debug("\tregistering guide")
         self:registerGuide(tes3.makeSafeObjectHandle(guide))
     end
 
     -- register passengers
-    self:RegisterPassengers()
+    -- self:RegisterPassengers()
 end
 
 --- StartPlayerTravel is called when the player starts traveling
@@ -439,6 +442,11 @@ function CVehicle:UpdateSlots(dt)
         changeAnims = true
     end
 
+    -- do not animate if animstate is onspline
+    if self.aiStateMachine.currentState.name == CAiState.ONSPLINE then
+        changeAnims = false
+    end
+
     local mount = self.referenceHandle:getObject()
     local boneOffset = tes3vector3.new(0, 0, 0)
     if self.nodeName then
@@ -459,34 +467,35 @@ function CVehicle:UpdateSlots(dt)
     end
 
     -- guide
-    local guide = self.guideSlot.handle:getObject()
-    guide.position = rootBone.worldTransform * self:getSlotTransform(self.guideSlot.position, boneOffset)
-    if guide ~= tes3.player then
-        guide.facing = mount.facing
-        -- only change anims if behind player
-        if changeAnims and
-            lib.isPointBehindObject(guide.position, tes3.player.position,
-                tes3.player.forwardDirection) then
-            local group = lib.getRandomAnimGroup(self.guideSlot)
-            local animController = guide.mobile.animationController
-            if animController then
-                local currentAnimationGroup =
-                    animController.animationData.currentAnimGroups[tes3.animationBodySection.upper]
-                log:trace("%s switching to animgroup %s", guide.id, group)
-                if group ~= currentAnimationGroup then
-                    tes3.loadAnimation({ reference = guide })
-                    if self.guideSlot.animationFile then
-                        tes3.loadAnimation({
-                            reference = guide,
-                            file = self.guideSlot.animationFile
-                        })
+    if self.guideSlot.handle and self.guideSlot.handle:valid() then
+        local guide = self.guideSlot.handle:getObject()
+        guide.position = rootBone.worldTransform * self:getSlotTransform(self.guideSlot.position, boneOffset)
+        if guide ~= tes3.player then
+            guide.facing = mount.facing
+            -- only change anims if behind player
+            if changeAnims and
+                lib.isPointBehindObject(guide.position, tes3.player.position,
+                    tes3.player.forwardDirection) then
+                local group = lib.getRandomAnimGroup(self.guideSlot)
+                local animController = guide.mobile.animationController
+                if animController then
+                    local currentAnimationGroup =
+                        animController.animationData.currentAnimGroups[tes3.animationBodySection.upper]
+                    log:trace("%s switching to animgroup %s", guide.id, group)
+                    if group ~= currentAnimationGroup then
+                        tes3.loadAnimation({ reference = guide })
+                        if self.guideSlot.animationFile then
+                            tes3.loadAnimation({
+                                reference = guide,
+                                file = self.guideSlot.animationFile
+                            })
+                        end
+                        tes3.playAnimation({ reference = guide, group = group })
                     end
-                    tes3.playAnimation({ reference = guide, group = group })
                 end
             end
         end
     end
-
 
     -- passengers
     for index, slot in ipairs(self.slots) do
@@ -556,7 +565,17 @@ function CVehicle:GetRootBone()
     end
 
     local mount = self.referenceHandle:getObject()
+    if not mount then
+        return nil
+    end
+
     local rootBone = mount.sceneNode
+    -- TODO why
+    if not rootBone then
+        log:debug("No sceneNode found for %s", mount.id)
+        return nil
+    end
+
     if self.nodeName then
         rootBone = mount.sceneNode:getObjectByName(self.nodeName) --[[@as niNode]]
     end
@@ -588,7 +607,7 @@ function CVehicle:registerGuide(handle)
         end
         tes3.playAnimation({ reference = reference, group = group })
 
-        log:debug("registered %s in guide slot with animgroup %s", reference.id, group)
+        log:debug("\t\tregistered %s in guide slot with animgroup %s", reference.id, group)
     end
 end
 
@@ -702,7 +721,7 @@ function CVehicle:registerStatic(handle, i)
     self.clutter[i].handle = handle
 
     if handle and handle:valid() then
-        log:debug("registered %s in static slot %s", handle:getObject().id, i)
+        log:debug("\t\tregistered %s in static slot %s", handle:getObject().id, i)
     end
 end
 
@@ -736,7 +755,7 @@ function CVehicle:registerInSlot(handle, idx)
         end
         tes3.playAnimation({ reference = reference, group = group })
 
-        log:debug("registered %s in slot %s with animgroup %s", reference.id, idx, group)
+        log:debug("\t\tregistered %s in slot %s with animgroup %s", reference.id, idx, group)
     end
 end
 
@@ -786,7 +805,7 @@ function CVehicle:registerRefInHiddenSlot(handle)
         reference.mobile.movementCollision = false;
         reference.data.rfuzzo_invincible = true;
 
-        log:debug("registered %s in hidden slot #%s", reference.id, idx)
+        log:debug("\t\tregistered %s in hidden slot #%s", reference.id, idx)
     end
 end
 

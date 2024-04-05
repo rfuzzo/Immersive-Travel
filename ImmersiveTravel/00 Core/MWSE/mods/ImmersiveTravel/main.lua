@@ -19,8 +19,8 @@ local function loadedCallback(e)
     lib.log:debug("TrackingManager started")
 
     -- found vehicles
-    for id, className in pairs(interop.vehicles) do
-        lib.log:debug("found vehicle %s", id)
+    for id, _ in pairs(interop.vehicles) do
+        lib.log:debug("\tregistered vehicle %s", id)
     end
 end
 event.register(tes3.event.loaded, loadedCallback)
