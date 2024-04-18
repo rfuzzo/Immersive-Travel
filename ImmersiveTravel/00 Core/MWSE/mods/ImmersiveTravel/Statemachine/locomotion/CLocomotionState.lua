@@ -223,13 +223,16 @@ local function CalculatePositions(vehicle, nextPos)
         end
         -- evade
         if collision then
-            -- override the next position temporarily
-            if evade_right then
-                -- evade to the right
-                virtualpos = vehicle:GetRootBone().worldTransform * tes3vector3.new(1204, 1024, nextPos.z)
-            else
-                -- evade to the left
-                virtualpos = vehicle:GetRootBone().worldTransform * tes3vector3.new(-1204, 1024, nextPos.z)
+            local rootBone = vehicle:GetRootBone()
+            if rootBone then
+                -- override the next position temporarily
+                if evade_right then
+                    -- evade to the right
+                    virtualpos = rootBone.worldTransform * tes3vector3.new(1204, 1024, nextPos.z)
+                else
+                    -- evade to the left
+                    virtualpos = rootBone.worldTransform * tes3vector3.new(-1204, 1024, nextPos.z)
+                end
             end
         end
     end
@@ -376,19 +379,34 @@ local function Move(vehicle, dt)
     local position, facing, turn = CalculatePositions(vehicle, nextPos)
 
     -- move the reference
+    local skipMove = false
+    if vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
+        local behind = lib.isPointBehindObject(position, tes3.player.position, tes3.player.forwardDirection)
+        if behind then
+            skipMove = true
+        end
+    end
+
     local mount = vehicle.referenceHandle:getObject()
-    mount.facing = facing
-    mount.position = position
+
+    if not skipMove then
+        mount.facing = facing
+        mount.position = position
+    end
+
     -- save positions
     vehicle.last_position = mount.position
     vehicle.last_forwardDirection = mount.forwardDirection
     vehicle.last_facing = mount.facing
 
-    -- sway
-    mount.orientation = calculateOrientation(vehicle, dt, turn)
-
-    -- update slots
-    vehicle:UpdateSlots(dt)
+    if not skipMove then
+        -- sway
+        mount.orientation = calculateOrientation(vehicle, dt, turn)
+        -- update slots
+        vehicle:UpdateSlots(dt)
+    else
+        -- TODO unregister slots
+    end
 end
 
 --#endregion
