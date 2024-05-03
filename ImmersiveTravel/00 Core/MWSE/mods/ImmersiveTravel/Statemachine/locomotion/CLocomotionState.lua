@@ -204,12 +204,13 @@ local function CalculatePositions(vehicle, nextPos)
 
     -- change position when about to collide
     local virtualpos = nextPos
+
     -- only in onspline AI states
     if vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
         local evade_right = false
         local collision = false
-        -- get tracked
-        for index, value in ipairs(CTrackingManager.getInstance().trackingList) do
+        -- get tracked objects
+        for index, value in pairs(CTrackingManager.getInstance().trackingList) do
             ---@cast value CVehicle
             if value ~= vehicle and currentPos:distance(value.last_position) < 8192 then
                 -- TODO what values to use here?
@@ -233,6 +234,8 @@ local function CalculatePositions(vehicle, nextPos)
                     -- evade to the left
                     virtualpos = rootBone.worldTransform * tes3vector3.new(-1204, 1024, nextPos.z)
                 end
+            else
+                lib.log:debug("CalculatePositions %s: rootBone is nil", vehicle:Id())
             end
         end
     end

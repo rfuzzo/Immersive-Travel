@@ -66,7 +66,7 @@ local log                   = lib.log
 ---@field last_facing number
 ---@field last_sway number
 ---@field swayTime number
----@field spline PositionRecord[]?
+---@field spline PositionRecord[]? -- TODO keep a global table of the splines
 ---@field splineIndex number
 ---@field virtualDestination tes3vector3?
 ---@field current_speed number
@@ -206,21 +206,21 @@ function CVehicle:StartOnSpline(spline, service)
 
     local mount = self.referenceHandle:getObject()
 
-    -- register guide
-    local guides = service.guide
-    if guides then
-        local randomIndex = math.random(1, #guides)
-        local guideId = guides[randomIndex]
-        local guide = tes3.createReference {
-            object = guideId,
-            position = mount.position,
-            orientation = mount.orientation
-        }
-        log:debug("\tregistering guide")
-        self:registerGuide(tes3.makeSafeObjectHandle(guide))
-    end
+    -- TODO register guide
+    -- local guides = service.guide
+    -- if guides then
+    --     local randomIndex = math.random(1, #guides)
+    --     local guideId = guides[randomIndex]
+    --     local guide = tes3.createReference {
+    --         object = guideId,
+    --         position = mount.position,
+    --         orientation = mount.orientation
+    --     }
+    --     log:debug("\tregistering guide")
+    --     self:registerGuide(tes3.makeSafeObjectHandle(guide))
+    -- end
 
-    -- register passengers
+    -- TODO register passengers
     -- self:RegisterPassengers()
 end
 
@@ -416,6 +416,7 @@ end
 function CVehicle:Delete()
     -- cleanup
     self:cleanup()
+
     -- Call the superclass delete method
     CTickingEntity.Delete(self)
 end
@@ -433,6 +434,7 @@ end
 function CVehicle:UpdateSlots(dt)
     local rootBone = self:GetRootBone()
     if rootBone == nil then
+        log:debug("UpdateSlots %s: rootBone is nil", self:Id())
         return
     end
 
@@ -570,9 +572,7 @@ function CVehicle:GetRootBone()
     end
 
     local rootBone = mount.sceneNode
-    -- TODO why
     if not rootBone then
-        log:debug("No sceneNode found for %s", mount.id)
         return nil
     end
 
@@ -619,23 +619,26 @@ end
 function CVehicle:UpdatePlayerCollision()
     -- move player when on vehicle
     local rootBone = self:GetRootBone()
-    if rootBone then
-        local playerShipLocal = rootBone.worldTransform:invert() * tes3.player.position
-        -- check if player is in freemovement mode
-        if self.hasFreeMovement and CPlayerVehicleManager.getInstance().free_movement and self:isPlayerInMountBounds() then
-            log:debug("Update player collision")
-            -- this is needed to enable collisions :todd:
-            tes3.dataHandler:updateCollisionGroupsForActiveCells {}
-            self.referenceHandle:getObject().sceneNode:update()
-            tes3.player.position = rootBone.worldTransform * playerShipLocal
-        end
+    if rootBone == nil then
+        log:debug("UpdatePlayerCollision %s: rootBone is nil", self:Id())
+        return
+    end
+
+    local playerShipLocal = rootBone.worldTransform:invert() * tes3.player.position
+    -- check if player is in freemovement mode
+    if self.hasFreeMovement and CPlayerVehicleManager.getInstance().free_movement and self:isPlayerInMountBounds() then
+        log:debug("Update player collision")
+        -- this is needed to enable collisions :todd:
+        tes3.dataHandler:updateCollisionGroupsForActiveCells {}
+        self.referenceHandle:getObject().sceneNode:update()
+        tes3.player.position = rootBone.worldTransform * playerShipLocal
     end
 end
 
 -- cleanup all variables
 ---@private
 function CVehicle:cleanup()
-    log:debug("CVehicle cleanup")
+    log:debug("CVehicle cleanup %s", self:Id())
 
     local mount = self.referenceHandle:getObject()
     tes3.removeSound({ reference = mount })

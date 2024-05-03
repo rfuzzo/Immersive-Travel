@@ -173,7 +173,7 @@ local enterVehicle = {
 local destroyVehicle = {
     text = "Destroy",
     callback = function(e)
-        CTrackingManager.getInstance().OnDestroy(e.reference)
+        CTrackingManager.getInstance():OnDestroy(e.reference)
     end
 }
 

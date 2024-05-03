@@ -1,13 +1,13 @@
-local lib = require("ImmersiveTravel.lib")
-local CTrackingManager = require("ImmersiveTravel.CTrackingManager")
-local interop = require("ImmersiveTravel.interop")
+local lib                 = require("ImmersiveTravel.lib")
+local CTrackingManager    = require("ImmersiveTravel.CTrackingManager")
+local interop             = require("ImmersiveTravel.interop")
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
 ---@type ITWAConfig
-local config = require("ImmersiveTravelAddonWorld.config")
-local logger = require("logging.logger")
-local log = logger.new {
+local config              = require("ImmersiveTravelAddonWorld.config")
+local logger              = require("logging.logger")
+local log                 = logger.new {
     name = config.mod,
     logLevel = config.logLevel,
     logToConsole = false,
@@ -15,9 +15,9 @@ local log = logger.new {
 }
 
 -- spawn data
-local map = {} ---@type table<string, SPointDto[]>
-local splines = {} ---@type table<string, table<string, PositionRecord[]>>
-local services = {} ---@type table<string, ServiceData>?
+local spawnPoints         = {} ---@type table<string, SPointDto[]>
+local splines             = {} ---@type table<string, table<string, PositionRecord[]>>
+local services            = {} ---@type table<string, ServiceData>?
 
 local SPAWN_DRAW_DISTANCE = 1
 
@@ -34,11 +34,11 @@ local SPAWN_DRAW_DISTANCE = 1
 ---@param p SPointDto
 ---@return boolean
 local function canSpawn(p)
-    if #CTrackingManager.getInstance().trackingList >= config.budget then
+    if table.size(CTrackingManager.getInstance().trackingList) >= config.budget then
         return false
     end
 
-    for _, s in ipairs(CTrackingManager.getInstance().trackingList) do
+    for id, s in pairs(CTrackingManager.getInstance().trackingList) do
         local vehicle = s ---@cast vehicle CVehicle
         if vehicle.last_position then
             local d = lib.vec(p.point):distance(vehicle.last_position)
@@ -118,7 +118,7 @@ local function getSpawnCandidates()
 
             if d > SPAWN_DRAW_DISTANCE then
                 local cellKey = tostring(i) .. "," .. tostring(j)
-                local points = map[cellKey]
+                local points = spawnPoints[cellKey]
                 if points then
                     for _, p in ipairs(points) do
                         table.insert(spawnCandidates, p)
@@ -171,8 +171,7 @@ local function initializedCallback(e)
         if destinations then
             for _i, start in ipairs(table.keys(destinations)) do
                 for _j, destination in ipairs(destinations[start]) do
-                    local spline =
-                        lib.loadSpline(start, destination, service)
+                    local spline = lib.loadSpline(start, destination, service)
                     if spline then
                         if not splines[service.class] then
                             splines[service.class] = {}
@@ -186,8 +185,8 @@ local function initializedCallback(e)
                             local cy = math.floor(pos.y / 8192)
 
                             local cell_key = tostring(cx) .. "," .. tostring(cy)
-                            if not map[cell_key] then
-                                map[cell_key] = {}
+                            if not spawnPoints[cell_key] then
+                                spawnPoints[cell_key] = {}
                             end
 
                             ---@type SPointDto
@@ -197,7 +196,7 @@ local function initializedCallback(e)
                                 serviceId = service.class,
                                 splineIndex = idx
                             }
-                            table.insert(map[cell_key], point)
+                            table.insert(spawnPoints[cell_key], point)
                         end
                     end
                 end
@@ -206,7 +205,7 @@ local function initializedCallback(e)
     end
 
     log:debug("Loaded %s splines", table.size(splines))
-    log:debug("Loaded %s points", table.size(map))
+    log:debug("Loaded %s points", table.size(spawnPoints))
     log:info("%s Initialized", config.mod)
 end
 event.register(tes3.event.initialized, initializedCallback)

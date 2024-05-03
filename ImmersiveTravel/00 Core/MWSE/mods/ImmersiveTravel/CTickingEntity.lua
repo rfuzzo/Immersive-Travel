@@ -1,14 +1,18 @@
-local TrackingManager = require("ImmersiveTravel.CTrackingManager")
+local TrackingManager         = require("ImmersiveTravel.CTrackingManager")
 local CLocomotionStateMachine = require("ImmersiveTravel.Statemachine.locomotion.CLocomotionStateMachine")
-local CAiStateMachine = require("ImmersiveTravel.Statemachine.ai.CAiStateMachine")
+local CAiStateMachine         = require("ImmersiveTravel.Statemachine.ai.CAiStateMachine")
+
+local lib                     = require("ImmersiveTravel.lib")
+local log                     = lib.log
 
 -- Define the base class CTickingEntity
 ---@class CTickingEntity
 ---@field referenceHandle mwseSafeObjectHandle
 ---@field id string?
+---@field refid number?
 ---@field locomotionStateMachine CLocomotionStateMachine
 ---@field aiStateMachine CAiStateMachine
-local CTickingEntity = {}
+local CTickingEntity          = {}
 
 ---Constructor for CTickingEntity
 ---@return CTickingEntity
@@ -52,14 +56,23 @@ function CTickingEntity:create(id, position, orientation, facing)
     return newObj
 end
 
+---Get the id of the entity
+---@return string
+function CTickingEntity:Id()
+    return self.id .. "_" .. tostring(self.refid)
+end
+
 -- Define the base class CTickingEntity
 function CTickingEntity:Delete()
+    log:debug("CTickingEntity Delete %s", self:Id())
+
+    self:Detach()
+
     -- Release the reference handle
     if self.referenceHandle:valid() then
         self.referenceHandle:getObject():delete()
+        self.referenceHandle = nil
     end
-
-    self:Detach()
 end
 
 ---Called on each tick of the timer
