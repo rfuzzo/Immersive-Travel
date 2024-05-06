@@ -64,7 +64,7 @@ end
 
 -- Define the base class CTickingEntity
 function CTickingEntity:Delete()
-    log:debug("CTickingEntity Delete %s", self:Id())
+    log:trace("CTickingEntity Delete %s", self:Id())
 
     self:Detach()
 

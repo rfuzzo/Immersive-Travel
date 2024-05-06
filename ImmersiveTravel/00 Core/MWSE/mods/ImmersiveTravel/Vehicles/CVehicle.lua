@@ -173,7 +173,7 @@ end
 
 --- StartPlayerSteer is called when the player starts steering
 function CVehicle:StartPlayerSteer()
-    log:debug("StartPlayerSteer %s", self.id)
+    log:trace("StartPlayerSteer %s", self.id)
     self:OnCreate()
 
     -- register player as guide
@@ -187,7 +187,7 @@ end
 
 --- EndPlayerSteer is called when the player leaves the vehicle
 function CVehicle:EndPlayerSteer()
-    log:debug("EndPlayerSteer")
+    log:trace("EndPlayerSteer")
 
     self.virtualDestination = nil
     self:release()
@@ -197,7 +197,7 @@ end
 ---@param spline PositionRecord[]
 ---@param service ServiceData
 function CVehicle:StartOnSpline(spline, service)
-    log:debug("StartOnSpline %s", self.id)
+    log:trace("StartOnSpline %s", self.id)
 
     self:Attach()
 
@@ -434,7 +434,7 @@ end
 function CVehicle:UpdateSlots(dt)
     local rootBone = self:GetRootBone()
     if rootBone == nil then
-        log:debug("UpdateSlots %s: rootBone is nil", self:Id())
+        log:trace("UpdateSlots %s: rootBone is nil", self:Id())
         return
     end
 
@@ -620,7 +620,7 @@ function CVehicle:UpdatePlayerCollision()
     -- move player when on vehicle
     local rootBone = self:GetRootBone()
     if rootBone == nil then
-        log:debug("UpdatePlayerCollision %s: rootBone is nil", self:Id())
+        log:trace("UpdatePlayerCollision %s: rootBone is nil", self:Id())
         return
     end
 
@@ -638,7 +638,7 @@ end
 -- cleanup all variables
 ---@private
 function CVehicle:cleanup()
-    log:debug("CVehicle cleanup %s", self:Id())
+    log:trace("CVehicle cleanup %s", self:Id())
 
     local mount = self.referenceHandle:getObject()
     tes3.removeSound({ reference = mount })

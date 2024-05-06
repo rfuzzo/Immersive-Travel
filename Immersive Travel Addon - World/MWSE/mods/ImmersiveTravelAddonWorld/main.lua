@@ -2,6 +2,11 @@ local lib                 = require("ImmersiveTravel.lib")
 local CTrackingManager    = require("ImmersiveTravel.CTrackingManager")
 local interop             = require("ImmersiveTravel.interop")
 
+---@class SPointDto
+---@field point PositionRecord  the actual point
+---@field splineIndex number    the index of the point in the spline
+---@field routeId string        the route id
+
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
 ---@type ITWAConfig
@@ -14,18 +19,16 @@ local log                 = logger.new {
     includeTimestamp = false
 }
 
--- spawn data
-local spawnPoints         = {} ---@type table<string, SPointDto[]>
-local splines             = {} ---@type table<string, table<string, PositionRecord[]>>
 local services            = {} ---@type table<string, ServiceData>?
+-- spawn data by cell
+local spawnPoints         = {} ---@type table<string, SPointDto[]>
+-- routes by routeId
+local routes              = {} ---@type table<string, PositionRecord[]>
+-- services by routeId
+local routesServices      = {} ---@type table<string, string>
 
+-- variables
 local SPAWN_DRAW_DISTANCE = 1
-
----@class SPointDto
----@field point PositionRecord
----@field routeId string
----@field serviceId string
----@field splineIndex number
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// FUNCTIONS
@@ -54,28 +57,50 @@ end
 --- spawn an object on the vfx node and register it
 ---@param point SPointDto
 local function doSpawn(point)
-    log:debug("doSpawn")
-    if not services then return end
+    log:trace("doSpawn")
+    if not services then
+        return
+    end
 
-    local split = string.split(point.routeId, "_")
-    local start = split[1]
-    local destination = split[2]
-    local service = services[point.serviceId]
+    -- get service and route
+    local serviceClass = routesServices[point.routeId]
+    if not serviceClass then
+        return
+    end
+    local service = services[serviceClass]
+    if not service then
+        return
+    end
+    local spline = routes[point.routeId]
+    if not spline then
+        return
+    end
+
+    -- get orientation and facing
     local idx = point.splineIndex
-
-    local spline = splines[service.class][point.routeId]
     local startPoint = lib.vec(spline[idx])
-    local nr = spline[idx + 1]
-    if not nr then return end
+
+    -- get either next or previous point randomly
+    if math.random(2) == 1 then
+        idx = idx - 1
+    else
+        idx = idx + 1
+    end
+    local nr = spline[idx]
+    if not nr then
+        return
+    end
+
     local nextPoint = lib.vec(nr)
     local orientation = nextPoint - startPoint
     orientation:normalize()
     local facing = math.atan2(orientation.x, orientation.y)
 
-    -- create vehicle and spawn
-    -- vehicle id
+    -- create and register the vehicle
     local mountId = service.mount
-    -- override mounts
+    local split = string.split(point.routeId, "_")
+    local start = split[1]
+    local destination = split[2]
     if service.override_mount then
         for _, o in ipairs(service.override_mount) do
             if lib.is_in(o.points, start) and
@@ -85,21 +110,16 @@ local function doSpawn(point)
             end
         end
     end
-    -- create and register the vehicle
+
     log:debug("Spawning %s at: %s", mountId, lib.vec(point.point))
+
     local vehicle = interop.createVehicle(mountId, startPoint, orientation, facing)
     if not vehicle then
         return
     end
 
+    -- start the vehicle
     vehicle:StartOnSpline(spline, service)
-end
-
-local function shuffle(tbl)
-    for i = #tbl, 2, -1 do
-        local j = math.random(i)
-        tbl[i], tbl[j] = tbl[j], tbl[i]
-    end
 end
 
 --- get possible cells where objects can spawn
@@ -128,7 +148,7 @@ local function getSpawnCandidates()
         end
     end
 
-    shuffle(spawnCandidates)
+    lib.shuffle(spawnCandidates)
     return spawnCandidates
 end
 
@@ -173,14 +193,18 @@ local function initializedCallback(e)
                 for _j, destination in ipairs(destinations[start]) do
                     local spline = lib.loadSpline(start, destination, service)
                     if spline then
-                        if not splines[service.class] then
-                            splines[service.class] = {}
-                        end
+                        -- save route in memory
+                        local routeId = start .. "_" .. destination
+                        routes[routeId] = spline
+                        routesServices[routeId] = service.class
 
-                        splines[service.class][start .. "_" .. destination] =
-                            spline
-
+                        -- save points in memory
                         for idx, pos in ipairs(spline) do
+                            -- ignore first and last point
+                            if idx == 1 or idx == #spline then
+                                goto continue
+                            end
+
                             local cx = math.floor(pos.x / 8192)
                             local cy = math.floor(pos.y / 8192)
 
@@ -192,20 +216,24 @@ local function initializedCallback(e)
                             ---@type SPointDto
                             local point = {
                                 point = pos,
-                                routeId = start .. "_" .. destination,
-                                serviceId = service.class,
+                                routeId = routeId,
                                 splineIndex = idx
                             }
                             table.insert(spawnPoints[cell_key], point)
+
+                            ::continue::
                         end
+                    else
+                        log:warn("No spline found for %s -> %s", start, destination)
                     end
                 end
             end
         end
     end
 
-    log:debug("Loaded %s splines", table.size(splines))
+    log:debug("Loaded %s splines", table.size(routes))
     log:debug("Loaded %s points", table.size(spawnPoints))
+
     log:info("%s Initialized", config.mod)
 end
 event.register(tes3.event.initialized, initializedCallback)
@@ -213,13 +241,16 @@ event.register(tes3.event.initialized, initializedCallback)
 --- spawn on cell changed
 --- @param e cellChangedEventData
 local function cellChangedCallback(e)
-    if not config.modEnabled then return end
+    if not config.modEnabled then
+        -- TODO delete all vehicles
+
+        return
+    end
 
     local spawnCandidates = getSpawnCandidates()
+    trySpawn(spawnCandidates)
 
     -- log:debug("Spawn candidates: %s", #spawnCandidates)
-
-    trySpawn(spawnCandidates)
 end
 event.register(tes3.event.cellChanged, cellChangedCallback)
 
