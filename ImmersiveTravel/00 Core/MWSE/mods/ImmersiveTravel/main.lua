@@ -1,15 +1,32 @@
-local lib = require("ImmersiveTravel.lib")
+local lib             = require("ImmersiveTravel.lib")
 local TrackingManager = require("ImmersiveTravel.CTrackingManager")
-local ui = require("ImmersiveTravel.ui")
-local interop = require("ImmersiveTravel.interop")
+local GRoutesManager  = require("ImmersiveTravel.GRoutesManager")
+local ui              = require("ImmersiveTravel.ui")
+local interop         = require("ImmersiveTravel.interop")
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
-local config = require("ImmersiveTravel.config")
-
+local config          = require("ImmersiveTravel.config")
+if not config then
+    return
+end
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// EVENTS
+
+--- Init Mod
+--- @param e initializedEventData
+local function initializedCallback(e)
+    -- init routes manager
+    if not GRoutesManager.getInstance():Init() then
+        config.modEnabled = false
+        lib.log:error("Failed to initialize %s", config.mod)
+        return
+    end
+
+    lib.log:info("%s Initialized", config.mod)
+end
+event.register(tes3.event.initialized, initializedCallback)
 
 --- Cleanup on save load
 --- @param e loadedEventData
@@ -37,7 +54,7 @@ local function onMenuDialog(e)
 
         if not lib.offersTraveling(npc) then return end
 
-        local services = lib.loadServices()
+        local services = GRoutesManager.getInstance().services
         if not services then return end
 
         -- get npc class

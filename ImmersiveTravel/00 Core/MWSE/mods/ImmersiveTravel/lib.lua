@@ -1,4 +1,7 @@
 local config = require("ImmersiveTravel.config")
+if not config then
+    return
+end
 
 local this = {}
 

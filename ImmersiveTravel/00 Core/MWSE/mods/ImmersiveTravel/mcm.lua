@@ -3,6 +3,10 @@ local logger = require("logging.logger")
 --- Setup MCM.
 local function registerModConfig()
     local config = require("ImmersiveTravel.config")
+    if not config then
+        return
+    end
+
     local log = logger.getLogger(config.mod)
 
     local template = mwse.mcm.createTemplate(config.mod)

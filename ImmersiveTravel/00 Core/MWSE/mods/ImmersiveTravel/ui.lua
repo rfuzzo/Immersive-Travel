@@ -1,9 +1,10 @@
-local lib = require("ImmersiveTravel.lib")
-local interop = require("ImmersiveTravel.interop")
+local lib                = require("ImmersiveTravel.lib")
+local interop            = require("ImmersiveTravel.interop")
+local GRoutesManager     = require("ImmersiveTravel.GRoutesManager")
 
-local this = {}
+local this               = {}
 
-local travelMenuId = tes3ui.registerID("it:travel_menu")
+local travelMenuId       = tes3ui.registerID("it:travel_menu")
 local travelMenuCancelId = tes3ui.registerID("it:travel_menu_cancel")
 
 --- set up everything
@@ -22,7 +23,8 @@ local function StartTravel(start, destination, service, guide)
     tes3ui.leaveMenuMode()
     m:destroy()
 
-    local currentSpline = lib.loadSpline(start, destination, service)
+    local routeId = start .. "_" .. destination
+    local currentSpline = GRoutesManager.getInstance().routes[routeId]
     if currentSpline == nil then return end
 
     -- fade out
@@ -61,7 +63,7 @@ local function StartTravel(start, destination, service, guide)
                 return
             end
 
-            vehicle:StartPlayerTravel(guide.baseObject.id, currentSpline)
+            vehicle:StartPlayerTravel(guide.baseObject.id, routeId)
         end)
     })
 end

@@ -1,5 +1,6 @@
 local lib                 = require("ImmersiveTravel.lib")
 local CTrackingManager    = require("ImmersiveTravel.CTrackingManager")
+local GRoutesManager      = require("ImmersiveTravel.GRoutesManager")
 local interop             = require("ImmersiveTravel.interop")
 
 ---@class SPointDto
@@ -18,14 +19,6 @@ local log                 = logger.new {
     logToConsole = false,
     includeTimestamp = false
 }
-
-local services            = {} ---@type table<string, ServiceData>?
--- spawn data by cell
-local spawnPoints         = {} ---@type table<string, SPointDto[]>
--- routes by routeId
-local routes              = {} ---@type table<string, PositionRecord[]>
--- services by routeId
-local routesServices      = {} ---@type table<string, string>
 
 -- variables
 local SPAWN_DRAW_DISTANCE = 1
@@ -58,20 +51,20 @@ end
 ---@param point SPointDto
 local function doSpawn(point)
     log:trace("doSpawn")
-    if not services then
+    if not GRoutesManager.getInstance().services then
         return
     end
 
     -- get service and route
-    local serviceClass = routesServices[point.routeId]
+    local serviceClass = GRoutesManager.getInstance().routesServices[point.routeId]
     if not serviceClass then
         return
     end
-    local service = services[serviceClass]
+    local service = GRoutesManager.getInstance().services[serviceClass]
     if not service then
         return
     end
-    local spline = routes[point.routeId]
+    local spline = GRoutesManager.getInstance().routes[point.routeId]
     if not spline then
         return
     end
@@ -79,19 +72,12 @@ local function doSpawn(point)
     -- get orientation and facing
     local idx = point.splineIndex
     local startPoint = lib.vec(spline[idx])
-
-    -- get either next or previous point randomly
-    if math.random(2) == 1 then
-        idx = idx - 1
-    else
-        idx = idx + 1
-    end
-    local nr = spline[idx]
+    local nr = spline[idx + 1]
     if not nr then
         return
     end
-
     local nextPoint = lib.vec(nr)
+
     local orientation = nextPoint - startPoint
     orientation:normalize()
     local facing = math.atan2(orientation.x, orientation.y)
@@ -119,7 +105,7 @@ local function doSpawn(point)
     end
 
     -- start the vehicle
-    vehicle:StartOnSpline(spline, service)
+    vehicle:StartOnSpline(point.routeId, service)
 end
 
 --- get possible cells where objects can spawn
@@ -138,7 +124,7 @@ local function getSpawnCandidates()
 
             if d > SPAWN_DRAW_DISTANCE then
                 local cellKey = tostring(i) .. "," .. tostring(j)
-                local points = spawnPoints[cellKey]
+                local points = GRoutesManager.getInstance().spawnPoints[cellKey]
                 if points then
                     for _, p in ipairs(points) do
                         table.insert(spawnCandidates, p)
@@ -170,80 +156,11 @@ end
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// EVENTS
 
---- Init Mod
---- @param e initializedEventData
-local function initializedCallback(e)
-    if not config.modEnabled then return end
-
-    services = lib.loadServices()
-    if not services then
-        config.modEnabled = false
-        return
-    end
-
-    -- load routes into memory
-    log:debug("Found %s services", table.size(services))
-    for key, service in pairs(services) do
-        log:info("\tAdding %s service", service.class)
-
-        lib.loadRoutes(service)
-        local destinations = service.routes
-        if destinations then
-            for _i, start in ipairs(table.keys(destinations)) do
-                for _j, destination in ipairs(destinations[start]) do
-                    local spline = lib.loadSpline(start, destination, service)
-                    if spline then
-                        -- save route in memory
-                        local routeId = start .. "_" .. destination
-                        routes[routeId] = spline
-                        routesServices[routeId] = service.class
-
-                        -- save points in memory
-                        for idx, pos in ipairs(spline) do
-                            -- ignore first and last point
-                            if idx == 1 or idx == #spline then
-                                goto continue
-                            end
-
-                            local cx = math.floor(pos.x / 8192)
-                            local cy = math.floor(pos.y / 8192)
-
-                            local cell_key = tostring(cx) .. "," .. tostring(cy)
-                            if not spawnPoints[cell_key] then
-                                spawnPoints[cell_key] = {}
-                            end
-
-                            ---@type SPointDto
-                            local point = {
-                                point = pos,
-                                routeId = routeId,
-                                splineIndex = idx
-                            }
-                            table.insert(spawnPoints[cell_key], point)
-
-                            ::continue::
-                        end
-                    else
-                        log:warn("No spline found for %s -> %s", start, destination)
-                    end
-                end
-            end
-        end
-    end
-
-    log:debug("Loaded %s splines", table.size(routes))
-    log:debug("Loaded %s points", table.size(spawnPoints))
-
-    log:info("%s Initialized", config.mod)
-end
-event.register(tes3.event.initialized, initializedCallback)
-
 --- spawn on cell changed
 --- @param e cellChangedEventData
 local function cellChangedCallback(e)
     if not config.modEnabled then
         -- TODO delete all vehicles
-
         return
     end
 

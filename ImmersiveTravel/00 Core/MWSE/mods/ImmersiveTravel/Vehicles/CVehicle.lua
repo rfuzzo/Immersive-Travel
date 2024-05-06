@@ -66,7 +66,7 @@ local log                   = lib.log
 ---@field last_facing number
 ---@field last_sway number
 ---@field swayTime number
----@field spline PositionRecord[]? -- TODO keep a global table of the splines
+---@field routeId string? -- the id of the route
 ---@field splineIndex number
 ---@field virtualDestination tes3vector3?
 ---@field current_speed number
@@ -193,20 +193,19 @@ function CVehicle:EndPlayerSteer()
     self:release()
 end
 
---- Starts the vehicle on the spline
----@param spline PositionRecord[]
+--- Starts the vehicle on a route
+---@param routeId string
 ---@param service ServiceData
-function CVehicle:StartOnSpline(spline, service)
+function CVehicle:StartOnSpline(routeId, service)
     log:trace("StartOnSpline %s", self.id)
 
     self:Attach()
 
-    self.spline = spline -- this pushes the AI statemachine
+    self.routeId = routeId -- this pushes the AI statemachine
     self.current_speed = self.speed
 
-    local mount = self.referenceHandle:getObject()
-
     -- TODO register guide
+    -- local mount = self.referenceHandle:getObject()
     -- local guides = service.guide
     -- if guides then
     --     local randomIndex = math.random(1, #guides)
@@ -226,14 +225,13 @@ end
 
 --- StartPlayerTravel is called when the player starts traveling
 ---@param guideId string
----@param spline PositionRecord[]
-function CVehicle:StartPlayerTravel(guideId, spline)
+---@param routeId string
+function CVehicle:StartPlayerTravel(guideId, routeId)
     log:debug("StartPlayerTravel %s", self.id)
 
     -- these push the AI statemachine
     self.playerRegistered = true
-    -- this pushes the locomotion statemachine
-    self.spline = spline
+    self.routeId = routeId -- this pushes the locomotion statemachine
     self.current_speed = self.speed
 
     local mount = self.referenceHandle:getObject()
@@ -444,7 +442,7 @@ function CVehicle:UpdateSlots(dt)
         changeAnims = true
     end
 
-    -- do not animate if animstate is onspline
+    -- do not animate if animstate is ONSPLINE
     if self.aiStateMachine.currentState.name == CAiState.ONSPLINE then
         changeAnims = false
     end

@@ -1,12 +1,17 @@
-local lib = require("ImmersiveTravel.lib")
-local interop = require("ImmersiveTravel.interop")
+local lib            = require("ImmersiveTravel.lib")
+local interop        = require("ImmersiveTravel.interop")
+local GRoutesManager = require("ImmersiveTravel.GRoutesManager")
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
-local config = require("ImmersiveTravelEditor.config")
+local config         = require("ImmersiveTravelEditor.config")
+-- config nil check
+if not config then
+    return
+end
 
 local logger = require("logging.logger")
-local log = logger.new {
+local log    = logger.new {
     name = config.mod,
     logLevel = config.logLevel,
     logToConsole = false,
@@ -349,7 +354,7 @@ local function createEditWindow()
     if (tes3ui.findMenu(editMenuId) ~= nil) then return end
 
     -- load services
-    local services = lib.loadServices()
+    local services = GRoutesManager.getInstance().services
     if not services then return end
 
     -- get current service
@@ -428,7 +433,8 @@ local function createEditWindow()
                         currentMarker = nil
                     }
 
-                    local spline = lib.loadSpline(start, destination, service)
+                    local routeId = start .. "_" .. destination
+                    local spline = GRoutesManager.getInstance().routes[routeId]
                     tes3.messageBox("loaded spline: " .. start .. " -> " ..
                         destination)
 

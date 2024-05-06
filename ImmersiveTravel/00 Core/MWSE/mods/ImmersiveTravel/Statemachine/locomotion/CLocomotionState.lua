@@ -1,6 +1,7 @@
 local CAbstractState   = require("ImmersiveTravel.Statemachine.CAbstractState")
 local lib              = require("ImmersiveTravel.lib")
 local CTrackingManager = require("ImmersiveTravel.CTrackingManager")
+local GRoutesManager   = require("ImmersiveTravel.GRoutesManager")
 local CAiState         = require("ImmersiveTravel.Statemachine.ai.CAiState")
 
 -- Abstract locomotion state machine class
@@ -33,7 +34,7 @@ end
 ---@return boolean
 local function toMovingState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return (vehicle.spline or vehicle.virtualDestination) and vehicle.speedChange == 0 and
+    return (vehicle.routeId or vehicle.virtualDestination) and vehicle.speedChange == 0 and
         (vehicle.current_speed > 0.5 or vehicle.current_speed < -0.5)
 end
 
@@ -44,7 +45,7 @@ local function toIdleState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
 
     -- if no spline and no virtual destination, then idle
-    if vehicle.spline == nil and vehicle.virtualDestination == nil then
+    if vehicle.routeId == nil and vehicle.virtualDestination == nil then
         return true
     end
 
@@ -60,7 +61,7 @@ end
 ---@return boolean
 local function toAccelerateState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return (vehicle.spline or vehicle.virtualDestination) and vehicle.speedChange > 0
+    return (vehicle.routeId or vehicle.virtualDestination) and vehicle.speedChange > 0
 end
 
 --- transition to decelerate state
@@ -68,7 +69,7 @@ end
 ---@return boolean
 local function toDecelerateState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return (vehicle.spline or vehicle.virtualDestination) and vehicle.speedChange < 0
+    return (vehicle.routeId or vehicle.virtualDestination) and vehicle.speedChange < 0
 end
 
 --#endregion
@@ -328,25 +329,29 @@ local function getNextPositionHeading(vehicle)
     end
 
     -- move on spline
-    if vehicle.spline == nil then
-        return nil
-    end
-    -- move to next marker
-    if vehicle.splineIndex > #vehicle.spline then
+    if vehicle.routeId == nil then
         return nil
     end
 
-    local mount = vehicle.referenceHandle:getObject()
-    local nextPos = lib.vec(vehicle.spline[vehicle.splineIndex])
+    local spline = GRoutesManager.getInstance().routes[vehicle.routeId]
+    if spline == nil then
+        return nil
+    end
+    if vehicle.splineIndex > #spline then
+        return nil
+    end
+
+    -- move to next marker
+    local nextPos = lib.vec(spline[vehicle.splineIndex])
     local isBehind = lib.isPointBehindObject(nextPos, vehicle.last_position, vehicle.last_forwardDirection)
     if isBehind then
         vehicle.splineIndex = vehicle.splineIndex + 1
     end
-    if vehicle.splineIndex > #vehicle.spline then
+    if vehicle.splineIndex > #spline then
         return nil
     end
 
-    nextPos = lib.vec(vehicle.spline[vehicle.splineIndex])
+    nextPos = lib.vec(spline[vehicle.splineIndex])
 
     return nextPos
 end
@@ -383,12 +388,12 @@ local function Move(vehicle, dt)
 
     -- move the reference
     local skipMove = false
-    if vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
-        local behind = lib.isPointBehindObject(position, tes3.player.position, tes3.player.forwardDirection)
-        if behind then
-            skipMove = true
-        end
-    end
+    -- if vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
+    --     local behind = lib.isPointBehindObject(position, tes3.player.position, tes3.player.forwardDirection)
+    --     if behind then
+    --         skipMove = true
+    --     end
+    -- end
 
     local mount = vehicle.referenceHandle:getObject()
 

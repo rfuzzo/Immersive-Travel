@@ -1,12 +1,13 @@
-local CAiState = require("ImmersiveTravel.Statemachine.ai.CAiState")
+local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local CPlayerVehicleManager = require("ImmersiveTravel.CPlayerVehicleManager")
-local lib = require("ImmersiveTravel.lib")
-local interop = require("ImmersiveTravel.interop")
+local lib                   = require("ImmersiveTravel.lib")
+local interop               = require("ImmersiveTravel.interop")
+local GRoutesManager        = require("ImmersiveTravel.GRoutesManager")
 
 -- on spline state class
 ---@class PlayerTravelState : CAiState
 ---@field cameraOffset tes3vector3?
-local PlayerTravelState = {
+local PlayerTravelState     = {
     name = CAiState.PLAYERTRAVEL,
     transitions = {
         [CAiState.NONE] = CAiState.ToNone,
@@ -97,16 +98,20 @@ local function uiShowRestMenuCallback(e)
                         callback = (function()
                             tes3.fadeOut({ duration = 1 })
                             -- teleport to last marker
-                            local mount = CPlayerVehicleManager.getInstance().trackedVehicle
-                            if mount then
+                            local vehicle = CPlayerVehicleManager.getInstance().trackedVehicle
+                            if vehicle then
                                 -- teleport to last position
-                                tes3.positionCell({
-                                    reference = tes3.mobilePlayer,
-                                    position = lib.vec(mount.spline[#mount.spline])
-                                })
+                                local spline = GRoutesManager.getInstance().routes[vehicle.routeId]
+                                if spline ~= nil then
+                                    tes3.positionCell({
+                                        reference = tes3.mobilePlayer,
+                                        position = lib.vec(spline[#spline])
+                                    })
+                                end
+
                                 -- then to destination
                                 -- this pushes the AI statemachine
-                                mount.spline = nil
+                                vehicle.routeId = nil
                             end
                         end)
                     })
@@ -203,11 +208,14 @@ function PlayerTravelState:update(dt, scriptedObject)
     -- call super update
     CAiState.update(self, dt, scriptedObject)
 
-    -- Implement on spline state update logic here
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    if vehicle.splineIndex > #vehicle.spline then
-        -- reached end of spline
-        vehicle.spline = nil
+    local spline = GRoutesManager.getInstance().routes[vehicle.routeId]
+    if spline == nil then
+        vehicle.routeId = nil
+    end
+    if vehicle.splineIndex > #spline then
+        -- reached end of route
+        vehicle.routeId = nil
     end
 
     -- handle player leaving vehicle

@@ -1,8 +1,9 @@
-local CAiState = require("ImmersiveTravel.Statemachine.ai.CAiState")
+local CAiState       = require("ImmersiveTravel.Statemachine.ai.CAiState")
+local GRoutesManager = require("ImmersiveTravel.GRoutesManager")
 
 -- on spline state class
 ---@class OnSplineState : CAiState
-local OnSplineState = {
+local OnSplineState  = {
     name = CAiState.ONSPLINE,
     transitions = {
         [CAiState.NONE] = CAiState.ToNone,
@@ -26,11 +27,15 @@ function OnSplineState:enter(scriptedObject)
 end
 
 function OnSplineState:update(dt, scriptedObject)
-    -- Implement on spline state update logic here
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    if vehicle.splineIndex > #vehicle.spline then
-        -- reached end of spline
-        vehicle.spline = nil
+
+    local spline = GRoutesManager.getInstance().routes[vehicle.routeId]
+    if spline == nil then
+        return
+    end
+    if vehicle.splineIndex > #spline then
+        -- reached end of route
+        vehicle.routeId = nil
     end
 end
 

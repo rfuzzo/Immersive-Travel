@@ -28,10 +28,10 @@ function CAbstractStateMachine:update(dt, scriptedObject)
     }
     for state, transition in pairs(self.currentState.transitions) do
         if transition(ctx) then
-            log:debug("[%s] Exiting state: %s -> %s", self.name, self.currentState.name, state)
+            log:trace("[%s] Exiting state: %s -> %s", self.name, self.currentState.name, state)
             self.currentState:exit(scriptedObject)
             self.currentState = self.states[state]
-            log:debug("[%s] Entering state: %s", self.name, self.currentState.name)
+            log:trace("[%s] Entering state: %s", self.name, self.currentState.name)
             self.currentState:enter(scriptedObject)
         end
     end
@@ -44,7 +44,7 @@ end
 
 ---@param scriptedObject CTickingEntity
 function CAbstractStateMachine:OnActivate(scriptedObject)
-    log:debug("CAbstractStateMachine:OnActivate")
+    log:trace("CAbstractStateMachine:OnActivate")
     self.currentState:OnActivate(scriptedObject)
 end
 
