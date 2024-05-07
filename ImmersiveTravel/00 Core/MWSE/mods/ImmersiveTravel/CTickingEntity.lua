@@ -1,4 +1,4 @@
-local TrackingManager         = require("ImmersiveTravel.CTrackingManager")
+local TrackingManager         = require("ImmersiveTravel.GTrackingManager")
 local CLocomotionStateMachine = require("ImmersiveTravel.Statemachine.locomotion.CLocomotionStateMachine")
 local CAiStateMachine         = require("ImmersiveTravel.Statemachine.ai.CAiStateMachine")
 
@@ -7,7 +7,7 @@ local log                     = lib.log
 
 -- Define the base class CTickingEntity
 ---@class CTickingEntity
----@field markAsDeleted boolean
+---@field markForDelete boolean
 ---@field referenceHandle mwseSafeObjectHandle
 ---@field id string?
 ---@field refid number?
@@ -20,7 +20,7 @@ local CTickingEntity          = {}
 function CTickingEntity:new()
     ---@type CTickingEntity
     local newObj = {
-        markAsDeleted = false,
+        markForDelete = false,
         referenceHandle = tes3.makeSafeObjectHandle(nil),
         locomotionStateMachine = CLocomotionStateMachine:new(),
         aiStateMachine = CAiStateMachine:new()
@@ -57,12 +57,12 @@ function CTickingEntity:OnTick(dt)
 end
 
 function CTickingEntity:Attach()
-    -- register all ticking entities with the CTrackingManager
+    -- register all ticking entities with the GTrackingManager
     TrackingManager.getInstance():AddEntity(self)
 end
 
 function CTickingEntity:Detach()
-    -- remove the entity from the CTrackingManager
+    -- remove the entity from the GTrackingManager
     TrackingManager.getInstance():RemoveEntity(self)
 end
 

@@ -1,5 +1,5 @@
 local lib             = require("ImmersiveTravel.lib")
-local TrackingManager = require("ImmersiveTravel.CTrackingManager")
+local TrackingManager = require("ImmersiveTravel.GTrackingManager")
 local GRoutesManager  = require("ImmersiveTravel.GRoutesManager")
 local ui              = require("ImmersiveTravel.ui")
 local interop         = require("ImmersiveTravel.interop")

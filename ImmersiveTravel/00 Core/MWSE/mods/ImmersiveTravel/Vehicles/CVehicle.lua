@@ -188,20 +188,20 @@ function CVehicle:StartOnSpline(routeId, service)
     self.routeId = routeId -- this pushes the AI statemachine
     self.current_speed = self.speed
 
-    -- TODO register guide
-    -- local mount = self.referenceHandle:getObject()
-    -- local guides = service.guide
-    -- if guides then
-    --     local randomIndex = math.random(1, #guides)
-    --     local guideId = guides[randomIndex]
-    --     local guide = tes3.createReference {
-    --         object = guideId,
-    --         position = mount.position,
-    --         orientation = mount.orientation
-    --     }
-    --     log:debug("\tregistering guide")
-    --     self:registerGuide(tes3.makeSafeObjectHandle(guide))
-    -- end
+    -- register guide
+    local mount = self.referenceHandle:getObject()
+    local guides = service.guide
+    if guides then
+        local randomIndex = math.random(1, #guides)
+        local guideId = guides[randomIndex]
+        local guide = tes3.createReference {
+            object = guideId,
+            position = mount.position,
+            orientation = mount.orientation
+        }
+        log:debug("\tregistering guide")
+        self:registerGuide(tes3.makeSafeObjectHandle(guide))
+    end
 
     -- TODO register passengers
     -- self:RegisterPassengers()

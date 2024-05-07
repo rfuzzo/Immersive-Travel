@@ -4,7 +4,7 @@ local interop              = require("ImmersiveTravel.interop")
 local log                  = lib.log
 
 -- Define a class to manage the tracking list and timer
----@class CTrackingManager
+---@class GTrackingManager
 ---@field trackingList table<number,CTickingEntity>
 ---@field timer mwseTimer?
 ---@field TIMER_TICK number
@@ -27,9 +27,9 @@ function TrackingManager:new()
 end
 
 -- singleton instance
---- @type CTrackingManager?
+--- @type GTrackingManager?
 local trackingManager = nil
---- @return CTrackingManager
+--- @return GTrackingManager
 function TrackingManager.getInstance()
     if trackingManager == nil then
         trackingManager = TrackingManager:new()
@@ -96,7 +96,7 @@ function TrackingManager:StartTimer()
 
             for key, entity in pairs(self.trackingList) do
                 -- skip marked
-                if entity and entity.markAsDeleted == false then
+                if entity and entity.markForDelete == false then
                     entity:OnTick(self.TIMER_TICK)
                 end
             end
@@ -170,6 +170,45 @@ local function saveCallback(e)
                 or s.aiStateMachine.currentState.name == CAiState.NONE) then
             if s.referenceHandle and s.referenceHandle:valid() then
                 s.referenceHandle:getObject().modified = false
+
+                -- go through all slots
+                local vehicle = s ---@cast vehicle CVehicle
+                -- hidden slot
+                if vehicle.hiddenSlot and vehicle.hiddenSlot.handles then
+                    for index, handle in ipairs(vehicle.hiddenSlot.handles) do
+                        if handle and handle:valid() then
+                            handle:getObject().modified = false
+                        end
+                    end
+                end
+
+                -- guide
+                if vehicle.guideSlot.handle and vehicle.guideSlot.handle:valid() then
+                    local guide = vehicle.guideSlot.handle:getObject()
+                    if guide ~= tes3.player then
+                        guide.modified = false
+                    end
+                end
+
+                -- passengers
+                for index, slot in ipairs(vehicle.slots) do
+                    if slot.handle and slot.handle:valid() then
+                        local obj = slot.handle:getObject()
+                        if obj ~= tes3.player then
+                            obj.modified = false
+                        end
+                    end
+                end
+
+                -- statics
+                if vehicle.clutter then
+                    for index, clutter in ipairs(vehicle.clutter) do
+                        if clutter.handle and clutter.handle:valid() then
+                            local obj = clutter.handle:getObject()
+                            obj.modified = false
+                        end
+                    end
+                end
             end
         end
     end
@@ -187,7 +226,7 @@ function TrackingManager:doCull()
     for key, s in pairs(self.trackingList) do
         local vehicle = s ---@cast vehicle CVehicle
 
-        if s.markAsDeleted then
+        if s.markForDelete then
             log:debug("Marked as deleted %s", s:Id())
             table.insert(toremove, s)
             goto continue
@@ -196,7 +235,7 @@ function TrackingManager:doCull()
         -- only cull vehicles that are in onspline ai state
         if vehicle.aiStateMachine and vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
             if not vehicle:GetRootBone() then
-                log:debug("No root bone %s", s:Id())
+                log:warn("No root bone %s", s:Id())
                 table.insert(toremove, s)
                 goto continue
             end
@@ -217,7 +256,7 @@ function TrackingManager:doCull()
 
     for _, s in ipairs(toremove) do
         -- mark as deleted
-        s.markAsDeleted = true
+        s.markForDelete = true
 
         s:Delete()
 

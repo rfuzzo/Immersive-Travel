@@ -1,5 +1,5 @@
 local lib                 = require("ImmersiveTravel.lib")
-local CTrackingManager    = require("ImmersiveTravel.CTrackingManager")
+local GTrackingManager    = require("ImmersiveTravel.GTrackingManager")
 local GRoutesManager      = require("ImmersiveTravel.GRoutesManager")
 local interop             = require("ImmersiveTravel.interop")
 
@@ -30,11 +30,11 @@ local SPAWN_DRAW_DISTANCE = 1
 ---@param p SPointDto
 ---@return boolean
 local function canSpawn(p)
-    if table.size(CTrackingManager.getInstance().trackingList) >= config.budget then
+    if table.size(GTrackingManager.getInstance().trackingList) >= config.budget then
         return false
     end
 
-    for id, s in pairs(CTrackingManager.getInstance().trackingList) do
+    for id, s in pairs(GTrackingManager.getInstance().trackingList) do
         local vehicle = s ---@cast vehicle CVehicle
         if vehicle.last_position then
             local d = lib.vec(p.point):distance(vehicle.last_position)
@@ -164,7 +164,12 @@ end
 --- @param e cellChangedEventData
 local function cellChangedCallback(e)
     if not config.modEnabled then
-        -- TODO delete all vehicles
+        -- delete all vehicles
+        for id, s in pairs(GTrackingManager.getInstance().trackingList) do
+            local vehicle = s ---@cast vehicle CVehicle
+            vehicle.markForDelete = true
+        end
+
         return
     end
 

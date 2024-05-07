@@ -1,6 +1,6 @@
 local CAbstractState   = require("ImmersiveTravel.Statemachine.CAbstractState")
 local lib              = require("ImmersiveTravel.lib")
-local CTrackingManager = require("ImmersiveTravel.CTrackingManager")
+local GTrackingManager = require("ImmersiveTravel.GTrackingManager")
 local GRoutesManager   = require("ImmersiveTravel.GRoutesManager")
 local CAiState         = require("ImmersiveTravel.Statemachine.ai.CAiState")
 
@@ -207,12 +207,12 @@ local function CalculatePositions(vehicle, nextPos)
     local virtualpos = nextPos
 
     -- only in onspline AI states
-    -- TODO
+    -- TODO evade
     -- if vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
     --     local evade_right = false
     --     local collision = false
     --     -- get tracked objects
-    --     for index, value in pairs(CTrackingManager.getInstance().trackingList) do
+    --     for index, value in pairs(GTrackingManager.getInstance().trackingList) do
     --         ---@cast value CVehicle
     --         if value ~= vehicle and currentPos:distance(value.last_position) < 8192 then
     --             -- TODO what values to use here?
@@ -392,6 +392,7 @@ local function Move(vehicle, dt)
 
     -- move the reference
     local skipMove = false
+    -- TODO skip move
     -- if vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
     --     local behind = lib.isPointBehindObject(position, tes3.player.position, tes3.player.forwardDirection)
     --     if behind then

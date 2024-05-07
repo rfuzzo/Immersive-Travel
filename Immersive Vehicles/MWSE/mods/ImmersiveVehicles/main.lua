@@ -1,4 +1,4 @@
-local CTrackingManager = require("ImmersiveTravel.CTrackingManager")
+local GTrackingManager = require("ImmersiveTravel.GTrackingManager")
 local interop          = require("ImmersiveTravel.interop")
 
 local lib              = require("ImmersiveVehicles.lib")
@@ -117,7 +117,7 @@ event.register(tes3.event.simulated, simulatedCallback)
 
 --- @param e activateEventData
 local function activateCallback(e)
-    CTrackingManager.getInstance():OnActivate(e.target)
+    GTrackingManager.getInstance():OnActivate(e.target)
 end
 event.register(tes3.event.activate, activateCallback)
 
@@ -166,14 +166,14 @@ if not CraftingFramework then return end
 local enterVehicle = {
     text = "Get in/out",
     callback = function(e)
-        CTrackingManager.getInstance():OnActivate(e.reference)
+        GTrackingManager.getInstance():OnActivate(e.reference)
     end
 }
 
 local destroyVehicle = {
     text = "Destroy",
     callback = function(e)
-        CTrackingManager.getInstance():OnDestroy(e.reference)
+        GTrackingManager.getInstance():OnDestroy(e.reference)
     end
 }
 
@@ -219,7 +219,7 @@ local function getRecipeFor(id)
             additionalMenuOptions = { enterVehicle, destroyVehicle },
             -- secondaryMenu         = false,
             quickActivateCallback = function(_, e)
-                CTrackingManager.getInstance():OnActivate(e.reference)
+                GTrackingManager.getInstance():OnActivate(e.reference)
             end
         }
 
