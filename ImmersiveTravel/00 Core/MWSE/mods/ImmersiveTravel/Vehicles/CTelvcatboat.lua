@@ -46,21 +46,4 @@ function CTelvcatboat:new()
     return newObj
 end
 
----Create a new instance of CTelvcatboat
----@param id string
----@param position tes3vector3
----@param orientation tes3vector3
----@param facing number
----@return CTelvcatboat
-function CTelvcatboat:create(id, position, orientation, facing)
-    local newObj = CBoat:create(id, position, orientation, facing)
-    self.__index = self
-    setmetatable(newObj, self)
-    ---@cast newObj CTelvcatboat
-
-    newObj:OnCreate()
-
-    return newObj
-end
-
 return CTelvcatboat

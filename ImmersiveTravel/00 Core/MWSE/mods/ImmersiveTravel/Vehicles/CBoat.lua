@@ -1,8 +1,10 @@
 local CVehicle = require("ImmersiveTravel.Vehicles.CVehicle")
+local lib      = require("ImmersiveTravel.lib")
+local log      = lib.log
 
 -- Define the CBoat class inheriting from CVehicle
 ---@class CBoat : CVehicle
-local CBoat = {
+local CBoat    = {
     sound = { "Boat Hull" },
     freedomtype = "boat",
 }
@@ -14,22 +16,12 @@ function CBoat:new()
     local newObj = CVehicle:new()
     self.__index = self
     setmetatable(newObj, self)
+
+    -- set default values
+    newObj.sound = { "Boat Hull" }
+    newObj.freedomtype = "boat"
+
     ---@cast newObj CBoat
-
-    return newObj
-end
-
----@param id string
----@param position tes3vector3
----@param orientation tes3vector3
----@param facing number
----@return CBoat
-function CBoat:create(id, position, orientation, facing)
-    local newObj = CVehicle:create(id, position, orientation, facing)
-    self.__index = self
-    setmetatable(newObj, self)
-    ---@cast newObj CBoat
-
     return newObj
 end
 

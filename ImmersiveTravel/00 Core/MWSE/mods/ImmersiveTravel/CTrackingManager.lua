@@ -64,12 +64,16 @@ end
 --- Remove an entity from the tracking list
 ---@param entity CTickingEntity
 function TrackingManager:RemoveEntity(entity)
-    self.trackingList[entity.refid] = nil
-
     entity.referenceHandle:getObject().tempData.scriptedEntityId = nil
+
+    self.trackingList[entity.refid] = nil
 
     log:debug("Removed %s from tracking list", entity:Id())
     log:debug("Tracking list size: %s", table.size(self.trackingList))
+
+    -- for key, value in pairs(self.trackingList) do
+    --     log:debug("Tracking list: %s (%s)", key, value:Id())
+    -- end
 end
 
 --- Get an entity from the tracking list
@@ -81,6 +85,8 @@ end
 
 -- Start the timer to call OnTick on each entity in the tracking list
 function TrackingManager:StartTimer()
+    log:trace("TrackingManager Starting timer")
+
     self.timer = timer.start {
         duration = self.TIMER_TICK,
         type = timer.simulate,
@@ -89,8 +95,10 @@ function TrackingManager:StartTimer()
             self:doCull()
 
             for key, entity in pairs(self.trackingList) do
-                -- log:debug("OnTick %s", entity.id)
-                entity:OnTick(self.TIMER_TICK)
+                -- skip marked
+                if entity and entity.markAsDeleted == false then
+                    entity:OnTick(self.TIMER_TICK)
+                end
             end
         end
     }
@@ -178,26 +186,39 @@ function TrackingManager:doCull()
     local toremove = {}
     for key, s in pairs(self.trackingList) do
         local vehicle = s ---@cast vehicle CVehicle
+
+        if s.markAsDeleted then
+            log:debug("Marked as deleted %s", s:Id())
+            table.insert(toremove, s)
+            goto continue
+        end
+
         -- only cull vehicles that are in onspline ai state
         if vehicle.aiStateMachine and vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
             if not vehicle:GetRootBone() then
+                log:debug("No root bone %s", s:Id())
                 table.insert(toremove, s)
                 goto continue
             end
 
             local d = tes3.player.position:distance(vehicle.last_position)
             if d > self.cullRadius * 8192 then
+                log:debug("Culled out of distance %s", s:Id())
                 table.insert(toremove, s)
+                goto continue
             end
-
             -- if d > mge.distantLandRenderConfig.drawDistance * 8192 then
             --     table.insert(toremove, s)
             -- end
         end
+
         ::continue::
     end
 
     for _, s in ipairs(toremove) do
+        -- mark as deleted
+        s.markAsDeleted = true
+
         s:Delete()
 
         log:debug("Culled %s", s:Id())

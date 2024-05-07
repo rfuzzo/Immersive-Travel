@@ -40,8 +40,9 @@ function OnSplineState:update(dt, scriptedObject)
 end
 
 function OnSplineState:exit(scriptedObject)
-    local vehicle = scriptedObject ---@cast vehicle CVehicle
-    vehicle:Delete()
+    -- local vehicle = scriptedObject ---@cast vehicle CVehicle
+    -- vehicle:Delete()
+    scriptedObject.markAsDeleted = true
 end
 
 return OnSplineState

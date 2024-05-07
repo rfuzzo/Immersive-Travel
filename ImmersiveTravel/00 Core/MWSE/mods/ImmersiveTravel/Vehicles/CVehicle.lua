@@ -21,7 +21,6 @@ local log                   = lib.log
 ---@field id string? reference id
 ---@field mesh string? reference id
 ---@field handle mwseSafeObjectHandle?
----@field node niNode?
 
 ---@class UserData
 ---@diagnostic disable-next-line: undefined-doc-name
@@ -73,24 +72,25 @@ local log                   = lib.log
 ---@field current_sound string?
 ---@field speedChange number
 ---@field playerRegistered boolean
-local CVehicle              = {
-    -- Add properties here
-    sound = {},
-    loopSound = false,
-    mesh = "",
-    offset = 0,
-    sway = 0,
-    speed = 0,
-    turnspeed = 0,
-    hasFreeMovement = false,
-    slots = {},
-    changeSpeed = 1,
-    -- runtime
-    swayTime = 0,
-    splineIndex = 1,
-    current_speed = 0,
-    speedChange = 0,
-    playerRegistered = false
+local CVehicle              =
+{
+    -- -- Add properties here
+    -- sound = {},
+    -- loopSound = false,
+    -- mesh = "",
+    -- offset = 0,
+    -- sway = 0,
+    -- speed = 0,
+    -- turnspeed = 0,
+    -- hasFreeMovement = false,
+    -- slots = {},
+    -- changeSpeed = 1,
+    -- -- runtime
+    -- swayTime = 0,
+    -- splineIndex = 1,
+    -- current_speed = 0,
+    -- speedChange = 0,
+    -- playerRegistered = false
 }
 setmetatable(CVehicle, { __index = CTickingEntity })
 
@@ -98,25 +98,26 @@ setmetatable(CVehicle, { __index = CTickingEntity })
 ---@return CVehicle
 function CVehicle:new()
     local newObj = CTickingEntity:new()
-    self.__index = self
     setmetatable(newObj, self)
-    ---@cast newObj CVehicle
-    return newObj
-end
-
----Create a new instance of CVehicle
----@param id string
----@param position tes3vector3
----@param orientation tes3vector3
----@param facing number
----@return CVehicle
-function CVehicle:create(id, position, orientation, facing)
-    local mountOffset = tes3vector3.new(0, 0, self.offset)
-
-    local newObj = CTickingEntity:create(id, position + mountOffset, orientation, facing)
     self.__index = self
-    setmetatable(newObj, self)
     ---@cast newObj CVehicle
+
+    -- init default values
+    newObj.sound = {}
+    newObj.loopSound = false
+    newObj.mesh = ""
+    newObj.offset = 0
+    newObj.sway = 0
+    newObj.speed = 0
+    newObj.turnspeed = 0
+    newObj.hasFreeMovement = false
+    newObj.slots = {}
+    newObj.changeSpeed = 1
+    newObj.swayTime = 0
+    newObj.splineIndex = 1
+    newObj.current_speed = 0
+    newObj.speedChange = 0
+    newObj.playerRegistered = false
 
     return newObj
 end
@@ -125,7 +126,8 @@ end
 
 --- OnCreate is called when the vehicle is created
 function CVehicle:OnCreate()
-    log:debug("OnCreate %s", self.id)
+    log:trace("OnCreate %s", self.id)
+
     local mount = self.referenceHandle:getObject()
 
     self.last_position = mount.position
@@ -135,7 +137,7 @@ function CVehicle:OnCreate()
 
     -- register statics
     if self.clutter then
-        log:debug("\tregistering statics")
+        log:trace("\tregistering statics")
         for index, clutter in ipairs(self.clutter) do
             if clutter.id then
                 -- instantiate
@@ -148,7 +150,7 @@ function CVehicle:OnCreate()
                                 lib.radvec(clutter.orientation),
                                 mount.orientation)
                         }
-                    self:registerStatic(tes3.makeSafeObjectHandle(inst), index)
+                    clutter.handle = tes3.makeSafeObjectHandle(inst)
                 else
                     local inst =
                         tes3.createReference {
@@ -156,8 +158,9 @@ function CVehicle:OnCreate()
                             position = mount.position,
                             orientation = mount.orientation
                         }
-                    self:registerStatic(tes3.makeSafeObjectHandle(inst), index)
+                    clutter.handle = tes3.makeSafeObjectHandle(inst)
                 end
+                log:debug("\t\tregistered %s in static slot %s", clutter.id, index)
             end
         end
     end
@@ -197,9 +200,9 @@ end
 ---@param routeId string
 ---@param service ServiceData
 function CVehicle:StartOnSpline(routeId, service)
-    log:trace("StartOnSpline %s", self.id)
-
     self:Attach()
+
+    log:trace("StartOnSpline %s", self:Id())
 
     self.routeId = routeId -- this pushes the AI statemachine
     self.current_speed = self.speed
@@ -412,6 +415,8 @@ end
 
 -- Define the CVehicle class inheriting from CTickingEntity
 function CVehicle:Delete()
+    log:trace("CVehicle Delete %s", self:Id())
+
     -- cleanup
     self:cleanup()
 
@@ -432,7 +437,7 @@ end
 function CVehicle:UpdateSlots(dt)
     local rootBone = self:GetRootBone()
     if rootBone == nil then
-        log:trace("UpdateSlots %s: rootBone is nil", self:Id())
+        log:warn("UpdateSlots %s: rootBone is nil", self:Id())
         return
     end
 
@@ -543,7 +548,15 @@ function CVehicle:UpdateSlots(dt)
     -- statics
     if self.clutter then
         for index, clutter in ipairs(self.clutter) do
+            if clutter.handle == nil then
+                log:warn("UpdateSlots %s: clutter handle is nil", self:Id())
+            end
+
             if clutter.handle and clutter.handle:valid() then
+                if not clutter.handle:valid() then
+                    log:warn("UpdateSlots %s: clutter handle is invalid", self:Id())
+                end
+
                 clutter.handle:getObject().position = rootBone.worldTransform *
                     self:getSlotTransform(clutter.position, boneOffset)
                 if clutter.orientation then
@@ -558,19 +571,23 @@ end
 ---@return niNode?
 function CVehicle:GetRootBone()
     if not self.referenceHandle then
+        log:trace("GetRootBone %s: referenceHandle is nil", self:Id())
         return nil
     end
     if not self.referenceHandle:valid() then
+        log:trace("GetRootBone %s: referenceHandle is invalid", self:Id())
         return nil
     end
 
     local mount = self.referenceHandle:getObject()
     if not mount then
+        log:trace("GetRootBone %s: mount is nil", self:Id())
         return nil
     end
 
     local rootBone = mount.sceneNode
     if not rootBone then
+        log:trace("GetRootBone %s: sceneNode is nil", self:Id())
         return nil
     end
 
@@ -613,19 +630,19 @@ end
 
 --#region private CVehicle methods
 
----@private
 function CVehicle:UpdatePlayerCollision()
-    -- move player when on vehicle
-    local rootBone = self:GetRootBone()
-    if rootBone == nil then
-        log:trace("UpdatePlayerCollision %s: rootBone is nil", self:Id())
-        return
-    end
-
-    local playerShipLocal = rootBone.worldTransform:invert() * tes3.player.position
     -- check if player is in freemovement mode
     if self.hasFreeMovement and CPlayerVehicleManager.getInstance().free_movement and self:isPlayerInMountBounds() then
-        log:debug("Update player collision")
+        log:trace("UpdatePlayerCollision %s", self:Id())
+
+        -- move player when on vehicle
+        local rootBone = self:GetRootBone()
+        if rootBone == nil then
+            log:trace("UpdatePlayerCollision %s: rootBone is nil", self:Id())
+            return
+        end
+
+        local playerShipLocal = rootBone.worldTransform:invert() * tes3.player.position
         -- this is needed to enable collisions :todd:
         tes3.dataHandler:updateCollisionGroupsForActiveCells {}
         self.referenceHandle:getObject().sceneNode:update()
@@ -634,7 +651,6 @@ function CVehicle:UpdatePlayerCollision()
 end
 
 -- cleanup all variables
----@private
 function CVehicle:cleanup()
     log:trace("CVehicle cleanup %s", self:Id())
 
@@ -662,16 +678,18 @@ function CVehicle:cleanup()
 
     -- delete statics
     if self.clutter then
+        log:trace("\tDeleting clutter:")
         for index, clutter in ipairs(self.clutter) do
             if clutter.handle and clutter.handle:valid() then
                 clutter.handle:getObject():delete()
-                clutter.handle = nil
+
+                log:trace("\t\tdeleted %s", clutter.id)
             end
+            clutter.handle = nil
         end
     end
 end
 
----@private
 function CVehicle:RegisterFollowers()
     local followers = lib.getFollowers()
     log:debug("\tregistering %s followers", #followers)
@@ -685,7 +703,6 @@ function CVehicle:RegisterFollowers()
 end
 
 --- Registers the passengers for the vehicle.
----@private
 function CVehicle:RegisterPassengers()
     local mount = self.referenceHandle:getObject()
 
@@ -714,22 +731,9 @@ function CVehicle:RegisterPassengers()
     end
 end
 
--- you can register clutter with the vehicle
----@param handle mwseSafeObjectHandle|nil
----@param i integer
----@private
-function CVehicle:registerStatic(handle, i)
-    self.clutter[i].handle = handle
-
-    if handle and handle:valid() then
-        log:debug("\t\tregistered %s in static slot %s", handle:getObject().id, i)
-    end
-end
-
 --- registers a ref in a slot
 ---@param handle mwseSafeObjectHandle|nil
 ---@param idx integer
----@private
 function CVehicle:registerInSlot(handle, idx)
     self.slots[idx].handle = handle
 
@@ -762,7 +766,6 @@ end
 
 --- get a random free slot index
 ---@return integer|nil index
----@private
 function CVehicle:getRandomFreeSlotIdx()
     local nilIndices = {}
 
@@ -782,7 +785,6 @@ end
 
 ---@param slotPosition tes3vector3
 ---@param boneOffset tes3vector3
----@private
 function CVehicle:getSlotTransform(slotPosition, boneOffset)
     local transform = slotPosition
     if self.nodeName then
@@ -794,7 +796,6 @@ end
 
 -- register a ref in the hidden slot container
 ---@param handle mwseSafeObjectHandle|nil
----@private
 function CVehicle:registerRefInHiddenSlot(handle)
     if self.hiddenSlot.handles == nil then self.hiddenSlot.handles = {} end
 

@@ -73,20 +73,4 @@ function CCanoe:new()
     return newObj
 end
 
----@param id string
----@param position tes3vector3
----@param orientation tes3vector3
----@param facing number
----@return CCanoe
-function CCanoe:create(id, position, orientation, facing)
-    local newObj = CBoat:create(id, position, orientation, facing)
-    self.__index = self
-    setmetatable(newObj, self)
-    ---@cast newObj CCanoe
-
-    newObj:OnCreate()
-
-    return newObj
-end
-
 return CCanoe

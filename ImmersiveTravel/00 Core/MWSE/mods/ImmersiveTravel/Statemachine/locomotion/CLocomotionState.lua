@@ -207,39 +207,40 @@ local function CalculatePositions(vehicle, nextPos)
     local virtualpos = nextPos
 
     -- only in onspline AI states
-    if vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
-        local evade_right = false
-        local collision = false
-        -- get tracked objects
-        for index, value in pairs(CTrackingManager.getInstance().trackingList) do
-            ---@cast value CVehicle
-            if value ~= vehicle and currentPos:distance(value.last_position) < 8192 then
-                -- TODO what values to use here?
-                local check = isPointInCone(currentPos, vehicle.last_forwardDirection, value.last_position, 6144, 0.785)
-                if check then
-                    collision = true
-                    evade_right = isVectorRight(vehicle.last_forwardDirection, value.last_position - currentPos)
-                    break
-                end
-            end
-        end
-        -- evade
-        if collision then
-            local rootBone = vehicle:GetRootBone()
-            if rootBone then
-                -- override the next position temporarily
-                if evade_right then
-                    -- evade to the right
-                    virtualpos = rootBone.worldTransform * tes3vector3.new(1204, 1024, nextPos.z)
-                else
-                    -- evade to the left
-                    virtualpos = rootBone.worldTransform * tes3vector3.new(-1204, 1024, nextPos.z)
-                end
-            else
-                lib.log:debug("CalculatePositions %s: rootBone is nil", vehicle:Id())
-            end
-        end
-    end
+    -- TODO
+    -- if vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
+    --     local evade_right = false
+    --     local collision = false
+    --     -- get tracked objects
+    --     for index, value in pairs(CTrackingManager.getInstance().trackingList) do
+    --         ---@cast value CVehicle
+    --         if value ~= vehicle and currentPos:distance(value.last_position) < 8192 then
+    --             -- TODO what values to use here?
+    --             local check = isPointInCone(currentPos, vehicle.last_forwardDirection, value.last_position, 6144, 0.785)
+    --             if check then
+    --                 collision = true
+    --                 evade_right = isVectorRight(vehicle.last_forwardDirection, value.last_position - currentPos)
+    --                 break
+    --             end
+    --         end
+    --     end
+    --     -- evade
+    --     if collision then
+    --         local rootBone = vehicle:GetRootBone()
+    --         if rootBone then
+    --             -- override the next position temporarily
+    --             if evade_right then
+    --                 -- evade to the right
+    --                 virtualpos = rootBone.worldTransform * tes3vector3.new(1204, 1024, nextPos.z)
+    --             else
+    --                 -- evade to the left
+    --                 virtualpos = rootBone.worldTransform * tes3vector3.new(-1204, 1024, nextPos.z)
+    --             end
+    --         else
+    --             lib.log:debug("CalculatePositions %s: rootBone is nil", vehicle:Id())
+    --         end
+    --     end
+    -- end
 
     -- calculate diffs
     local forwardDirection = vehicle.last_forwardDirection
@@ -360,11 +361,13 @@ end
 ---@param vehicle CVehicle
 local function Move(vehicle, dt)
     if not vehicle.referenceHandle:valid() then
+        lib.log:warn("Move %s: referenceHandle is invalid", vehicle:Id())
         return
     end
 
     local nextPos = getNextPositionHeading(vehicle)
     if nextPos == nil then
+        lib.log:warn("Move %s: nextPos is nil", vehicle:Id())
         return
     end
 
@@ -380,6 +383,7 @@ local function Move(vehicle, dt)
     -- skip
     if vehicle.minSpeed then
         if vehicle.current_speed < vehicle.minSpeed then
+            lib.log:warn("Move %s: current_speed < minSpeed", vehicle:Id())
             return
         end
     end

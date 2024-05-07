@@ -1,8 +1,13 @@
-local CBoat = require("ImmersiveTravel.Vehicles.CBoat")
+local CBoat         = require("ImmersiveTravel.Vehicles.CBoat")
+local lib           = require("ImmersiveTravel.lib")
+local log           = lib.log
 
 -- Define the CLongboat class inheriting from CBoat
 ---@class CLongboat : CBoat
-local CLongboat = {
+local CLongboat     = {}
+
+CLongboat.prototype =
+{
     id = "a_longboat",
     sound = {
         "Boat Hull"
@@ -71,7 +76,6 @@ local CLongboat = {
             position = tes3vector3.new(0, -585, 18)
         }
     }
-
 }
 setmetatable(CLongboat, { __index = CBoat })
 
@@ -83,22 +87,75 @@ function CLongboat:new()
     setmetatable(newObj, self)
     ---@cast newObj CLongboat
 
-    return newObj
-end
-
----Create a new instance of CLongboat
----@param id string
----@param position tes3vector3
----@param orientation tes3vector3
----@param facing number
----@return CLongboat
-function CLongboat:create(id, position, orientation, facing)
-    local newObj = CBoat:create(id, position, orientation, facing)
-    self.__index = self
-    setmetatable(newObj, self)
-    ---@cast newObj CLongboat
-
-    newObj:OnCreate()
+    -- set default values
+    newObj.id = "a_longboat"
+    newObj.sound = {
+        "Boat Hull"
+    }
+    newObj.loopSound = true
+    newObj.mesh = "x\\Ex_longboat_rot.nif"
+    newObj.offset = 74
+    newObj.sway = 4
+    newObj.speed = 4
+    newObj.turnspeed = 24
+    newObj.hasFreeMovement = true
+    newObj.freedomtype = "boat"
+    newObj.guideSlot = {
+        animationGroup = {},
+        position = tes3vector3.new(67, -457, -65)
+    }
+    newObj.hiddenSlot = {
+        position = tes3vector3.new(0, 0, -200)
+    }
+    newObj.slots = {
+        {
+            animationGroup = {},
+            position = tes3vector3.new(0, 411, -63)
+        },
+        {
+            animationGroup = {},
+            position = tes3vector3.new(-132, 67, -63)
+        },
+        {
+            animationGroup = {},
+            position = tes3vector3.new(160, -145, -63)
+        },
+        {
+            animationGroup = {},
+            position = tes3vector3.new(-79, -390, -67)
+        },
+        {
+            animationGroup = {
+                "idle6"
+            },
+            animationFile = "VA_sitting.nif",
+            position = tes3vector3.new(0, 133, -26)
+        },
+        {
+            animationGroup = {
+                "idle6"
+            },
+            animationFile = "VA_sitting.nif",
+            position = tes3vector3.new(-122, -181, -27)
+        },
+        {
+            animationGroup = {
+                "idle6"
+            },
+            animationFile = "VA_sitting.nif",
+            position = tes3vector3.new(87, -259, -27)
+        }
+    }
+    newObj.clutter = {
+        {
+            id = "light_com_lantern_01",
+            position = tes3vector3.new(0, 623, 28)
+        },
+        {
+            id = "light_com_lantern_02",
+            position = tes3vector3.new(0, -585, 18)
+        }
+    }
 
     return newObj
 end

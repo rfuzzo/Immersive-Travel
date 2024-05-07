@@ -28,10 +28,10 @@ function CAbstractStateMachine:update(dt, scriptedObject)
     }
     for state, transition in pairs(self.currentState.transitions) do
         if transition(ctx) then
-            log:trace("[%s] Exiting state: %s -> %s", self.name, self.currentState.name, state)
+            log:trace("[%s] %s Exiting state: %s -> %s", self.name, scriptedObject:Id(), self.currentState.name, state)
             self.currentState:exit(scriptedObject)
             self.currentState = self.states[state]
-            log:trace("[%s] Entering state: %s", self.name, self.currentState.name)
+            log:trace("[%s] %s Entering state: %s", self.name, scriptedObject:Id(), self.currentState.name)
             self.currentState:enter(scriptedObject)
         end
     end

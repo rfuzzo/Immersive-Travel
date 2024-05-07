@@ -7,6 +7,7 @@ local log                     = lib.log
 
 -- Define the base class CTickingEntity
 ---@class CTickingEntity
+---@field markAsDeleted boolean
 ---@field referenceHandle mwseSafeObjectHandle
 ---@field id string?
 ---@field refid number?
@@ -19,40 +20,13 @@ local CTickingEntity          = {}
 function CTickingEntity:new()
     ---@type CTickingEntity
     local newObj = {
+        markAsDeleted = false,
         referenceHandle = tes3.makeSafeObjectHandle(nil),
         locomotionStateMachine = CLocomotionStateMachine:new(),
         aiStateMachine = CAiStateMachine:new()
     }
     setmetatable(newObj, self)
     self.__index = self
-
-    return newObj
-end
-
----Create a new instance of CTickingEntity
----@param id string
----@param position tes3vector3
----@param orientation tes3vector3
----@param facing number
----@return CTickingEntity
-function CTickingEntity:create(id, position, orientation, facing)
-    -- create reference
-    local reference = tes3.createReference {
-        object = id,
-        position = position,
-        orientation = orientation
-    }
-    reference.facing = facing
-
-    ---@type CTickingEntity
-    local newObj = {
-        referenceHandle = tes3.makeSafeObjectHandle(reference),
-        locomotionStateMachine = CLocomotionStateMachine:new(),
-        aiStateMachine = CAiStateMachine:new()
-    }
-    setmetatable(newObj, self)
-    self.__index = self
-
     return newObj
 end
 
@@ -71,8 +45,8 @@ function CTickingEntity:Delete()
     -- Release the reference handle
     if self.referenceHandle:valid() then
         self.referenceHandle:getObject():delete()
-        self.referenceHandle = nil
     end
+    self.referenceHandle = nil
 end
 
 ---Called on each tick of the timer

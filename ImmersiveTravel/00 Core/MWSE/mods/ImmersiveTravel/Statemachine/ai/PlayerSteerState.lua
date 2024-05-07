@@ -3,10 +3,14 @@ local CPlayerVehicleManager = require("ImmersiveTravel.CPlayerVehicleManager")
 local lib                   = require("ImmersiveTravel.lib")
 local config                = require("ImmersiveTravel.config")
 
+if not config then
+    return
+end
+
 -- player steer state class
 ---@class PlayerSteerState : CAiState
 ---@field cameraOffset tes3vector3?
-local PlayerSteerState      = {
+local PlayerSteerState = {
     name         = CAiState.PLAYERSTEER,
     transitions  = {
         [CAiState.PLAYERTRAVEL] = CAiState.ToPlayerTravel,

@@ -27,7 +27,20 @@ function this.createVehicle(id, position, orientation, facing)
     if this.vehicles[id] then
         local vehicle = require("ImmersiveTravel.Vehicles." .. this.vehicles[id])
         ---@cast vehicle CVehicle
-        return vehicle:create(id, position, orientation, facing)
+        local o = vehicle:new()
+
+        -- create reference
+        local reference = tes3.createReference {
+            object = id,
+            position = position,
+            orientation = orientation
+        }
+        reference.facing = facing
+        o.referenceHandle = tes3.makeSafeObjectHandle(reference)
+
+        o:OnCreate()
+
+        return o
     end
 
     return nil

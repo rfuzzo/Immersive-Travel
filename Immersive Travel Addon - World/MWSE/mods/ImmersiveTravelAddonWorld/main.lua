@@ -97,7 +97,10 @@ local function doSpawn(point)
         end
     end
 
-    log:debug("Spawning %s at: %s", mountId, lib.vec(point.point))
+    local cx = math.floor(point.point.x / 8192)
+    local cy = math.floor(point.point.y / 8192)
+    local cell_key = tostring(cx) .. "," .. tostring(cy)
+    log:debug("Spawning %s at: %s (%s) on route %s", mountId, lib.vec(point.point), cell_key, point.routeId)
 
     local vehicle = interop.createVehicle(mountId, startPoint, orientation, facing)
     if not vehicle then
@@ -105,6 +108,7 @@ local function doSpawn(point)
     end
 
     -- start the vehicle
+    log:trace("Trace doSpawn vehicle id: %s", vehicle.id)
     vehicle:StartOnSpline(point.routeId, service)
 end
 
