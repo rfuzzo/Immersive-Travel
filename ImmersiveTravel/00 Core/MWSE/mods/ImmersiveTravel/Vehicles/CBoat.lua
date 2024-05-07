@@ -4,10 +4,7 @@ local log      = lib.log
 
 -- Define the CBoat class inheriting from CVehicle
 ---@class CBoat : CVehicle
-local CBoat    = {
-    sound = { "Boat Hull" },
-    freedomtype = "boat",
-}
+local CBoat    = {}
 setmetatable(CBoat, { __index = CVehicle })
 
 ---Constructor for CBoat

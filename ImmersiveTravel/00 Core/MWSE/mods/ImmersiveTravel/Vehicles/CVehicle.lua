@@ -72,26 +72,7 @@ local log                   = lib.log
 ---@field current_sound string?
 ---@field speedChange number
 ---@field playerRegistered boolean
-local CVehicle              =
-{
-    -- -- Add properties here
-    -- sound = {},
-    -- loopSound = false,
-    -- mesh = "",
-    -- offset = 0,
-    -- sway = 0,
-    -- speed = 0,
-    -- turnspeed = 0,
-    -- hasFreeMovement = false,
-    -- slots = {},
-    -- changeSpeed = 1,
-    -- -- runtime
-    -- swayTime = 0,
-    -- splineIndex = 1,
-    -- current_speed = 0,
-    -- speedChange = 0,
-    -- playerRegistered = false
-}
+local CVehicle              = {}
 setmetatable(CVehicle, { __index = CTickingEntity })
 
 ---Constructor for CVehicle
