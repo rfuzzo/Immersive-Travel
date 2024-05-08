@@ -30,12 +30,14 @@ function this.createVehicle(id, position, orientation, facing)
         local o = vehicle:new()
 
         -- create reference
+        local mountOffset = tes3vector3.new(0, 0, o.offset)
         local reference = tes3.createReference {
             object = id,
-            position = position,
+            position = position + mountOffset,
             orientation = orientation
         }
         reference.facing = facing
+
         o.referenceHandle = tes3.makeSafeObjectHandle(reference)
 
         o:OnCreate()

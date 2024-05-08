@@ -1,5 +1,5 @@
 -- Define a class to manage the tracking list and timer
----@class CPlayerVehicleManager
+---@class GPlayerVehicleManager
 ---@field trackedVehicle CVehicle?
 ---@field free_movement boolean
 ---@field travelMarkerId  string
@@ -18,9 +18,9 @@ function PlayerVehicleManager:new()
 end
 
 -- singleton instance
---- @type CPlayerVehicleManager?
+--- @type GPlayerVehicleManager?
 local instance = nil
---- @return CPlayerVehicleManager
+--- @return GPlayerVehicleManager
 function PlayerVehicleManager.getInstance()
     if instance == nil then
         instance = PlayerVehicleManager:new()

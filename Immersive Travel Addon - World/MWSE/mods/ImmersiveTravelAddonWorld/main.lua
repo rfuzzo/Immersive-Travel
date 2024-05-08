@@ -97,10 +97,12 @@ local function doSpawn(point)
         end
     end
 
-    local cx = math.floor(point.point.x / 8192)
-    local cy = math.floor(point.point.y / 8192)
-    local cell_key = tostring(cx) .. "," .. tostring(cy)
-    log:debug("Spawning %s at: %s (%s) on route %s", mountId, lib.vec(point.point), cell_key, point.routeId)
+    if lib.IsLogLevelAtLeast("DEBUG") then
+        local cx = math.floor(point.point.x / 8192)
+        local cy = math.floor(point.point.y / 8192)
+        local cell_key = tostring(cx) .. "," .. tostring(cy)
+        log:debug("Spawning %s at: %s (#%s) on route %s", mountId, cell_key, idx, point.routeId)
+    end
 
     local vehicle = interop.createVehicle(mountId, startPoint, orientation, facing)
     if not vehicle then

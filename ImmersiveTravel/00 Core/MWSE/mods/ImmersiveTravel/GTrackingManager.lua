@@ -70,10 +70,6 @@ function TrackingManager:RemoveEntity(entity)
 
     log:debug("Removed %s from tracking list", entity:Id())
     log:debug("Tracking list size: %s", table.size(self.trackingList))
-
-    -- for key, value in pairs(self.trackingList) do
-    --     log:debug("Tracking list: %s (%s)", key, value:Id())
-    -- end
 end
 
 --- Get an entity from the tracking list

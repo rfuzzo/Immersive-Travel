@@ -1,5 +1,5 @@
 local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
-local CPlayerVehicleManager = require("ImmersiveTravel.CPlayerVehicleManager")
+local GPlayerVehicleManager = require("ImmersiveTravel.GPlayerVehicleManager")
 local lib                   = require("ImmersiveTravel.lib")
 local interop               = require("ImmersiveTravel.interop")
 local GRoutesManager        = require("ImmersiveTravel.GRoutesManager")
@@ -98,7 +98,7 @@ local function uiShowRestMenuCallback(e)
                         callback = (function()
                             tes3.fadeOut({ duration = 1 })
                             -- teleport to last marker
-                            local vehicle = CPlayerVehicleManager.getInstance().trackedVehicle
+                            local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle
                             if vehicle then
                                 -- teleport to last position
                                 local spline = GRoutesManager.getInstance().routes[vehicle.routeId]
@@ -127,9 +127,9 @@ end
 -- key down callbacks while in travel
 --- @param e keyDownEventData
 local function keyDownCallback(e)
-    local vehicle = CPlayerVehicleManager.getInstance().trackedVehicle;
+    local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle;
     if not vehicle then return end
-    if CPlayerVehicleManager.getInstance().free_movement then return end
+    if GPlayerVehicleManager.getInstance().free_movement then return end
 
     -- move
     if e.keyCode == tes3.scanCode["w"] or e.keyCode == tes3.scanCode["a"] or
@@ -142,7 +142,7 @@ local function keyDownCallback(e)
                 if slot.handle and slot.handle:valid() and
                     slot.handle:getObject() == tes3.player then
                     slot.handle = nil
-                    CPlayerVehicleManager.getInstance().free_movement = true
+                    GPlayerVehicleManager.getInstance().free_movement = true
                     -- free animations
                     tes3.mobilePlayer.movementCollision = true;
                     tes3.loadAnimation({ reference = tes3.player })
@@ -157,11 +157,11 @@ end
 --- @param e activateEventData
 local function activateCallback(e)
     if (e.activator ~= tes3.player) then return end
-    local vehicle = CPlayerVehicleManager.getInstance().trackedVehicle
+    local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle
     if not vehicle then return end
 
     if e.target.id == vehicle.guideSlot.handle:getObject().id and
-        CPlayerVehicleManager.getInstance().free_movement then
+        GPlayerVehicleManager.getInstance().free_movement then
         -- register player in slot
         tes3ui.showMessageMenu {
             message = "Do you want to sit down?",
@@ -169,7 +169,7 @@ local function activateCallback(e)
                 {
                     text = "Yes",
                     callback = function()
-                        CPlayerVehicleManager.getInstance().free_movement = false
+                        GPlayerVehicleManager.getInstance().free_movement = false
                         lib.log:debug("register player")
                         tes3.player.facing = vehicle.referenceHandle:getObject().facing
                         vehicle:registerRefInRandomSlot(tes3.makeSafeObjectHandle(tes3.player))
@@ -187,8 +187,8 @@ end
 
 function PlayerTravelState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    CPlayerVehicleManager.getInstance().trackedVehicle = vehicle
-    CPlayerVehicleManager.getInstance().free_movement = false
+    GPlayerVehicleManager.getInstance().trackedVehicle = vehicle
+    GPlayerVehicleManager.getInstance().free_movement = false
 
     -- register travel events
     event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
@@ -252,7 +252,7 @@ function PlayerTravelState:exit(scriptedObject)
             vehicle:EndPlayerTravel()
 
             vehicle:Delete()
-            CPlayerVehicleManager.getInstance().trackedVehicle = nil
+            GPlayerVehicleManager.getInstance().trackedVehicle = nil
         end)
     })
 end

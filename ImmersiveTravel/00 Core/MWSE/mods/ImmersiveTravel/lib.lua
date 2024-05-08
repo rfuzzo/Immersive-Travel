@@ -22,6 +22,19 @@ this.SWAY_FREQ = 0.12        -- how fast the mount sways
 this.SWAY_AMPL = 0.014       -- how much the mount sways
 this.PASSENGER_HELLO = 10
 
+local logLevels = {
+    ["TRACE"] = 1,
+    ["DEBUG"] = 2,
+    ["INFO"] = 3,
+    ["WARN"] = 4,
+    ["ERROR"] = 5,
+    ["NONE"] = 6,
+}
+
+function this.IsLogLevelAtLeast(level)
+    return logLevels[config.logLevel] <= logLevels[level]
+end
+
 --#endregion
 
 

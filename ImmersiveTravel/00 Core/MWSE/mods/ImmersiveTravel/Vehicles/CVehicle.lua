@@ -1,5 +1,5 @@
 local CTickingEntity        = require("ImmersiveTravel.CTickingEntity")
-local CPlayerVehicleManager = require("ImmersiveTravel.CPlayerVehicleManager")
+local GPlayerVehicleManager = require("ImmersiveTravel.GPlayerVehicleManager")
 local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local lib                   = require("ImmersiveTravel.lib")
 local log                   = lib.log
@@ -613,7 +613,7 @@ end
 
 function CVehicle:UpdatePlayerCollision()
     -- check if player is in freemovement mode
-    if self.hasFreeMovement and CPlayerVehicleManager.getInstance().free_movement and self:isPlayerInMountBounds() then
+    if self.hasFreeMovement and GPlayerVehicleManager.getInstance().free_movement and self:isPlayerInMountBounds() then
         log:trace("UpdatePlayerCollision %s", self:Id())
 
         -- move player when on vehicle

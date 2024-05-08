@@ -1,5 +1,5 @@
 local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
-local CPlayerVehicleManager = require("ImmersiveTravel.CPlayerVehicleManager")
+local GPlayerVehicleManager = require("ImmersiveTravel.GPlayerVehicleManager")
 local lib                   = require("ImmersiveTravel.lib")
 local config                = require("ImmersiveTravel.config")
 
@@ -36,7 +36,7 @@ end
 --- hold w or s to change speed
 --- @param e keyDownEventData
 local function mountKeyDownCallback(e)
-    local vehicle = CPlayerVehicleManager.getInstance().trackedVehicle
+    local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle
     if not vehicle then
         return
     end
@@ -57,7 +57,7 @@ end
 --- release w or s to stop changing speed
 --- @param e keyUpEventData
 local function keyUpCallback(e)
-    local vehicle = CPlayerVehicleManager.getInstance().trackedVehicle
+    local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle
     if not vehicle then
         return
     end
@@ -82,7 +82,7 @@ end
 --- set virtual position
 --- @param e simulatedEventData
 local function mountSimulatedCallback(e)
-    local vehicle = CPlayerVehicleManager.getInstance().trackedVehicle
+    local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle
     if not vehicle then
         return
     end
@@ -112,7 +112,7 @@ local function mountSimulatedCallback(e)
         vehicle.virtualDestination = target
 
         -- debug
-        local manager = CPlayerVehicleManager.getInstance()
+        local manager = GPlayerVehicleManager.getInstance()
         if config.logLevel == "DEBUG" and manager.travelMarker then
             manager.travelMarker.translation = target
             local m = tes3matrix33.new()
@@ -132,7 +132,7 @@ end
 ---@param scriptedObject CTickingEntity
 function PlayerSteerState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    CPlayerVehicleManager.getInstance().trackedVehicle = vehicle
+    GPlayerVehicleManager.getInstance().trackedVehicle = vehicle
 
     -- register events
     event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
@@ -143,7 +143,7 @@ function PlayerSteerState:enter(scriptedObject)
     self.cameraOffset = tes3.get3rdPersonCameraOffset()
 
     -- visualize debug marker
-    local manager = CPlayerVehicleManager.getInstance()
+    local manager = GPlayerVehicleManager.getInstance()
     if config.logLevel == "DEBUG" and manager.travelMarkerMesh then
         local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
         local child = manager.travelMarkerMesh:clone()
@@ -260,7 +260,7 @@ function PlayerSteerState:exit(scriptedObject)
 
     -- don't delete ref since we may want to use the mount later
     vehicle:Detach()
-    CPlayerVehicleManager.getInstance().trackedVehicle = nil
+    GPlayerVehicleManager.getInstance().trackedVehicle = nil
 
     -- unregister events
     event.unregister(tes3.event.mouseWheel, lib.mouseWheelCallback)
