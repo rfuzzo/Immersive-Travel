@@ -64,10 +64,11 @@ function RoutesManager:Init()
 
                         -- save points in memory
                         for idx, pos in ipairs(spline) do
-                            -- ignore first and last point
-                            if idx == 1 or idx == #spline then
+                            -- ignore first and last two points
+                            if idx < 3 or idx > #spline - 2 then
                                 goto continue
                             end
+
 
                             local cx = math.floor(pos.x / 8192)
                             local cy = math.floor(pos.y / 8192)

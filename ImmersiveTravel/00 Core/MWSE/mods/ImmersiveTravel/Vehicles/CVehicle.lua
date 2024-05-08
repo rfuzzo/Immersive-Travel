@@ -639,18 +639,24 @@ function CVehicle:cleanup()
     tes3.removeSound({ reference = mount })
 
     -- delete guide
+    log:debug("\tDeleting guide:")
     if self.guideSlot.handle and self.guideSlot.handle:valid() then
         if self.guideSlot.handle:getObject() ~= tes3.player then
+            log:debug("\t\tdeleted %s", self.guideSlot.handle:getObject().id)
+
             self.guideSlot.handle:getObject():delete()
             self.guideSlot.handle = nil
         end
     end
 
     -- delete passengers
+    log:debug("\tDeleting passengers:")
     for index, slot in ipairs(self.slots) do
         if slot.handle and slot.handle:valid() then
             local ref = slot.handle:getObject()
             if ref ~= tes3.player and not lib.isFollower(ref.mobile) then
+                log:debug("\t\tdeleted %s", ref.id)
+
                 ref:delete()
                 slot.handle = nil
             end
@@ -659,12 +665,12 @@ function CVehicle:cleanup()
 
     -- delete statics
     if self.clutter then
-        log:trace("\tDeleting clutter:")
+        log:debug("\tDeleting clutter:")
         for index, clutter in ipairs(self.clutter) do
             if clutter.handle and clutter.handle:valid() then
-                clutter.handle:getObject():delete()
+                log:debug("\t\tdeleted %s", clutter.handle:getObject().id)
 
-                log:trace("\t\tdeleted %s", clutter.id)
+                clutter.handle:getObject():delete()
             end
             clutter.handle = nil
         end
