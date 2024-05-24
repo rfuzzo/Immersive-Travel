@@ -7,7 +7,7 @@ authors = ["rfuzzo"]
 version = "1.2.4"
 
 [tools.mwse]
-lua-mod = "rfuzzo.ImmersiveTravel"
+lua-mod = "ImmersiveTravel"
 
 [dependencies.mwse]
 buildnumber = 3676

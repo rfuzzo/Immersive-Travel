@@ -23,6 +23,10 @@ local dbg_mount_id     = nil ---@type string?
 
 --- @param e keyDownEventData
 local function keyDownCallback(e)
+    if not e.isAltDown then
+        return
+    end
+
     -- leave editor and spawn vehicle
     if config.logLevel == "DEBUG" then
         if e.keyCode == tes3.scanCode["o"] and editmode and mountMarker and dbg_mount_id then

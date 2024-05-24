@@ -13,4 +13,4 @@ lua-mod = "ImmersiveVehicles"
 buildnumber = 3676
 
 [dependencies.mods."ImmersiveVehicles"]
-mwse-module = "rfuzzo.ImmersiveTravel"
+mwse-module = "ImmersiveTravel"
