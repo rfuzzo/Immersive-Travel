@@ -10,6 +10,9 @@ mklink /J "%location%\MWSE\mods\ImmersiveTravel" "%cd%\00 Core\MWSE\mods\Immersi
 
 mklink /J "%location%\MWSE\mods\ImmersiveTravelEditor" "%cd%\99 Editor\MWSE\mods\ImmersiveTravelEditor"
 
+set "modname=ImmersiveTravel"
+echo mo2mods: %MO2MODS%
+mklink /J "%MO2MODS%\%modname%" "%cd%\00 Core"
 
 pause
 
