@@ -145,10 +145,11 @@ local function onMenuDialog(e)
 end
 event.register("uiActivated", onMenuDialog, { filter = "MenuDialog" })
 
---#region immersive travel integration
+-- /////////////////////////////////////////////////////////////////////////////////////////
+-- ////////////// CONFIG
+require("ImmersiveVehicles.mcm")
 
-local interop = require("ImmersiveTravel.interop")
-if not interop then return end
+--#region immersive travel integration
 
 -- boats
 interop.insertVehicle("a_mushroomdola_iv", "CMushroomdola")
@@ -257,7 +258,3 @@ end
 event.register("Ashfall:ActivateBushcrafting:Registered", registerRecipes)
 
 --#endregion
-
--- /////////////////////////////////////////////////////////////////////////////////////////
--- ////////////// CONFIG
-require("ImmersiveVehicles.mcm")

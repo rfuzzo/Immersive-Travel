@@ -165,6 +165,11 @@ end
 --- spawn on cell changed
 --- @param e cellChangedEventData
 local function cellChangedCallback(e)
+    -- skip interior cells
+    if e.cell.isInterior then
+        return
+    end
+
     if not config.modEnabled then
         -- delete all vehicles
         for id, s in pairs(GTrackingManager.getInstance().trackingList) do
