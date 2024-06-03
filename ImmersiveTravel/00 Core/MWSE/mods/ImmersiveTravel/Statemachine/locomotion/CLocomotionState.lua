@@ -11,6 +11,11 @@ local CLocomotionState = {
 }
 setmetatable(CLocomotionState, { __index = CAbstractState })
 
+local ENABLE_EVADE          = true
+local EVADE_RADIUS          = 1024 * 4
+-- 45/60 degrees in radians
+local EVADE_ANGLE           = 0.785 --1.0472
+
 --#region methods
 
 -- enum for locomotion states
@@ -155,13 +160,14 @@ end
 local function isPointInCone(origin, forwardVector, target, coneRadius,
                              coneAngle)
     -- Calculate the vector from the origin to the target point
-    local toTarget = target - origin
+    local toTarget = tes3vector3.new(target.x, target.y, 0) - tes3vector3.new(origin.x, origin.y, 0)
 
     -- Calculate the cosine of the angle between the forward vector and the vector to the target
-    local dotProduct = forwardVector:dot(toTarget)
+    local forwardVector2 = tes3vector3.new(forwardVector.x, forwardVector.y, 0)
+    local dotProduct = forwardVector2:dot(toTarget)
 
     -- Calculate the magnitudes of both vectors
-    local forwardMagnitude = forwardVector:length()
+    local forwardMagnitude = forwardVector2:length()
     local toTargetMagnitude = toTarget:length()
 
     -- Calculate the cosine of the angle between the vectors
@@ -207,40 +213,39 @@ local function CalculatePositions(vehicle, nextPos)
     local virtualpos = nextPos
 
     -- only in onspline AI states
-    -- TODO evade
-    -- if vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
-    --     local evade_right = false
-    --     local collision = false
-    --     -- get tracked objects
-    --     for index, value in pairs(GTrackingManager.getInstance().trackingList) do
-    --         ---@cast value CVehicle
-    --         if value ~= vehicle and currentPos:distance(value.last_position) < 8192 then
-    --             -- TODO what values to use here?
-    --             local check = isPointInCone(currentPos, vehicle.last_forwardDirection, value.last_position, 6144, 0.785)
-    --             if check then
-    --                 collision = true
-    --                 evade_right = isVectorRight(vehicle.last_forwardDirection, value.last_position - currentPos)
-    --                 break
-    --             end
-    --         end
-    --     end
-    --     -- evade
-    --     if collision then
-    --         local rootBone = vehicle:GetRootBone()
-    --         if rootBone then
-    --             -- override the next position temporarily
-    --             if evade_right then
-    --                 -- evade to the right
-    --                 virtualpos = rootBone.worldTransform * tes3vector3.new(1204, 1024, nextPos.z)
-    --             else
-    --                 -- evade to the left
-    --                 virtualpos = rootBone.worldTransform * tes3vector3.new(-1204, 1024, nextPos.z)
-    --             end
-    --         else
-    --             lib.log:debug("CalculatePositions %s: rootBone is nil", vehicle:Id())
-    --         end
-    --     end
-    -- end
+    -- evade
+    local rootBone = vehicle:GetRootBone()
+    if ENABLE_EVADE and rootBone and vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
+        local evade_right = false
+        local collision = false
+        -- get tracked objects
+        for index, value in pairs(GTrackingManager.getInstance().trackingList) do
+            ---@cast value CVehicle
+            if value ~= vehicle and currentPos:distance(value.last_position) < 8192 then
+                local check = isPointInCone(currentPos, vehicle.last_forwardDirection, value.last_position, EVADE_RADIUS,
+                    EVADE_ANGLE)
+                if check then
+                    collision = true
+                    evade_right = isVectorRight(rootBone.worldTransform * vehicle.last_forwardDirection,
+                        rootBone.worldTransform * (value.last_position - currentPos))
+                    break
+                end
+            end
+        end
+        -- evade
+        if collision then
+            -- override the next position temporarily
+            if evade_right then
+                -- evade to the right
+                virtualpos = rootBone.worldTransform * tes3vector3.new(1204, 1024, nextPos.z)
+            else
+                -- evade to the left
+                virtualpos = rootBone.worldTransform * tes3vector3.new(-1204, 1024, nextPos.z)
+            end
+        end
+    else
+        lib.log:debug("CalculatePositions %s: rootBone is nil", vehicle:Id())
+    end
 
     -- calculate diffs
     local forwardDirection = vehicle.last_forwardDirection

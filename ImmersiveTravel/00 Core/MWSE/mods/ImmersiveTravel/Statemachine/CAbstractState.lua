@@ -11,7 +11,7 @@ local CAbstractState = {}
 function CAbstractState:new()
     -----@type CAbstractState
     local newObj = {
-        --    transitions = {}
+
     }
     setmetatable(newObj, self)
     self.__index = self

@@ -199,6 +199,16 @@ function CVehicle:StartOnSpline(routeId, service)
             position = mount.position,
             orientation = mount.orientation
         }
+
+        -- disable scripts
+        if guide.baseObject.script then
+            guide.attachments.variables.script = nil
+            guide.data.rfuzzo_noscript = true;
+            tes3.setAIWander({ reference = guide, idles = { 0, 0, 0, 0, 0, 0, 0, 0 } })
+
+            log:debug("Disabled script %s on %s", guide.baseObject.script.id, guide.baseObject.id)
+        end
+
         log:debug("\tregistering guide")
         self:registerGuide(tes3.makeSafeObjectHandle(guide))
     end
@@ -367,11 +377,8 @@ end
 function CVehicle:isPlayerInMountBounds()
     local mount = self.referenceHandle:getObject()
 
-
     local inside = true
-
     local volumeHeight = 200
-
     local bbox = mount.object.boundingBox
 
     local pos = tes3.player.position
@@ -385,7 +392,9 @@ function CVehicle:isPlayerInMountBounds()
     local min_xy_d = tes3vector3.new(bbox.min.x, bbox.min.y, 0):length()
     local dist = mountSurface:distance(pos)
     local r = math.max(min_xy_d, max_xy_d) + 50
-    if dist > r then inside = false end
+    if dist > r then
+        inside = false
+    end
 
     return inside
 end
@@ -409,9 +418,16 @@ end
 ---@param dt number
 function CVehicle:OnTick(dt)
     -- Call the superclass onTick method
+    local rootBone = self:GetRootBone()
+    if rootBone and self:isPlayerInMountBounds() then
+        tes3.player.tempData.itpsl = rootBone.worldTransform:invert() * tes3.player.position
+    end
+
     CTickingEntity.OnTick(self, dt)
 
-    self:UpdatePlayerCollision()
+    if rootBone and self:isPlayerInMountBounds() then
+        self:UpdatePlayerCollision(rootBone)
+    end
 end
 
 ---@param dt number
@@ -458,25 +474,33 @@ function CVehicle:UpdateSlots(dt)
         guide.position = rootBone.worldTransform * self:getSlotTransform(self.guideSlot.position, boneOffset)
         if guide ~= tes3.player then
             guide.facing = mount.facing
-            -- only change anims if behind player
-            if changeAnims and
-                lib.isPointBehindObject(guide.position, tes3.player.position,
-                    tes3.player.forwardDirection) then
-                local group = lib.getRandomAnimGroup(self.guideSlot)
-                local animController = guide.mobile.animationController
-                if animController then
-                    local currentAnimationGroup =
-                        animController.animationData.currentAnimGroups[tes3.animationBodySection.upper]
-                    log:trace("%s switching to animgroup %s", guide.id, group)
-                    if group ~= currentAnimationGroup then
-                        tes3.loadAnimation({ reference = guide })
-                        if self.guideSlot.animationFile then
-                            tes3.loadAnimation({
-                                reference = guide,
-                                file = self.guideSlot.animationFile
-                            })
+
+            if guide ~= tes3.player then
+                -- disable scripts
+                if guide.baseObject.script and not lib.isFollower(guide.mobile) and guide.data.rfuzzo_noscript then
+                    guide.attachments.variables.script = nil
+                end
+
+                -- only change anims if behind player
+                if changeAnims and
+                    lib.isPointBehindObject(guide.position, tes3.player.position,
+                        tes3.player.forwardDirection) then
+                    local group = lib.getRandomAnimGroup(self.guideSlot)
+                    local animController = guide.mobile.animationController
+                    if animController then
+                        local currentAnimationGroup =
+                            animController.animationData.currentAnimGroups[tes3.animationBodySection.upper]
+                        log:trace("%s switching to animgroup %s", guide.id, group)
+                        if group ~= currentAnimationGroup then
+                            tes3.loadAnimation({ reference = guide })
+                            if self.guideSlot.animationFile then
+                                tes3.loadAnimation({
+                                    reference = guide,
+                                    file = self.guideSlot.animationFile
+                                })
+                            end
+                            tes3.playAnimation({ reference = guide, group = group })
                         end
-                        tes3.playAnimation({ reference = guide, group = group })
                     end
                 end
             end
@@ -611,23 +635,16 @@ end
 
 --#region private CVehicle methods
 
-function CVehicle:UpdatePlayerCollision()
+-- update player collision
+---@param rootBone niNode?
+function CVehicle:UpdatePlayerCollision(rootBone)
     -- check if player is in freemovement mode
-    if self.hasFreeMovement and GPlayerVehicleManager.getInstance().free_movement and self:isPlayerInMountBounds() then
-        log:trace("UpdatePlayerCollision %s", self:Id())
-
-        -- move player when on vehicle
-        local rootBone = self:GetRootBone()
-        if rootBone == nil then
-            log:trace("UpdatePlayerCollision %s: rootBone is nil", self:Id())
-            return
-        end
-
-        local playerShipLocal = rootBone.worldTransform:invert() * tes3.player.position
+    if rootBone and tes3.player.tempData.itpsl then
         -- this is needed to enable collisions :todd:
         tes3.dataHandler:updateCollisionGroupsForActiveCells {}
         self.referenceHandle:getObject().sceneNode:update()
-        tes3.player.position = rootBone.worldTransform * playerShipLocal
+
+        tes3.player.position = rootBone.worldTransform * tes3.player.tempData.itpsl
     end
 end
 
@@ -708,6 +725,7 @@ function CVehicle:RegisterPassengers()
             if passenger.baseObject.script then
                 passenger.attachments.variables.script = nil
                 passenger.data.rfuzzo_noscript = true;
+                tes3.setAIWander({ reference = passenger, idles = { 0, 0, 0, 0, 0, 0, 0, 0 } })
 
                 log:debug("Disabled script %s on %s", passenger.baseObject.script.id, passenger.baseObject.id)
             end
