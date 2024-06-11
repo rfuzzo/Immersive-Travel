@@ -112,6 +112,21 @@ local function uiShowRestMenuCallback(e)
                                 -- then to destination
                                 -- this pushes the AI statemachine
                                 vehicle.routeId = nil
+
+                                timer.start({
+                                    type = timer.simulate,
+                                    duration = 1,
+                                    callback = (function()
+                                        tes3.fadeIn()
+
+                                        lib.teleportToClosestMarker()
+
+                                        vehicle:EndPlayerTravel()
+
+                                        vehicle:Delete()
+                                        GPlayerVehicleManager.getInstance().trackedVehicle = nil
+                                    end)
+                                })
                             end
                         end)
                     })
@@ -212,10 +227,26 @@ function PlayerTravelState:update(dt, scriptedObject)
     local spline = GRoutesManager.getInstance().routes[vehicle.routeId]
     if spline == nil then
         vehicle.routeId = nil
-    end
-    if vehicle.splineIndex > #spline then
+    elseif vehicle.splineIndex > #spline then
         -- reached end of route
         vehicle.routeId = nil
+
+        tes3.fadeOut()
+
+        timer.start({
+            type = timer.simulate,
+            duration = 1,
+            callback = (function()
+                tes3.fadeIn()
+
+                lib.teleportToClosestMarker()
+
+                vehicle:EndPlayerTravel()
+
+                vehicle:Delete()
+                GPlayerVehicleManager.getInstance().trackedVehicle = nil
+            end)
+        })
     end
 
     -- handle player leaving vehicle
@@ -238,23 +269,6 @@ function PlayerTravelState:exit(scriptedObject)
     event.unregister(tes3.event.activate, activateCallback)
     event.unregister(tes3.event.keyDown, keyDownCallback)
     event.unregister(tes3.event.uiShowRestMenu, uiShowRestMenuCallback)
-
-    tes3.fadeOut()
-
-    timer.start({
-        type = timer.simulate,
-        duration = 1,
-        callback = (function()
-            tes3.fadeIn()
-
-            lib.teleportToClosestMarker()
-
-            vehicle:EndPlayerTravel()
-
-            vehicle:Delete()
-            GPlayerVehicleManager.getInstance().trackedVehicle = nil
-        end)
-    })
 end
 
 return PlayerTravelState

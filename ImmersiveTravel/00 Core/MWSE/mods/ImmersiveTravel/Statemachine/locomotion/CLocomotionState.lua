@@ -243,8 +243,6 @@ local function CalculatePositions(vehicle, nextPos)
                 virtualpos = rootBone.worldTransform * tes3vector3.new(-1204, 1024, nextPos.z)
             end
         end
-    else
-        lib.log:debug("CalculatePositions %s: rootBone is nil", vehicle:Id())
     end
 
     -- calculate diffs

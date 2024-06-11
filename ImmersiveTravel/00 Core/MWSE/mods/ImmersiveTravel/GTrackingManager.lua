@@ -231,14 +231,14 @@ function TrackingManager:doCull()
         -- only cull vehicles that are in onspline ai state
         if vehicle.aiStateMachine and vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
             if not vehicle:GetRootBone() then
-                log:warn("No root bone %s", s:Id())
+                log:debug("doCull No root bone %s", s:Id())
                 table.insert(toremove, s)
                 goto continue
             end
 
             local d = tes3.player.position:distance(vehicle.last_position)
             if d > self.cullRadius * 8192 then
-                log:debug("Culled out of distance %s", s:Id())
+                log:debug("doCull Culled out of distance %s", s:Id())
                 table.insert(toremove, s)
                 goto continue
             end

@@ -174,7 +174,10 @@ local function cellChangedCallback(e)
         -- delete all vehicles
         for id, s in pairs(GTrackingManager.getInstance().trackingList) do
             local vehicle = s ---@cast vehicle CVehicle
-            vehicle.markForDelete = true
+            -- only mark vehicles that are in onspline ai state
+            if vehicle.aiStateMachine and vehicle:isOnSpline() then
+                vehicle.markForDelete = true
+            end
         end
 
         return

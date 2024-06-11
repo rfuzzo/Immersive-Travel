@@ -155,6 +155,11 @@ end
 
 --#region CVehicle methods
 
+function CVehicle:isOnSpline()
+    return self.aiStateMachine and self.aiStateMachine.currentState and
+    self.aiStateMachine.currentState.name == CAiState.ONSPLINE
+end
+
 --- StartPlayerSteer is called when the player starts steering
 function CVehicle:StartPlayerSteer()
     log:trace("StartPlayerSteer %s", self.id)
@@ -222,6 +227,9 @@ end
 ---@param routeId string
 function CVehicle:StartPlayerTravel(guideId, routeId)
     log:debug("StartPlayerTravel %s", self.id)
+    log:debug("AI state: %s", self.aiStateMachine.currentState.name)
+
+    self:Attach()
 
     -- these push the AI statemachine
     self.playerRegistered = true
@@ -375,11 +383,23 @@ end
 -- player is within the surface of the mount
 ---@return boolean
 function CVehicle:isPlayerInMountBounds()
+    if not self.referenceHandle:valid() then
+        return false
+    end
+
+    if not self.referenceHandle:getObject() then
+        return false
+    end
+
     local mount = self.referenceHandle:getObject()
+    local bbox = mount.object.boundingBox
+
+    if not bbox then
+        return false
+    end
 
     local inside = true
     local volumeHeight = 200
-    local bbox = mount.object.boundingBox
 
     local pos = tes3.player.position
     local surfaceOffset = self.slots[1].position.z
@@ -434,7 +454,7 @@ end
 function CVehicle:UpdateSlots(dt)
     local rootBone = self:GetRootBone()
     if rootBone == nil then
-        log:warn("UpdateSlots %s: rootBone is nil", self:Id())
+        log:debug("UpdateSlots %s: rootBone is nil", self:Id())
         return
     end
 
@@ -554,12 +574,12 @@ function CVehicle:UpdateSlots(dt)
     if self.clutter then
         for index, clutter in ipairs(self.clutter) do
             if clutter.handle == nil then
-                log:warn("UpdateSlots %s: clutter handle is nil", self:Id())
+                log:debug("UpdateSlots %s: clutter handle is nil", self:Id())
             end
 
             if clutter.handle and clutter.handle:valid() then
                 if not clutter.handle:valid() then
-                    log:warn("UpdateSlots %s: clutter handle is invalid", self:Id())
+                    log:debug("UpdateSlots %s: clutter handle is invalid", self:Id())
                 end
 
                 clutter.handle:getObject().position = rootBone.worldTransform *
@@ -638,8 +658,12 @@ end
 -- update player collision
 ---@param rootBone niNode?
 function CVehicle:UpdatePlayerCollision(rootBone)
+    local isInTravelState = self.aiStateMachine.currentState.name == CAiState.PLAYERTRAVEL
+    local isInSteerState = self.aiStateMachine.currentState.name == CAiState.ONSPLINE
+    local playerCanFreeMove = isInSteerState or (isInTravelState and GPlayerVehicleManager.getInstance().free_movement)
+
     -- check if player is in freemovement mode
-    if rootBone and tes3.player.tempData.itpsl then
+    if self.hasFreeMovement and playerCanFreeMove and rootBone and tes3.player.tempData.itpsl then
         -- this is needed to enable collisions :todd:
         tes3.dataHandler:updateCollisionGroupsForActiveCells {}
         self.referenceHandle:getObject().sceneNode:update()
