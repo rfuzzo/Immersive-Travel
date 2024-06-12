@@ -1,8 +1,6 @@
 local lib           = require("ImmersiveTravel.lib")
 local log           = lib.log
 
--- TODO lazy load and unload routes
-
 -- Define a class to manage the splines
 ---@class GRoutesManager
 ---@field services table<string, ServiceData>?

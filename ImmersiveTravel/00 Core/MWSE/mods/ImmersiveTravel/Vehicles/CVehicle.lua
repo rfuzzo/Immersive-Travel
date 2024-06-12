@@ -21,6 +21,7 @@ local log                   = lib.log
 ---@field id string? reference id
 ---@field mesh string? reference id
 ---@field handle mwseSafeObjectHandle?
+---@field isTemporary boolean?
 
 ---@class UserData
 ---@diagnostic disable-next-line: undefined-doc-name
@@ -157,7 +158,7 @@ end
 
 function CVehicle:isOnSpline()
     return self.aiStateMachine and self.aiStateMachine.currentState and
-    self.aiStateMachine.currentState.name == CAiState.ONSPLINE
+        self.aiStateMachine.currentState.name == CAiState.ONSPLINE
 end
 
 --- StartPlayerSteer is called when the player starts steering
@@ -572,16 +573,34 @@ function CVehicle:UpdateSlots(dt)
 
     -- statics
     if self.clutter then
+        -- clean
+        local toremove = {}
+        for index, value in ipairs(self.clutter) do
+            if value.isTemporary then
+                if not value.handle then
+                    -- remove
+                    table.insert(toremove, index)
+                    log:debug("UpdateSlots clutter handle %s is nil", index)
+                elseif not value.handle:valid() then
+                    table.insert(toremove, index)
+                    log:debug("UpdateSlots clutter handle %s is invalid", index)
+                end
+            end
+        end
+
+        if #toremove > 0 then
+            for index, value in ipairs(toremove) do
+                table.remove(self.clutter, value)
+            end
+            log:debug("New clutter count %s", #self.clutter)
+        end
+
         for index, clutter in ipairs(self.clutter) do
             if clutter.handle == nil then
                 log:debug("UpdateSlots %s: clutter handle is nil", self:Id())
             end
 
             if clutter.handle and clutter.handle:valid() then
-                if not clutter.handle:valid() then
-                    log:debug("UpdateSlots %s: clutter handle is invalid", self:Id())
-                end
-
                 clutter.handle:getObject().position = rootBone.worldTransform *
                     self:getSlotTransform(clutter.position, boneOffset)
                 if clutter.orientation then

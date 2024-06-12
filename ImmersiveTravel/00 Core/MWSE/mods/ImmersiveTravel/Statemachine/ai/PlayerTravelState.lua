@@ -4,6 +4,8 @@ local lib                   = require("ImmersiveTravel.lib")
 local interop               = require("ImmersiveTravel.interop")
 local GRoutesManager        = require("ImmersiveTravel.GRoutesManager")
 
+local log                   = lib.log
+
 -- on spline state class
 ---@class PlayerTravelState : CAiState
 ---@field cameraOffset tes3vector3?
@@ -28,6 +30,92 @@ function PlayerTravelState:new()
 end
 
 --#region events
+
+--- @param reference tes3reference
+---@return Clutter?
+local function registerStatic(reference)
+    local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle;
+    if not vehicle then
+        return nil
+    end
+
+    local rootBone = vehicle:GetRootBone()
+    if rootBone then
+        local relativePos         = rootBone.worldTransform:invert() * reference.position
+        local relativeOrientation = reference.orientation
+        ---@type Clutter
+        local static              = {
+            position    = relativePos,
+            orientation = relativeOrientation,
+            id          = reference.object.id,
+            isTemporary = true,
+            handle      = tes3.makeSafeObjectHandle(reference)
+        }
+
+        -- add to clutter
+        table.insert(vehicle.clutter, static)
+        log:debug("registered %s in slot %s", static.id, #vehicle.clutter)
+
+        return static
+    end
+
+    return nil
+end
+
+--- @param e itemDroppedEventData
+local function itemDroppedCallback(e)
+    local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle;
+    if not vehicle then return end
+
+    log:debug("item dropped %s", e.reference.object.id)
+    registerStatic(e.reference)
+end
+
+
+-- TODO doesn't work anymore
+local function CFEndPlacementCallback(e)
+    local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle;
+    if not vehicle then return end
+
+    for i, value in ipairs(vehicle.clutter) do
+        if value.handle and value.handle:valid() and value.handle:getObject() == e.reference then
+            value.position = e.reference.position
+            value.orientation = e.reference.orientation:copy()
+            log:debug("CFEndPlacementCallback updated %s", value.id)
+            break
+        end
+    end
+end
+
+--- @param e referenceActivatedEventData
+local function referenceActivatedCallback(e)
+    local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle;
+    if not vehicle then return end
+
+    local config = require("mer.joyOfPainting.config")
+    if config and config.easels then
+        for key, easel in pairs(config.easels) do
+            if e.reference.object.id:lower() == key then
+                local found = false
+                for i, c in ipairs(vehicle.clutter) do
+                    if c.handle and c.handle:valid() and c.handle:getObject() == e.reference then
+                        log:debug("reference updated %s", e.reference.object.id)
+                        -- c.position = e.reference.position
+                        -- c.orientation = e.reference.orientation:copy()
+                        found = true
+                        return
+                    end
+                end
+
+                if not found then
+                    log:debug("reference activated %s", e.reference.object.id)
+                    registerStatic(e.reference)
+                    return
+                end
+            end
+        end
+    end
+end
 
 --- @param e cellChangedEventData
 local function cellChangedCallback(e)
@@ -59,8 +147,9 @@ end
 --- Disable tooltips while in travel
 --- @param e uiObjectTooltipEventData
 local function uiObjectTooltipCallback(e)
-    e.tooltip.visible = false
-    return false
+    -- TODO
+    -- e.tooltip.visible = false
+    -- return false
 end
 
 -- prevent saving while travelling
@@ -96,7 +185,6 @@ local function uiShowRestMenuCallback(e)
                         iterations = 1,
                         duration = 1,
                         callback = (function()
-                            tes3.fadeOut({ duration = 1 })
                             -- teleport to last marker
                             local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle
                             if vehicle then
@@ -113,20 +201,14 @@ local function uiShowRestMenuCallback(e)
                                 -- this pushes the AI statemachine
                                 vehicle.routeId = nil
 
-                                timer.start({
-                                    type = timer.simulate,
-                                    duration = 1,
-                                    callback = (function()
-                                        tes3.fadeIn()
+                                tes3.fadeIn()
 
-                                        lib.teleportToClosestMarker()
+                                lib.teleportToClosestMarker()
 
-                                        vehicle:EndPlayerTravel()
+                                vehicle:EndPlayerTravel()
 
-                                        vehicle:Delete()
-                                        GPlayerVehicleManager.getInstance().trackedVehicle = nil
-                                    end)
-                                })
+                                vehicle:Delete()
+                                GPlayerVehicleManager.getInstance().trackedVehicle = nil
                             end
                         end)
                     })
@@ -185,7 +267,7 @@ local function activateCallback(e)
                     text = "Yes",
                     callback = function()
                         GPlayerVehicleManager.getInstance().free_movement = false
-                        lib.log:debug("register player")
+                        log:debug("register player")
                         tes3.player.facing = vehicle.referenceHandle:getObject().facing
                         vehicle:registerRefInRandomSlot(tes3.makeSafeObjectHandle(tes3.player))
                     end
@@ -195,7 +277,8 @@ local function activateCallback(e)
         }
     end
 
-    return false
+    -- TODO
+    -- return false
 end
 
 --#endregion
@@ -217,6 +300,9 @@ function PlayerTravelState:enter(scriptedObject)
     event.register(tes3.event.activate, activateCallback)
     event.register(tes3.event.keyDown, keyDownCallback)
     event.register(tes3.event.uiShowRestMenu, uiShowRestMenuCallback)
+    event.register(tes3.event.itemDropped, itemDroppedCallback)
+    event.register(tes3.event.referenceActivated, referenceActivatedCallback)
+    event.register("CraftingFramework:EndPlacement", CFEndPlacementCallback)
 end
 
 function PlayerTravelState:update(dt, scriptedObject)
@@ -269,6 +355,9 @@ function PlayerTravelState:exit(scriptedObject)
     event.unregister(tes3.event.activate, activateCallback)
     event.unregister(tes3.event.keyDown, keyDownCallback)
     event.unregister(tes3.event.uiShowRestMenu, uiShowRestMenuCallback)
+    event.unregister(tes3.event.itemDropped, itemDroppedCallback)
+    event.unregister(tes3.event.referenceActivated, referenceActivatedCallback)
+    event.unregister("CraftingFramework:EndPlacement", CFEndPlacementCallback)
 end
 
 return PlayerTravelState
