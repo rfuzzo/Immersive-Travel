@@ -72,6 +72,21 @@ local function itemDroppedCallback(e)
 end
 
 
+local function CFStartPlacementCallback(e)
+    -- disable position and orientation updates for the reference
+
+    local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle;
+    if not vehicle then return end
+
+    for i, slot in ipairs(vehicle.clutter) do
+        if slot.handle and slot.handle:valid() and slot.handle:getObject() == e.reference then
+            slot.disableUpdates = true
+            log:debug("CFStartPlacementCallback disabled %s", slot.id)
+            break
+        end
+    end
+end
+
 local function CFEndPlacementCallback(e)
     local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle;
     if not vehicle then return end
@@ -83,6 +98,8 @@ local function CFEndPlacementCallback(e)
         if slot.handle and slot.handle:valid() and slot.handle:getObject() == e.reference then
             slot.position = rootBone.worldTransform:invert() * e.reference.position
             slot.orientation = lib.toLocalOrientationDeg(e.reference.orientation, rootBone.worldTransform)
+            slot.disableUpdates = false
+
             log:debug("CFEndPlacementCallback updated %s", slot.id)
             break
         end
@@ -99,8 +116,8 @@ local function referenceActivatedCallback(e)
         for key, easel in pairs(config.easels) do
             if e.reference.object.id:lower() == key then
                 local found = false
-                for i, c in ipairs(vehicle.clutter) do
-                    if c.handle and c.handle:valid() and c.handle:getObject() == e.reference then
+                for i, slot in ipairs(vehicle.clutter) do
+                    if slot.handle and slot.handle:valid() and slot.handle:getObject() == e.reference then
                         log:debug("reference updated %s", e.reference.object.id)
                         -- c.position = e.reference.position
                         -- c.orientation = e.reference.orientation:copy()
@@ -294,6 +311,7 @@ function PlayerTravelState:enter(scriptedObject)
     event.register(tes3.event.itemDropped, itemDroppedCallback)
     event.register(tes3.event.referenceActivated, referenceActivatedCallback)
     event.register("CraftingFramework:EndPlacement", CFEndPlacementCallback)
+    event.register("CraftingFramework:StartPlacement", CFStartPlacementCallback)
 end
 
 function PlayerTravelState:update(dt, scriptedObject)
@@ -349,6 +367,7 @@ function PlayerTravelState:exit(scriptedObject)
     event.unregister(tes3.event.itemDropped, itemDroppedCallback)
     event.unregister(tes3.event.referenceActivated, referenceActivatedCallback)
     event.unregister("CraftingFramework:EndPlacement", CFEndPlacementCallback)
+    event.unregister("CraftingFramework:StartPlacement", CFStartPlacementCallback)
 end
 
 return PlayerTravelState

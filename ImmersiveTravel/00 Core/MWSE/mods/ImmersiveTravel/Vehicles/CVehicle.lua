@@ -22,6 +22,7 @@ local log                   = lib.log
 ---@field mesh string? reference id
 ---@field handle mwseSafeObjectHandle?
 ---@field isTemporary boolean?
+---@field disableUpdates boolean?
 
 ---@class UserData
 ---@diagnostic disable-next-line: undefined-doc-name
@@ -595,17 +596,21 @@ function CVehicle:UpdateSlots(dt)
             log:debug("New clutter count %s", #self.clutter)
         end
 
-        for index, clutter in ipairs(self.clutter) do
-            if clutter.handle == nil then
+        for index, slot in ipairs(self.clutter) do
+            if slot.handle == nil then
                 log:debug("UpdateSlots %s: clutter handle is nil", self:Id())
             end
 
-            if clutter.handle and clutter.handle:valid() then
-                clutter.handle:getObject().position = rootBone.worldTransform *
-                    self:getSlotTransform(clutter.position, boneOffset)
-                if clutter.orientation then
-                    clutter.handle:getObject().orientation =
-                        lib.toWorldOrientation(lib.radvec(clutter.orientation), mount.orientation)
+            if slot.disableUpdates then
+                -- do nothing
+            else
+                if slot.handle and slot.handle:valid() then
+                    slot.handle:getObject().position = rootBone.worldTransform *
+                        self:getSlotTransform(slot.position, boneOffset)
+                    if slot.orientation then
+                        slot.handle:getObject().orientation =
+                            lib.toWorldOrientation(lib.radvec(slot.orientation), mount.orientation)
+                    end
                 end
             end
         end
