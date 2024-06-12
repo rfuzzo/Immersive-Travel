@@ -31,6 +31,8 @@ end
 
 --#region events
 
+
+
 --- @param reference tes3reference
 ---@return Clutter?
 local function registerStatic(reference)
@@ -40,26 +42,24 @@ local function registerStatic(reference)
     end
 
     local rootBone = vehicle:GetRootBone()
-    if rootBone then
-        local relativePos         = rootBone.worldTransform:invert() * reference.position
-        local relativeOrientation = reference.orientation
-        ---@type Clutter
-        local static              = {
-            position    = relativePos,
-            orientation = relativeOrientation,
-            id          = reference.object.id,
-            isTemporary = true,
-            handle      = tes3.makeSafeObjectHandle(reference)
-        }
-
-        -- add to clutter
-        table.insert(vehicle.clutter, static)
-        log:debug("registered %s in slot %s", static.id, #vehicle.clutter)
-
-        return static
+    if not rootBone then
+        return nil
     end
 
-    return nil
+    ---@type Clutter
+    local static = {
+        position    = rootBone.worldTransform:invert() * reference.position,
+        orientation = lib.toLocalOrientationDeg(reference.orientation, rootBone.worldTransform),
+        id          = reference.object.id,
+        isTemporary = true,
+        handle      = tes3.makeSafeObjectHandle(reference)
+    }
+
+    -- add to clutter
+    table.insert(vehicle.clutter, static)
+    log:debug("registered %s in slot %s", static.id, #vehicle.clutter)
+
+    return static
 end
 
 --- @param e itemDroppedEventData
@@ -72,16 +72,18 @@ local function itemDroppedCallback(e)
 end
 
 
--- TODO doesn't work anymore
 local function CFEndPlacementCallback(e)
     local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle;
     if not vehicle then return end
 
-    for i, value in ipairs(vehicle.clutter) do
-        if value.handle and value.handle:valid() and value.handle:getObject() == e.reference then
-            value.position = e.reference.position
-            value.orientation = e.reference.orientation:copy()
-            log:debug("CFEndPlacementCallback updated %s", value.id)
+    local rootBone = vehicle:GetRootBone()
+    if not rootBone then return end
+
+    for i, slot in ipairs(vehicle.clutter) do
+        if slot.handle and slot.handle:valid() and slot.handle:getObject() == e.reference then
+            slot.position = rootBone.worldTransform:invert() * e.reference.position
+            slot.orientation = lib.toLocalOrientationDeg(e.reference.orientation, rootBone.worldTransform)
+            log:debug("CFEndPlacementCallback updated %s", slot.id)
             break
         end
     end
@@ -144,13 +146,6 @@ local function forcedPacifism(e)
     return false
 end
 
---- Disable tooltips while in travel
---- @param e uiObjectTooltipEventData
-local function uiObjectTooltipCallback(e)
-    -- TODO
-    -- e.tooltip.visible = false
-    -- return false
-end
 
 -- prevent saving while travelling
 --- @param e saveEventData
@@ -250,13 +245,14 @@ local function keyDownCallback(e)
     end
 end
 
---- Disable all activate while in travel
+--- Override activate while in travel
 --- @param e activateEventData
 local function activateCallback(e)
     if (e.activator ~= tes3.player) then return end
     local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle
     if not vehicle then return end
 
+    -- activate the guide
     if e.target.id == vehicle.guideSlot.handle:getObject().id and
         GPlayerVehicleManager.getInstance().free_movement then
         -- register player in slot
@@ -276,9 +272,6 @@ local function activateCallback(e)
             cancels = true
         }
     end
-
-    -- TODO
-    -- return false
 end
 
 --#endregion
@@ -292,11 +285,9 @@ function PlayerTravelState:enter(scriptedObject)
     event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
     event.register(tes3.event.damage, damageInvincibilityGate)
     event.register(tes3.event.combatStart, forcedPacifism)
-    event.register(tes3.event.uiObjectTooltip, uiObjectTooltipCallback)
     event.register(tes3.event.save, saveCallback)
     event.register(tes3.event.preventRest, preventRestCallback)
     event.register(tes3.event.cellChanged, cellChangedCallback)
-
     event.register(tes3.event.activate, activateCallback)
     event.register(tes3.event.keyDown, keyDownCallback)
     event.register(tes3.event.uiShowRestMenu, uiShowRestMenuCallback)
@@ -348,7 +339,7 @@ function PlayerTravelState:exit(scriptedObject)
     event.unregister(tes3.event.mouseWheel, lib.mouseWheelCallback)
     event.unregister(tes3.event.damage, damageInvincibilityGate)
     event.unregister(tes3.event.combatStart, forcedPacifism)
-    event.unregister(tes3.event.uiObjectTooltip, uiObjectTooltipCallback)
+    -- event.unregister(tes3.event.uiObjectTooltip, uiObjectTooltipCallback)
     event.unregister(tes3.event.save, saveCallback)
     event.unregister(tes3.event.preventRest, preventRestCallback)
     event.unregister(tes3.event.cellChanged, cellChangedCallback)

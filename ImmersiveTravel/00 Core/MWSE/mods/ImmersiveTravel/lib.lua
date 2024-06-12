@@ -52,6 +52,34 @@ function this.radvec(pos)
     return tes3vector3.new(math.rad(pos.x), math.rad(pos.y), math.rad(pos.z))
 end
 
+--- @param orientation tes3vector3
+--- @param transform tes3transform
+---@return tes3vector3
+function this.toLocalOrientation(orientation, transform)
+    local m = tes3matrix33.new()
+    m:fromEulerXYZ(orientation.x, orientation.y, orientation.z)
+    local t = transform.rotation:invert() * m
+    local localOrientation = t:toEulerXYZ()
+    return localOrientation
+end
+
+---@param orientation tes3vector3
+---@return tes3vector3
+function this.deg(orientation)
+    return tes3vector3.new(
+        math.deg(orientation.x),
+        math.deg(orientation.y),
+        math.deg(orientation.z)
+    )
+end
+
+--- @param orientation tes3vector3
+--- @param transform tes3transform
+---@return tes3vector3
+function this.toLocalOrientationDeg(orientation, transform)
+    return this.deg(this.toLocalOrientation(orientation, transform))
+end
+
 -- Translate local orientation around a base-centered coordinate system to world orientation
 ---@param localOrientation tes3vector3
 ---@param baseOrientation tes3vector3

@@ -17,7 +17,7 @@ local log                   = lib.log
 
 ---@class Clutter
 ---@field position tes3vector3 slot
----@field orientation tes3vector3? slot
+---@field orientation tes3vector3? orientation in degrees
 ---@field id string? reference id
 ---@field mesh string? reference id
 ---@field handle mwseSafeObjectHandle?
