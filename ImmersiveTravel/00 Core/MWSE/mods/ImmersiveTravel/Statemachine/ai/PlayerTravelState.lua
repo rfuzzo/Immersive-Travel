@@ -345,13 +345,14 @@ function PlayerTravelState:update(dt, scriptedObject)
     end
 
     -- handle player leaving vehicle
-    if not vehicle:isPlayerInMountBounds() then
+    if self.playerRegistered and not vehicle:isPlayerInMountBounds() then
+        tes3.messageBox("You have left the vehicle")
         self.playerRegistered = false
     end
 end
 
 function PlayerTravelState:exit(scriptedObject)
-    local vehicle = scriptedObject ---@cast vehicle CVehicle
+    GPlayerVehicleManager.getInstance().trackedVehicle = nil
 
     -- unregister events
     event.unregister(tes3.event.mouseWheel, lib.mouseWheelCallback)

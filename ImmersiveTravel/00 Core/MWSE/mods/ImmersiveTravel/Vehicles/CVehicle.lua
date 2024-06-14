@@ -579,12 +579,14 @@ function CVehicle:UpdateSlots(dt)
         for index, value in ipairs(self.clutter) do
             if value.isTemporary then
                 if not value.handle then
-                    -- remove
                     table.insert(toremove, index)
                     log:debug("UpdateSlots clutter handle %s is nil", index)
                 elseif not value.handle:valid() then
                     table.insert(toremove, index)
                     log:debug("UpdateSlots clutter handle %s is invalid", index)
+                elseif value.handle:getObject().position:distance(mount.position) > 1024 then
+                    table.insert(toremove, index)
+                    log:debug("UpdateSlots clutter handle %s is too far away", index)
                 end
             end
         end
@@ -596,6 +598,7 @@ function CVehicle:UpdateSlots(dt)
             log:debug("New clutter count %s", #self.clutter)
         end
 
+        -- update positions and orientations
         for index, slot in ipairs(self.clutter) do
             if slot.handle == nil then
                 log:debug("UpdateSlots %s: clutter handle is nil", self:Id())

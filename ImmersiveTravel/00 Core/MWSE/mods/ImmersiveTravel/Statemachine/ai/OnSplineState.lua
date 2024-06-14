@@ -37,12 +37,19 @@ function OnSplineState:update(dt, scriptedObject)
         -- reached end of route
         vehicle.routeId = nil
     end
+
+    -- handle player entering vehicle
+    if not self.playerRegistered and vehicle:isPlayerInMountBounds() then
+        tes3.messageBox("You have entered the vehicle")
+        self.playerRegistered = true
+    end
 end
 
 function OnSplineState:exit(scriptedObject)
-    -- local vehicle = scriptedObject ---@cast vehicle CVehicle
-    -- vehicle:Delete()
-    scriptedObject.markForDelete = true
+    -- delete vehicle if player not registered
+    if not self.playerRegistered then
+        scriptedObject.markForDelete = true
+    end
 end
 
 return OnSplineState
