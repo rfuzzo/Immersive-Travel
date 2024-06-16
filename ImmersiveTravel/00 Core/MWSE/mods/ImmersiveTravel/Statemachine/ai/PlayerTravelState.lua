@@ -345,9 +345,10 @@ function PlayerTravelState:update(dt, scriptedObject)
     end
 
     -- handle player leaving vehicle
-    if self.playerRegistered and not vehicle:isPlayerInMountBounds() then
+    if vehicle.playerRegistered and not vehicle:isPlayerInMountBounds() then
         tes3.messageBox("You have left the vehicle")
-        self.playerRegistered = false
+        log:debug("player left vehicle")
+        vehicle.playerRegistered = false
     end
 end
 

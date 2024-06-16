@@ -1,5 +1,7 @@
 local CAiState       = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local GRoutesManager = require("ImmersiveTravel.GRoutesManager")
+local lib            = require("ImmersiveTravel.lib")
+local log            = lib.log
 
 -- on spline state class
 ---@class OnSplineState : CAiState
@@ -39,15 +41,17 @@ function OnSplineState:update(dt, scriptedObject)
     end
 
     -- handle player entering vehicle
-    if not self.playerRegistered and vehicle:isPlayerInMountBounds() then
+    if not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() then
         tes3.messageBox("You have entered the vehicle")
-        self.playerRegistered = true
+        log:debug("Player entered vehicle")
+        vehicle.playerRegistered = true
     end
 end
 
 function OnSplineState:exit(scriptedObject)
     -- delete vehicle if player not registered
-    if not self.playerRegistered then
+    local vehicle = scriptedObject ---@cast vehicle CVehicle
+    if not vehicle.playerRegistered then
         scriptedObject.markForDelete = true
     end
 end

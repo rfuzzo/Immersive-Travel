@@ -393,6 +393,11 @@ function CVehicle:isPlayerInMountBounds()
         return false
     end
 
+    local rootBone = self:GetRootBone()
+    if not rootBone then
+        return false
+    end
+
     local mount = self.referenceHandle:getObject()
     local bbox = mount.object.boundingBox
 
@@ -401,20 +406,14 @@ function CVehicle:isPlayerInMountBounds()
     end
 
     local inside = true
-    local volumeHeight = 200
 
+    -- check if inside bounding box
+    -- bounding box is relative to the sceneNode
     local pos = tes3.player.position
-    local surfaceOffset = self.slots[1].position.z
-    local mountSurface = mount.position + tes3vector3.new(0, 0, surfaceOffset)
+    local transform = rootBone.worldTransform
+    local localPos = transform:invert() * pos
 
-    if pos.z < (mountSurface.z - volumeHeight) then inside = false end
-    if pos.z > (mountSurface.z + volumeHeight) then inside = false end
-
-    local max_xy_d = tes3vector3.new(bbox.max.x, bbox.max.y, 0):length()
-    local min_xy_d = tes3vector3.new(bbox.min.x, bbox.min.y, 0):length()
-    local dist = mountSurface:distance(pos)
-    local r = math.max(min_xy_d, max_xy_d) + 50
-    if dist > r then
+    if localPos.x < bbox.min.x or localPos.x > bbox.max.x then
         inside = false
     end
 
