@@ -415,6 +415,121 @@ function this.teleportToClosestMarker()
     end
 end
 
+--- checks if a position is inside the active cells
+---@param position tes3vector3
+---@return boolean
+local function isPointLoaded(position)
+    local is_loaded = false
+
+    -- check if cell is in cells
+    for _, cell in ipairs(tes3.getActiveCells()) do
+        if cell:isPointInCell(position.x, position.y) then
+            is_loaded = true
+            break
+        end
+    end
+
+    return is_loaded
+end
+
+---@param vehicle CVehicle
+---@return boolean
+function this.IsColliding(vehicle)
+    local mountHandle = vehicle.referenceHandle
+    if not mountHandle then
+        return false
+    end
+
+    if not mountHandle:valid() then
+        return false
+    end
+
+    if not isPointLoaded(mountHandle:getObject().position) then
+        return false
+    end
+
+    -- raytest at sealevel to detect shore transition
+    local box = mountHandle:getObject().object.boundingBox
+    local max = box.max * vehicle.scale
+    local min = box.min * vehicle.scale
+    local t = mountHandle:getObject().sceneNode.worldTransform
+
+    if vehicle.current_speed > 0 then
+        -- detect shore
+        if vehicle.freedomtype == "boat" then
+            local bowPos = t * tes3vector3.new(0, max.y, min.z + (vehicle.offset * vehicle.scale))
+            if not isPointLoaded(bowPos) then
+                return false
+            end
+
+            local hitResult1 = tes3.rayTest({
+                position = bowPos,
+                direction = tes3vector3.new(0, 0, -1),
+                root = tes3.game.worldLandscapeRoot,
+                --maxDistance = 4096
+            })
+            if (hitResult1 == nil) then
+                this.log:debug("[%s] HIT Shore Fwd", vehicle:Id())
+                return true
+            end
+        end
+
+        -- raytest from above to detect objects in water
+        local bowPosTop = t * tes3vector3.new(0, max.y, max.z)
+        if not isPointLoaded(bowPosTop) then
+            return false
+        end
+
+        local hitResult2 = tes3.rayTest({
+            position = bowPosTop,
+            direction = tes3vector3.new(0, 0, -1),
+            root = tes3.game.worldObjectRoot,
+            ignore = { mountHandle:getObject() },
+            maxDistance = max.z * vehicle.scale
+        })
+        if (hitResult2 ~= nil) then
+            return true
+        end
+    elseif vehicle.current_speed < 0 then
+        -- detect shore
+        if vehicle.freedomtype == "boat" then
+            local sternPos = t * tes3vector3.new(0, min.y, min.z + (vehicle.offset * vehicle.scale))
+            if not isPointLoaded(sternPos) then
+                return false
+            end
+
+            local hitResult1 = tes3.rayTest({
+                position = sternPos,
+                direction = tes3vector3.new(0, 0, -1),
+                root = tes3.game.worldLandscapeRoot,
+                --maxDistance = 4096
+            })
+            if (hitResult1 == nil) then
+                return true
+            end
+        end
+
+        -- raytest from above to detect objects in water
+        local sternPosTop = t * tes3vector3.new(0, min.y, max.z)
+        if not isPointLoaded(sternPosTop) then
+            return false
+        end
+
+        local hitResult2 = tes3.rayTest({
+            position = sternPosTop,
+            direction = tes3vector3.new(0, 0, -1),
+            root = tes3.game.worldObjectRoot,
+            ignore = { mountHandle:getObject() },
+            maxDistance = max.z
+        })
+        if (hitResult2 ~= nil) then
+            return true
+        end
+    end
+
+    return false
+end
+
 --#endregion
 
 --#region io
@@ -494,6 +609,8 @@ end
 ---@return table<string,ServiceData>|nil
 function this.loadServices()
     this.log:debug("Loading travel services...")
+
+    -- TODO make mcm menu for it
 
     ---@type table<string,ServiceData>|nil
     local services = {}

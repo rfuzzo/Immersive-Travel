@@ -101,6 +101,7 @@ function CVehicle:new()
     newObj.current_speed = 0
     newObj.speedChange = 0
     newObj.playerRegistered = false
+    newObj.scale = 1
 
     return newObj
 end
@@ -405,16 +406,19 @@ function CVehicle:isPlayerInMountBounds()
         return false
     end
 
-    local inside = true
+    local inside = false
 
-    -- check if inside bounding box
+
     -- bounding box is relative to the sceneNode
     local pos = tes3.player.position
     local transform = rootBone.worldTransform
     local localPos = transform:invert() * pos
 
-    if localPos.x < bbox.min.x or localPos.x > bbox.max.x then
-        inside = false
+    -- check if inside bounding box
+    if localPos.x > bbox.min.x and localPos.x < bbox.max.x and
+        localPos.y > bbox.min.y and localPos.y < bbox.max.y and
+        localPos.z > bbox.min.z and localPos.z < bbox.max.z then
+        inside = true
     end
 
     return inside
@@ -438,15 +442,17 @@ end
 -- Define the CVehicle class inheriting from CTickingEntity
 ---@param dt number
 function CVehicle:OnTick(dt)
-    -- Call the superclass onTick method
+    -- save relative player position before the onTick step where the boat moves
     local rootBone = self:GetRootBone()
-    if rootBone and self:isPlayerInMountBounds() then
+    if rootBone and self.playerRegistered then
         tes3.player.tempData.itpsl = rootBone.worldTransform:invert() * tes3.player.position
     end
 
+    -- Call the superclass onTick method
     CTickingEntity.OnTick(self, dt)
 
-    if rootBone and self:isPlayerInMountBounds() then
+    -- position the player
+    if self.playerRegistered then
         self:UpdatePlayerCollision(rootBone)
     end
 end

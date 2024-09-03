@@ -3,6 +3,7 @@ local lib              = require("ImmersiveTravel.lib")
 local GTrackingManager = require("ImmersiveTravel.GTrackingManager")
 local GRoutesManager   = require("ImmersiveTravel.GRoutesManager")
 local CAiState         = require("ImmersiveTravel.Statemachine.ai.CAiState")
+local worldConfig      = require("ImmersiveTravelAddonWorld.config")
 
 -- Abstract locomotion state machine class
 ---@class CLocomotionState : CAbstractState
@@ -11,10 +12,9 @@ local CLocomotionState = {
 }
 setmetatable(CLocomotionState, { __index = CAbstractState })
 
-local ENABLE_EVADE          = true
-local EVADE_RADIUS          = 1024 * 4
--- 45/60 degrees in radians
-local EVADE_ANGLE           = 0.785 --1.0472
+local EVADE_RADIUS          = 1024 * 3
+local EVADE_FORWARD_OFFSET  = 0.1
+local EVADE_TURN_MULT       = 2
 
 --#region methods
 
@@ -58,7 +58,7 @@ local function toIdleState(ctx)
         return false
     end
 
-    return vehicle.current_speed < 0.5 and vehicle.current_speed > -0.5
+    return vehicle.current_speed > -0.5 and vehicle.current_speed < 0.5
 end
 
 --- transition to accelerate state
@@ -150,98 +150,71 @@ end
 
 --#region methods
 
----comment
----@param origin tes3vector3
----@param forwardVector tes3vector3
----@param target tes3vector3
----@param coneRadius number
----@param coneAngle number
----@return boolean
-local function isPointInCone(origin, forwardVector, target, coneRadius,
-                             coneAngle)
-    -- Calculate the vector from the origin to the target point
-    local toTarget = tes3vector3.new(target.x, target.y, 0) - tes3vector3.new(origin.x, origin.y, 0)
-
-    -- Calculate the cosine of the angle between the forward vector and the vector to the target
-    local forwardVector2 = tes3vector3.new(forwardVector.x, forwardVector.y, 0)
-    local dotProduct = forwardVector2:dot(toTarget)
-
-    -- Calculate the magnitudes of both vectors
-    local forwardMagnitude = forwardVector2:length()
-    local toTargetMagnitude = toTarget:length()
-
-    -- Calculate the cosine of the angle between the vectors
-    local cosAngle = dotProduct / (forwardMagnitude * toTargetMagnitude)
-
-    -- Calculate the angle in radians
-    local angleInRadians = math.acos(cosAngle)
-
-    -- Check if the angle is less than or equal to half of the cone angle and the distance is within the cone radius
-    if angleInRadians <= coneAngle / 2 and toTargetMagnitude <= coneRadius then
-        return true
-    else
-        return false
-    end
-end
-
----@param referenceVector tes3vector3
----@param targetVector tes3vector3
----@return boolean
-local function isVectorRight(referenceVector, targetVector)
-    local crossProduct =
-        referenceVector.x * targetVector.y - referenceVector.y * targetVector.x
-
-    if crossProduct > 0 then
-        return true  -- "right"
-    elseif crossProduct < 0 then
-        return false -- "left"
-    else
-        return false --- "collinear"  -- The vectors are collinear
-    end
-end
-
 ---@param vehicle CVehicle
 ---@param nextPos tes3vector3
 ---@return tes3vector3, number, number
 local function CalculatePositions(vehicle, nextPos)
-    local mount = vehicle.referenceHandle:getObject()
+    local mount         = vehicle.referenceHandle:getObject()
 
-    local mountOffset = tes3vector3.new(0, 0, vehicle.offset)
-    local currentPos = vehicle.last_position - mountOffset
+    local mountOffset   = tes3vector3.new(0, 0, vehicle.offset)
+    local currentPos    = vehicle.last_position - mountOffset
 
     -- change position when about to collide
-    local virtualpos = nextPos
+    local virtualpos    = nextPos
+    local current_speed = vehicle.current_speed
+    local turnspeed     = vehicle.turnspeed
 
     -- only in onspline AI states
     -- evade
-    local rootBone = vehicle:GetRootBone()
-    if ENABLE_EVADE and rootBone and vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
-        local evade_right = false
-        local collision = false
+    local rootBone      = vehicle:GetRootBone()
+    local enableEvade   = worldConfig and worldConfig.enableEvade
+    if enableEvade and rootBone and vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
+        local result = nil
+        local is_evading = false;
+
         -- get tracked objects
-        for index, value in pairs(GTrackingManager.getInstance().trackingList) do
-            ---@cast value CVehicle
-            if value ~= vehicle and currentPos:distance(value.last_position) < 8192 then
-                local check = isPointInCone(currentPos, vehicle.last_forwardDirection, value.last_position, EVADE_RADIUS,
-                    EVADE_ANGLE)
-                if check then
-                    collision = true
-                    evade_right = isVectorRight(rootBone.worldTransform * vehicle.last_forwardDirection,
-                        rootBone.worldTransform * (value.last_position - currentPos))
-                    break
+        for _, other_vehicle in pairs(GTrackingManager.getInstance().trackingList) do
+            ---@cast other_vehicle CVehicle
+            if other_vehicle ~= vehicle and currentPos:distance(other_vehicle.last_position) < 8192 then
+                -- if any vehicle is too close, evade
+                if currentPos:distance(other_vehicle.last_position) < EVADE_RADIUS then
+                    local local_distance = rootBone.worldTransform:invert() * (other_vehicle.last_position - currentPos)
+                    local_distance.z = 0
+                    local_distance:normalize()
+
+                    -- check if other vehicle is in front of this vehicle
+                    if local_distance.y > 0 then
+                        if local_distance.x > EVADE_FORWARD_OFFSET then
+                            -- result is the local distance vector rotated by 90 degrees to the left around the z axis
+                            result = tes3vector3.new(-local_distance.y, local_distance.x, 0)
+                        else
+                            -- result is the local distance vector rotated by 90 degrees to the right around the z axis
+                            result = tes3vector3.new(local_distance.y, -local_distance.x, 0)
+                        end
+
+                        result:normalize()
+                        result = result * 1024
+
+                        break
+                    end
+
+                    is_evading = true
                 end
             end
         end
+
         -- evade
-        if collision then
+        if is_evading then
+            -- increase the angle speed during maneuvres
+            turnspeed = turnspeed * EVADE_TURN_MULT
+        end
+
+        if result then
+            -- -- lower the speed
+            -- current_speed = current_speed * EVADE_SPEED_MULT
             -- override the next position temporarily
-            if evade_right then
-                -- evade to the right
-                virtualpos = rootBone.worldTransform * tes3vector3.new(1204, 1024, nextPos.z)
-            else
-                -- evade to the left
-                virtualpos = rootBone.worldTransform * tes3vector3.new(-1204, 1024, nextPos.z)
-            end
+            virtualpos = rootBone.worldTransform * result
+            virtualpos.z = currentPos.z
         end
     end
 
@@ -249,9 +222,9 @@ local function CalculatePositions(vehicle, nextPos)
     local forwardDirection = vehicle.last_forwardDirection
     forwardDirection:normalize()
     local d = (virtualpos - currentPos):normalized()
-    local lerp = forwardDirection:lerp(d, vehicle.turnspeed / 10):normalized()
+    local lerp = forwardDirection:lerp(d, turnspeed / 10):normalized()
     local forward = tes3vector3.new(mount.forwardDirection.x, mount.forwardDirection.y, lerp.z):normalized()
-    local delta = forward * vehicle.current_speed
+    local delta = forward * current_speed
     local position = currentPos + delta + mountOffset
 
     -- calculate facing
@@ -262,7 +235,7 @@ local function CalculatePositions(vehicle, nextPos)
     local diff = new_facing - current_facing
     if diff < -math.pi then diff = diff + 2 * math.pi end
     if diff > math.pi then diff = diff - 2 * math.pi end
-    local angle = vehicle.turnspeed / 10000
+    local angle = turnspeed / 10000
     if diff > 0 and diff > angle then
         facing = current_facing + angle
         turn = 1
@@ -391,11 +364,12 @@ local function Move(vehicle, dt)
         end
     end
 
+    -- move
     local position, facing, turn = CalculatePositions(vehicle, nextPos)
 
     -- move the reference
-    local skipMove = false
-    -- TODO skip move
+    --- local skipMove = false
+    -- TODO skip move when in unloaded cell
     -- if vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
     --     local behind = lib.isPointBehindObject(position, tes3.player.position, tes3.player.forwardDirection)
     --     if behind then
@@ -405,24 +379,24 @@ local function Move(vehicle, dt)
 
     local mount = vehicle.referenceHandle:getObject()
 
-    if not skipMove then
-        mount.facing = facing
-        mount.position = position
-    end
+    --if not skipMove then
+    mount.facing = facing
+    mount.position = position
+    --end
 
     -- save positions
-    vehicle.last_position = mount.position
-    vehicle.last_forwardDirection = mount.forwardDirection
-    vehicle.last_facing = mount.facing
+    vehicle.last_position = position
+    vehicle.last_facing = facing
+    vehicle.last_forwardDirection = mount.forwardDirection -- TODO calculate this
 
-    if not skipMove then
-        -- sway
-        mount.orientation = calculateOrientation(vehicle, dt, turn)
-        -- update slots
-        vehicle:UpdateSlots(dt)
-    else
-        -- TODO unregister slots
-    end
+    ---if not skipMove then
+    -- sway
+    mount.orientation = calculateOrientation(vehicle, dt, turn)
+    -- update slots
+    vehicle:UpdateSlots(dt)
+    --else
+    -- TODO unregister slots
+    --end
 end
 
 --#endregion

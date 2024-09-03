@@ -10,6 +10,7 @@
 ---@field spawnRadius number
 ---@field cullRadius number
 ---@field budget number
+---@field enableEvade boolean
 local defaultConfig = {
     mod = "Immersive Travel World Addon",
     id = "ITWA",
@@ -23,7 +24,8 @@ local defaultConfig = {
     spawnExlusionRadius = 2,
     spawnRadius = 3,
     cullRadius = 4,
-    budget = 100
+    budget = 100,
+    enableEvade = true,
 }
 
 return mwse.loadConfig("ImmersiveTravelAddonWorld", defaultConfig)

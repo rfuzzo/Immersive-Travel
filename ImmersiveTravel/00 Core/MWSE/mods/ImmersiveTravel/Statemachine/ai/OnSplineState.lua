@@ -35,15 +35,22 @@ function OnSplineState:update(dt, scriptedObject)
     if spline == nil then
         return
     end
+
+    if lib.IsColliding(vehicle) then
+        log:debug("[%s] Collision", vehicle:Id())
+        vehicle.current_speed = 0 -- this pops idle state
+    end
+
+    -- reached end of route
     if vehicle.splineIndex > #spline then
-        -- reached end of route
-        vehicle.routeId = nil
+        -- TODO dock in port
+        vehicle.routeId = nil -- this pops the statemachine
     end
 
     -- handle player entering vehicle
     if not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() then
         tes3.messageBox("You have entered the vehicle")
-        log:debug("Player entered vehicle")
+        log:debug("[%s] Player entered the vehicle", vehicle:Id())
         vehicle.playerRegistered = true
     end
 end

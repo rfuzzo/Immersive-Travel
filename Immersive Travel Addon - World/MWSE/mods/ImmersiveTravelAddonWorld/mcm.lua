@@ -107,6 +107,15 @@ local function registerModConfig()
         }
     })
 
+    generalCategory:createOnOffButton({
+        label = "Enable Evasion",
+        description = "Enable evasion mechanics.",
+        variable = mwse.mcm.createTableVariable {
+            id = "enableEvade",
+            table = config
+        }
+    })
+
     template:register()
 end
 
