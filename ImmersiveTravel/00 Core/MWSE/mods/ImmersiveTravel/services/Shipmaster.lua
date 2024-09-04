@@ -1,28 +1,29 @@
-{
-  "class": "Shipmaster",
-  "override_npc": [
+---@type ServiceData
+local this = {
+  class = "Shipmaster",
+  mount = "a_longboat",
+  override_npc = {
     "rindral dralor",
     "Daynas Darys"
-  ],
-  "mount": "a_longboat",
-  "override_mount": [
+  },
+  override_mount = {
     {
-      "id": "a_longboat",
-      "points": [
+      id = "a_longboat",
+      points = {
         "Vos",
         "Firewatch"
-      ]
+      }
     },
     {
-      "id": "a_longboat",
-      "points": [
+      id = "a_longboat",
+      points = {
         "Sadrith Mora",
         "Helnim"
-      ]
+      }
     },
     {
-      "id": "a_DE_ship",
-      "points": [
+      id = "a_DE_ship",
+      points = {
         "Vos",
         "Sadrith Mora",
         "Dagon Fel",
@@ -37,11 +38,11 @@
         "Old Ebonheart, Docks",
         "Andothren, Docks",
         "Almas Thirr"
-      ]
+      }
     }
-  ],
-  "ground_offset": 0,
-  "guide": [
+  },
+  ground_offset = 0,
+  guide = {
     "Nevosi Hlan",
     "talmeni drethan",
     "Daynas Darys",
@@ -58,5 +59,7 @@
     "roberto jodoin",
     "hallvaror",
     "nireli farys"
-  ]
+  }
 }
+
+return this

@@ -257,6 +257,7 @@ function CVehicle:StartPlayerTravel(guideId, routeId)
     tes3.player.position = mount.position
     self:registerRefInRandomSlot(tes3.makeSafeObjectHandle(tes3.player))
     tes3.player.facing = mount.facing
+    GPlayerVehicleManager.getInstance().free_movement = false
 
     -- register followers
     self:RegisterFollowers()
@@ -381,6 +382,17 @@ function CVehicle:isPlayerInGuideSlot()
     end
 
     return false
+end
+
+---@return tes3npc?
+function CVehicle:GetGuide()
+    if self.guideSlot.handle and self.guideSlot.handle:valid() then
+        local ref = self.guideSlot.handle:getObject().baseObject
+        local npc = ref ---@cast ref tes3npc
+        return npc
+    end
+
+    return nil
 end
 
 -- player is within the surface of the mount
@@ -691,11 +703,9 @@ end
 ---@param rootBone niNode?
 function CVehicle:UpdatePlayerCollision(rootBone)
     local isInTravelState = self.aiStateMachine.currentState.name == CAiState.PLAYERTRAVEL
-    local isInSteerState = self.aiStateMachine.currentState.name == CAiState.ONSPLINE
-    local playerCanFreeMove = isInSteerState or (isInTravelState and GPlayerVehicleManager.getInstance().free_movement)
 
     -- check if player is in freemovement mode
-    if self.hasFreeMovement and playerCanFreeMove and rootBone and tes3.player.tempData.itpsl then
+    if self.hasFreeMovement and GPlayerVehicleManager.getInstance().free_movement and isInTravelState and rootBone and tes3.player.tempData.itpsl then
         -- this is needed to enable collisions :todd:
         tes3.dataHandler:updateCollisionGroupsForActiveCells {}
         self.referenceHandle:getObject().sceneNode:update()

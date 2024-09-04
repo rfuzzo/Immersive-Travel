@@ -419,17 +419,14 @@ end
 ---@param position tes3vector3
 ---@return boolean
 local function isPointLoaded(position)
-    local is_loaded = false
-
     -- check if cell is in cells
     for _, cell in ipairs(tes3.getActiveCells()) do
         if cell:isPointInCell(position.x, position.y) then
-            is_loaded = true
-            break
+            return true
         end
     end
 
-    return is_loaded
+    return false
 end
 
 ---@param vehicle CVehicle
@@ -603,32 +600,6 @@ function this.loadSpline(start, destination, data)
             this.log:error("!!! failed to find any file: " .. fileName)
         end
     end
-end
-
---- Load all services
----@return table<string,ServiceData>|nil
-function this.loadServices()
-    this.log:debug("Loading travel services...")
-
-    -- TODO make mcm menu for it
-
-    ---@type table<string,ServiceData>|nil
-    local services = {}
-    for fileName in lfs.dir(fullmodpath .. "services") do
-        if (string.endswith(fileName, ".json")) then
-            -- parse
-            local fullpath = localmodpath .. "services\\" .. fileName
-            local r = json.loadfile(fullpath)
-            if r then
-                services[fileName:sub(0, -6)] = r
-
-                this.log:trace("Loaded " .. fullpath)
-            else
-                this.log:error("!!! failed to load " .. fileName)
-            end
-        end
-    end
-    return services
 end
 
 --- Load all route splines for a given service

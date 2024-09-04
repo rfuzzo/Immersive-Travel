@@ -75,7 +75,6 @@ local function onMenuDialog(e)
         end
 
         -- Return if no destinations
-        lib.loadRoutes(service)
         local destinations = service.routes[ref.cell.id]
         if destinations == nil then return end
         if #destinations == 0 then return end

@@ -1,3 +1,4 @@
+local interop       = require("ImmersiveTravel.interop")
 local lib           = require("ImmersiveTravel.lib")
 local log           = lib.log
 
@@ -35,7 +36,8 @@ end
 -- init manager
 --- @return boolean
 function RoutesManager:Init()
-    self.services = lib.loadServices()
+    -- init services
+    self.services = table.copy(interop.services)
     if not self.services then
         return false
     end

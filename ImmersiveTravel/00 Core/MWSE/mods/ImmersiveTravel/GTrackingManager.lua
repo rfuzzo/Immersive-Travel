@@ -120,6 +120,8 @@ end
 --- activate the entity
 ---@param reference tes3reference
 function TrackingManager:OnActivate(reference)
+    log:debug("TrackingManager:OnActivate %s", reference.id)
+
     if interop.isScriptedEntity(reference.id) then
         -- check if entity is already in tracking list
         if reference.tempData.scriptedEntityId then

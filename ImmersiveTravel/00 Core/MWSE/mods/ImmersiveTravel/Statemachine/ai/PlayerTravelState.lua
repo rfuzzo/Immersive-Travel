@@ -273,8 +273,9 @@ local function activateCallback(e)
     if e.target.id == vehicle.guideSlot.handle:getObject().id and
         GPlayerVehicleManager.getInstance().free_movement then
         -- register player in slot
+        local msg = string.format("This is a regular service on route '%s'. Do you want to sit down?", vehicle.routeId)
         tes3ui.showMessageMenu {
-            message = "Do you want to sit down?",
+            message = msg,
             buttons = {
                 {
                     text = "Yes",
@@ -293,10 +294,17 @@ end
 
 --#endregion
 
+---@param scriptedObject CTickingEntity
+function PlayerTravelState:OnActivate(scriptedObject)
+    local vehicle = scriptedObject ---@cast vehicle CVehicle
+
+    tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
+end
+
 function PlayerTravelState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
     GPlayerVehicleManager.getInstance().trackedVehicle = vehicle
-    GPlayerVehicleManager.getInstance().free_movement = false
+    GPlayerVehicleManager.getInstance().free_movement = true
 
     -- register travel events
     event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
@@ -345,9 +353,9 @@ function PlayerTravelState:update(dt, scriptedObject)
     end
 
     -- handle player leaving vehicle
-    if vehicle.playerRegistered and not vehicle:isPlayerInMountBounds() then
+    if vehicle.playerRegistered and not vehicle:isPlayerInMountBounds() and GPlayerVehicleManager.getInstance():IsPlayerTraveling() then
         tes3.messageBox("You have left the vehicle")
-        log:debug("player left vehicle")
+        log:debug("[%s] Player left the vehicle on route %s", vehicle:Id(), vehicle.routeId)
         vehicle.playerRegistered = false
     end
 end

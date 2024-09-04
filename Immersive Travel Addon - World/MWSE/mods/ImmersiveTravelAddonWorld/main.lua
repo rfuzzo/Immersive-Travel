@@ -190,6 +190,7 @@ local function cellChangedCallback(e)
 end
 event.register(tes3.event.cellChanged, cellChangedCallback)
 
+
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIG
 require("ImmersiveTravelAddonWorld.mcm")

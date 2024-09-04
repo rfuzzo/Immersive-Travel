@@ -1,12 +1,14 @@
-{
-  "class": "Caravaner",
-  "mount": "a_siltstrider",
-  "ground_offset": 1025,
-  "override_npc": [
+---@type ServiceData
+local this = {
+  class = "Caravaner",
+  mount = "a_siltstrider",
+  ground_offset = 1025,
+  override_npc = {
     "TR_m2_Valna Sippusoti",
-    "Valna Sippusoti"
-  ],
-  "guide": [
+    "Valna Sippusoti",
+    "Another NPC Name",
+  },
+  guide = {
     "punibi yahaz",
     "seldus nerendus",
     "dilami androm",
@@ -16,5 +18,7 @@
     "darvame hleran",
     "selvil sareloth",
     "Adondasi Sadalvel"
-  ]
+  }
 }
+
+return this

@@ -1,13 +1,32 @@
 local this = {}
 
+--#region services
+
+
+---@type table<string, ServiceData>
+this.services               = {}
+this.services["Shipmaster"] = require("ImmersiveTravel.Services.Shipmaster")
+--this.services["Caravaner"]  = require("ImmersiveTravel.Services.Caravaner")
+--this.services["Gondolier"]  = require("ImmersiveTravel.Services.Gondolier")
+
+-- insert to table
+---@param id string
+---@param serviceData ServiceData
+function this.insertService(id, serviceData)
+    this.services[id] = serviceData
+end
+
+--#endregion
+
+
 --#region vehicles
 
----@type table<string, string?>
-this.vehicles = {}
+---@type table<string, string>
+this.vehicles                  = {}
 this.vehicles["a_siltstrider"] = "CSiltStrider"
-this.vehicles["a_gondola_01"] = "CGondola"
-this.vehicles["a_longboat"] = "CLongboat"
-this.vehicles["a_DE_ship"] = "CShipDe"
+this.vehicles["a_gondola_01"]  = "CGondola"
+this.vehicles["a_longboat"]    = "CLongboat"
+this.vehicles["a_DE_ship"]     = "CShipDe"
 
 -- insert to table
 ---@param id string

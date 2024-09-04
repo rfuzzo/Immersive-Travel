@@ -34,4 +34,8 @@ function PlayerVehicleManager.getInstance()
     return instance
 end
 
+function PlayerVehicleManager:IsPlayerTraveling()
+    return self.trackedVehicle ~= nil
+end
+
 return PlayerVehicleManager

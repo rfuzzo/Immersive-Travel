@@ -1,11 +1,12 @@
-local CAiState       = require("ImmersiveTravel.Statemachine.ai.CAiState")
-local GRoutesManager = require("ImmersiveTravel.GRoutesManager")
-local lib            = require("ImmersiveTravel.lib")
-local log            = lib.log
+local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
+local GRoutesManager        = require("ImmersiveTravel.GRoutesManager")
+local GPlayerVehicleManager = require("ImmersiveTravel.GPlayerVehicleManager")
+local lib                   = require("ImmersiveTravel.lib")
+local log                   = lib.log
 
 -- on spline state class
 ---@class OnSplineState : CAiState
-local OnSplineState  = {
+local OnSplineState         = {
     name = CAiState.ONSPLINE,
     transitions = {
         [CAiState.NONE] = CAiState.ToNone,
@@ -25,7 +26,12 @@ function OnSplineState:new()
     return newObj
 end
 
-function OnSplineState:enter(scriptedObject)
+---@param scriptedObject CTickingEntity
+function OnSplineState:OnActivate(scriptedObject)
+    local vehicle = scriptedObject ---@cast vehicle CVehicle
+
+    -- get a message box with the vehicle id and the route id
+    tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
 end
 
 function OnSplineState:update(dt, scriptedObject)
@@ -38,28 +44,21 @@ function OnSplineState:update(dt, scriptedObject)
 
     if lib.IsColliding(vehicle) then
         log:debug("[%s] Collision", vehicle:Id())
-        vehicle.current_speed = 0 -- this pops idle state
+        vehicle.current_speed = 0 -- this pops idle locomotion state
     end
 
     -- reached end of route
     if vehicle.splineIndex > #spline then
-        -- TODO dock in port
-        vehicle.routeId = nil -- this pops the statemachine
+        log:debug("[%s] Destination reached", vehicle:Id())
+        vehicle.current_speed = 0 -- this pops idle locomotion state
+        vehicle.routeId = nil     -- this pops the none ai state
     end
 
     -- handle player entering vehicle
-    if not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() then
-        tes3.messageBox("You have entered the vehicle")
-        log:debug("[%s] Player entered the vehicle", vehicle:Id())
+    if not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() and not GPlayerVehicleManager.getInstance():IsPlayerTraveling() then
+        tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
+        log:debug("[%s] Player entered the vehicle on route %s", vehicle:Id(), vehicle.routeId)
         vehicle.playerRegistered = true
-    end
-end
-
-function OnSplineState:exit(scriptedObject)
-    -- delete vehicle if player not registered
-    local vehicle = scriptedObject ---@cast vehicle CVehicle
-    if not vehicle.playerRegistered then
-        scriptedObject.markForDelete = true
     end
 end
 

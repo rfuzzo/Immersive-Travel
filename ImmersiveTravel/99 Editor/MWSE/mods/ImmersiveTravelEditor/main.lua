@@ -364,7 +364,6 @@ local function createEditWindow()
     if editorData then currentServiceName = editorData.service.class end
 
     local service = services[currentServiceName]
-    lib.loadRoutes(service)
 
     -- Create window and frame
     local menu = tes3ui.createMenu {

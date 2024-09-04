@@ -12,9 +12,10 @@ local CLocomotionState = {
 }
 setmetatable(CLocomotionState, { __index = CAbstractState })
 
+-- TODO move to mcm?
 local EVADE_RADIUS          = 1024 * 3
 local EVADE_FORWARD_OFFSET  = 0.1
-local EVADE_TURN_MULT       = 2
+local EVADE_TURN_MULT       = 2.0
 
 --#region methods
 
