@@ -60,10 +60,10 @@ function NoneState:OnActivate(scriptedObject)
     })
 end
 
----@param cell tes3cell
 ---@param guide tes3npc
+---@param start string
 ---@return string?
-local function GetRouteIdForCell(cell, guide)
+local function GetRandomRouteFrom(guide, start)
     local services = GRoutesManager.getInstance().services
     if not services then return nil end
 
@@ -80,22 +80,21 @@ local function GetRouteIdForCell(cell, guide)
     end
 
     if service == nil then
-        lib.log:debug("no service found for %s in cell %s", guide.id, cell.id)
+        lib.log:debug("no service found for %s in cell %s", guide.id, start)
         return nil
     end
 
-    lib.log:debug("service found for %s in cell %s: service %s", guide.id, cell.id, service.class)
+    lib.log:debug("service found for %s in cell %s: service %s", guide.id, start, service.class)
 
     -- Return if no destinations
-    local destinations = service.routes[cell.id]
+    local destinations = service.routes[start]
     if destinations == nil then return nil end
     if #destinations == 0 then return nil end
 
-    lib.log:debug("found %s destinations for %s", #destinations, cell.id)
+    lib.log:debug("found %s destinations for %s", #destinations, start)
 
     -- get a random destination
     local destination = destinations[math.random(#destinations)]
-    local start = cell.id
     local routeId = start .. "_" .. destination
 
     return routeId
@@ -112,28 +111,72 @@ function NoneState:enter(scriptedObject)
         timer.start({
             type = timer.simulate,
             iterations = 1,
-            duration = 10,
+            duration = 5,
             callback = (function()
-                -- get available routes
+                if not vehicle.lastRouteId then
+                    scriptedObject.markForDelete = true
+                    return
+                end
 
-                local cell = vehicle.referenceHandle:getObject().cell
-
-
-                local route = GetRouteIdForCell(cell, guide)
+                -- sometimes the current cell is not valid, so we check the last route
+                local split = string.split(vehicle.lastRouteId, "_")
+                -- local start = split[1]
+                local destination = split[2]
+                local route = GetRandomRouteFrom(guide, destination)
                 if not route then
                     tes3.messageBox("No route found")
-                    log:debug("No route found for %s", guide.id)
+                    log:debug("[%s] No route found for %s", vehicle:Id(), guide.id)
 
                     scriptedObject.markForDelete = true
 
                     return
                 end
                 tes3.messageBox("New route: %s", route)
-                log:debug("New route: %s", route)
+                log:debug("[%s] New route: %s", vehicle:Id(), route)
 
-                -- set a new route
-                vehicle.routeId = route
-                vehicle.current_speed = vehicle.speed --TODO move this to spline start
+                -- rotate the vehicle into the direction of the next point
+                local spline = GRoutesManager.getInstance().routes[route]
+                if spline == nil then
+                    scriptedObject.markForDelete = true
+                    return
+                end
+
+
+                if not vehicle.referenceHandle:valid() then
+                    scriptedObject.markForDelete = true
+                    return
+                end
+                local mount = vehicle.referenceHandle:getObject()
+                if not mount then
+                    scriptedObject.markForDelete = true
+                    return
+                end
+
+                local startPoint = mount.position --lib.vec(spline[1])
+                local nextPoint = lib.vec(spline[2])
+                local orientation = nextPoint - startPoint
+                orientation:normalize()
+                local facing = math.atan2(orientation.x, orientation.y)
+
+                mount.facing = facing
+
+                vehicle.splineIndex = 1
+                vehicle.last_position = mount.position
+                vehicle.last_forwardDirection = mount.forwardDirection
+                vehicle.last_facing = mount.facing
+                vehicle.last_sway = 0
+
+                -- after 5 seconds, set the new route
+                timer.start({
+                    type = timer.simulate,
+                    iterations = 1,
+                    duration = 5,
+                    callback = (function()
+                        -- set a new route
+                        vehicle.routeId = route
+                        vehicle.current_speed = vehicle.speed --TODO move this to spline start
+                    end)
+                })
             end)
         })
     end

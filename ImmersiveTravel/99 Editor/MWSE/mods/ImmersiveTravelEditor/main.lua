@@ -89,8 +89,6 @@ local function createMount(startPoint, nextPoint, mountId, offset)
     d:normalize()
 
     local newFacing = math.atan2(d.x, d.y)
-
-    -- create mount
     local mountOffset = tes3vector3.new(0, 0, offset)
     local mount = tes3.createReference {
         object = mountId,
@@ -307,7 +305,7 @@ local function traceRoute(service)
 
     log:debug("Tracing " .. editorData.start .. " > " .. editorData.destination)
 
-    arrow = tes3.loadMesh("mwse\\arrow.nif"):getObjectByName("unitArrow"):clone()
+    arrow = tes3.loadMesh("mwse\\widgets.nif"):getObjectByName("unitArrows"):clone()
     arrow.scale = 40
     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
     for index, value in ipairs(arrows) do vfxRoot:detachChild(value) end
@@ -329,6 +327,8 @@ local function traceRoute(service)
             end
         end
     end
+
+    log:debug("Tracing for %s", mountId)
 
     local mountData = interop.getVehicleStaticData(mountId)
     if not mountData then return end

@@ -44,14 +44,17 @@ function OnSplineState:update(dt, scriptedObject)
 
     if lib.IsColliding(vehicle) then
         log:debug("[%s] Collision", vehicle:Id())
-        vehicle.current_speed = 0 -- this pops idle locomotion state
+        vehicle.current_speed = 0    -- this pops idle locomotion state
+        vehicle.markForDelete = true -- TODO on a timer?
     end
 
     -- reached end of route
     if vehicle.splineIndex > #spline then
         log:debug("[%s] Destination reached", vehicle:Id())
         vehicle.current_speed = 0 -- this pops idle locomotion state
-        vehicle.routeId = nil     -- this pops the none ai state
+
+        vehicle.lastRouteId = vehicle.routeId
+        vehicle.routeId = nil -- this pops the none ai state
     end
 
     -- handle player entering vehicle

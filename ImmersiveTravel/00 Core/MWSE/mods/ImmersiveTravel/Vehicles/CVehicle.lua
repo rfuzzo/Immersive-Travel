@@ -68,6 +68,7 @@ local log                   = lib.log
 ---@field last_sway number
 ---@field swayTime number
 ---@field routeId string? -- the id of the route
+---@field lastRouteId string? -- the id of the route
 ---@field splineIndex number
 ---@field virtualDestination tes3vector3?
 ---@field current_speed number
