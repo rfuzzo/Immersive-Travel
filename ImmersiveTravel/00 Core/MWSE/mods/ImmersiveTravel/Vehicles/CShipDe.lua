@@ -23,9 +23,13 @@ function CShipDe:new()
     newObj.offset = -20
     newObj.sway = 3
     newObj.speed = 3
+    newObj.minSpeed = -1
+    newObj.maxSpeed = 3
+    newObj.changeSpeed = 1
     newObj.turnspeed = 10
     newObj.hasFreeMovement = true
     newObj.freedomtype = "boat"
+    newObj.serviceId = "Shipmaster"
     newObj.guideSlot = {
         animationGroup = {},
         position = tes3vector3.new(-25, -823, 360)

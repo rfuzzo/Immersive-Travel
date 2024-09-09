@@ -558,6 +558,11 @@ this.fullmodpath = "Data Files\\MWSE\\" .. this.localmodpath
 ---@class PortData
 ---@field position PositionRecord The port position
 ---@field rotation PositionRecord The port orientation
+---@field positionEnd PositionRecord? The docked orientation
+---@field rotationEnd PositionRecord? The docked orientation
+---@field positionStart PositionRecord? The start orientation
+---@field rotationStart PositionRecord? The start orientation
+---@field reverseStart boolean? reverse out of dock?
 
 --#endregion
 

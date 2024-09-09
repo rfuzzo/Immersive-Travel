@@ -4,7 +4,9 @@ local AiState               = require("ImmersiveTravel.Statemachine.ai.CAiState"
 local NoneState             = require("ImmersiveTravel.Statemachine.ai.NoneState")
 local OnSplineState         = require("ImmersiveTravel.Statemachine.ai.OnSplineState")
 local PlayerSteerState      = require("ImmersiveTravel.Statemachine.ai.PlayerSteerState")
-local PlayerTravelState     = require("ImmersiveTravel.Statemachine.ai.PlayerTravelState")
+local DockedState           = require("ImmersiveTravel.Statemachine.ai.DockedState")
+local EnterDockState        = require("ImmersiveTravel.Statemachine.ai.EnterDockState")
+local LeaveDockState        = require("ImmersiveTravel.Statemachine.ai.LeaveDockState")
 
 ---@class CAiStateMachine : CAbstractStateMachine
 local CAiStateMachine       = {
@@ -14,7 +16,9 @@ local CAiStateMachine       = {
         [AiState.NONE] = NoneState:new(),
         [AiState.ONSPLINE] = OnSplineState:new(),
         [AiState.PLAYERSTEER] = PlayerSteerState:new(),
-        [AiState.PLAYERTRAVEL] = PlayerTravelState:new(),
+        [AiState.DOCKED] = DockedState:new(),
+        [AiState.ENTERDOCK] = EnterDockState:new(),
+        [AiState.LEAVEDOCK] = LeaveDockState:new(),
     }
 }
 setmetatable(CAiStateMachine, { __index = CAbstractStateMachine })

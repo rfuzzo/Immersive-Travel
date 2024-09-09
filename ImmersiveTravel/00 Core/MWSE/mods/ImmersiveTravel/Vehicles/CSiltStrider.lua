@@ -29,6 +29,7 @@ function CSiltStrider:new()
     newObj.turnspeed = 30
     newObj.hasFreeMovement = false
     newObj.freedomtype = "ground"
+    newObj.serviceId = "Caravaner"
     newObj.nodeName = "Body"
     newObj.nodeOffset = tes3vector3.new(0, 56, 1005)
     newObj.guideSlot = {

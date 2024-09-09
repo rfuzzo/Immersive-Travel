@@ -162,9 +162,8 @@ end
 local function saveCallback(e)
     -- go through all tracked objects and set .modified = false
     for key, s in pairs(TrackingManager.getInstance().trackingList) do
-        -- only if ai state is onspline or playertravel or non
+        -- only if ai state is onspline or none
         if s.aiStateMachine and (s.aiStateMachine.currentState.name == CAiState.ONSPLINE
-                or s.aiStateMachine.currentState.name == CAiState.PLAYERTRAVEL
                 or s.aiStateMachine.currentState.name == CAiState.NONE) then
             if s.referenceHandle and s.referenceHandle:valid() then
                 s.referenceHandle:getObject().modified = false

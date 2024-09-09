@@ -9,9 +9,11 @@ setmetatable(CAiState, { __index = CAbstractState })
 
 -- enum for AI states
 CAiState.NONE = "NONE"
+CAiState.DOCKED = "DOCKED"
 CAiState.ONSPLINE = "ONSPLINE"
 CAiState.PLAYERSTEER = "PLAYERSTEER"
-CAiState.PLAYERTRAVEL = "PLAYERTRAVEL"
+CAiState.ENTERDOCK = "ENTERDOCK"
+CAiState.LEAVEDOCK = "LEAVEDOCK"
 
 ---Constructor for AI State
 ---@return CAiState
@@ -25,36 +27,22 @@ end
 
 --#region methods
 
----transition to none state if routeId is nil
 ---@param ctx table
 ---@return boolean
 function CAiState.ToNone(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return not vehicle.routeId and not vehicle:isPlayerInGuideSlot()
+    if vehicle:isPlayerInGuideSlot() then
+        return false
+    end
+
+    return not vehicle.routeId
 end
 
----transition to ONSPLINE state if routeId is not nil
----@param ctx any
----@return boolean?
-function CAiState.ToOnSpline(ctx)
-    local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return vehicle.routeId and not vehicle:isPlayerInGuideSlot() and not vehicle.playerRegistered
-end
-
----transition to player steer state if player is in guide slot
 ---@param ctx any
 ---@return boolean
 function CAiState.ToPlayerSteer(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
     return vehicle:isPlayerInGuideSlot()
-end
-
----transition to player steer state if player is in guide slot
----@param ctx any
----@return boolean
-function CAiState.ToPlayerTravel(ctx)
-    local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return vehicle.routeId and vehicle.playerRegistered
 end
 
 --#endregion

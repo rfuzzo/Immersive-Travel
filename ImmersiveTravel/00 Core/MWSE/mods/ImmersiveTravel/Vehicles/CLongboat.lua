@@ -25,9 +25,13 @@ function CLongboat:new()
     newObj.offset = 74
     newObj.sway = 4
     newObj.speed = 4
+    newObj.minSpeed = -2
+    newObj.maxSpeed = 4
+    newObj.changeSpeed = 1.5
     newObj.turnspeed = 24
     newObj.hasFreeMovement = true
     newObj.freedomtype = "boat"
+    newObj.serviceId = "Shipmaster"
     newObj.guideSlot = {
         animationGroup = {},
         position = tes3vector3.new(67, -457, -65)

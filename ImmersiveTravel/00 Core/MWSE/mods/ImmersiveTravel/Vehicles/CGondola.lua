@@ -31,6 +31,7 @@ function CGondola:new()
     newObj.turnspeed = 40
     newObj.hasFreeMovement = false
     newObj.freedomtype = "boat"
+    newObj.serviceId = "Gondolier"
     newObj.guideSlot = {
         animationGroup = { "idle6" },
         position = tes3vector3.new(0, -171, -18)

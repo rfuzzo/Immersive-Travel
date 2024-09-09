@@ -7,6 +7,7 @@ local interop             = require("ImmersiveTravel.interop")
 ---@field point PositionRecord  the actual point
 ---@field splineIndex number    the index of the point in the spline
 ---@field routeId string        the route id
+---@field service string        the route id
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
@@ -56,14 +57,12 @@ local function doSpawn(point)
     end
 
     -- get service and route
-    local serviceClass = GRoutesManager.getInstance().routesServices[point.routeId]
-    if not serviceClass then
-        return
-    end
-    local service = GRoutesManager.getInstance().services[serviceClass]
+    local serviceId = point.service
+    local service = GRoutesManager.getInstance().services[serviceId]
     if not service then
         return
     end
+
     local spline = GRoutesManager.getInstance():GetRoute(point.routeId)
     if not spline then
         return
@@ -90,10 +89,13 @@ local function doSpawn(point)
 
 
     if lib.IsLogLevelAtLeast("DEBUG") then
-        local cx = math.floor(point.point.x / 8192)
-        local cy = math.floor(point.point.y / 8192)
-        local cell_key = tostring(cx) .. "," .. tostring(cy)
-        log:debug("Spawning %s at: %s (#%s) on route %s", mountId, cell_key, idx, point.routeId)
+        local cell = tes3.getCell({
+            position = tes3vector3.new(point.point.x, point.point.y, 0)
+        })
+        if cell then
+            local cell_key = tostring(cell.gridX) .. "," .. tostring(cell.gridY)
+            log:debug("Spawning %s at: %s (#%s) on route %s", mountId, cell_key, idx, point.routeId)
+        end
     end
 
     local vehicle = interop.createVehicle(mountId, startPoint, orientation, facing)

@@ -50,6 +50,7 @@ local log                   = lib.log
 ---@field maxSpeed number
 ---@field freedomtype string flying, boat, ground
 -- optionals
+---@field serviceId string? -- the id of the service
 ---@field changeSpeed number? -- default 1
 ---@field minSpeed number?
 ---@field slots Slot[]
@@ -68,7 +69,7 @@ local log                   = lib.log
 ---@field last_sway number
 ---@field swayTime number
 ---@field routeId string? -- the id of the route
----@field lastRouteId string? -- the id of the route
+---@field currentPort string? -- the id of the route
 ---@field splineIndex number
 ---@field virtualDestination tes3vector3?
 ---@field current_speed number
@@ -186,6 +187,11 @@ function CVehicle:EndPlayerSteer()
     self:release()
 end
 
+---@param routeId string
+function CVehicle:StartRoute(routeId)
+    self.routeId = routeId
+end
+
 --- Starts the vehicle on a route
 ---@param routeId string
 ---@param service ServiceData
@@ -194,8 +200,8 @@ function CVehicle:StartOnSpline(routeId, service)
 
     log:trace("StartOnSpline %s", self:Id())
 
-    self.routeId = routeId -- this pushes the AI statemachine
-    self.current_speed = self.speed
+    -- this pushes the AI statemachine
+    self:StartRoute(routeId)
 
     -- register guide
     local mount = self.referenceHandle:getObject()
@@ -229,7 +235,8 @@ end
 --- StartPlayerTravel is called when the player starts traveling
 ---@param guideId string
 ---@param routeId string
-function CVehicle:StartPlayerTravel(guideId, routeId)
+---@param service ServiceData
+function CVehicle:StartPlayerTravel(guideId, routeId, service)
     log:debug("StartPlayerTravel %s", self.id)
     log:debug("AI state: %s", self.aiStateMachine.currentState.name)
 
@@ -237,8 +244,7 @@ function CVehicle:StartPlayerTravel(guideId, routeId)
 
     -- these push the AI statemachine
     self.playerRegistered = true
-    self.routeId = routeId -- this pushes the locomotion statemachine
-    self.current_speed = self.speed
+    self:StartRoute(routeId)
 
     local mount = self.referenceHandle:getObject()
 
@@ -717,10 +723,8 @@ end
 -- update player collision
 ---@param rootBone niNode?
 function CVehicle:UpdatePlayerCollision(rootBone)
-    local isInTravelState = self.aiStateMachine.currentState.name == CAiState.PLAYERTRAVEL
-
     -- check if player is in freemovement mode
-    if self.hasFreeMovement and GPlayerVehicleManager.getInstance().free_movement and isInTravelState and rootBone and tes3.player.tempData.itpsl then
+    if self.hasFreeMovement and GPlayerVehicleManager.getInstance():IsPlayerTraveling() and GPlayerVehicleManager.getInstance().free_movement and rootBone and tes3.player.tempData.itpsl then
         -- this is needed to enable collisions :todd:
         tes3.dataHandler:updateCollisionGroupsForActiveCells {}
         self.referenceHandle:getObject().sceneNode:update()

@@ -54,7 +54,7 @@ local function StartTravel(start, destination, service, guide)
                 return
             end
 
-            vehicle:StartPlayerTravel(guide.baseObject.id, routeId)
+            vehicle:StartPlayerTravel(guide.baseObject.id, routeId, service)
         end)
     })
 end

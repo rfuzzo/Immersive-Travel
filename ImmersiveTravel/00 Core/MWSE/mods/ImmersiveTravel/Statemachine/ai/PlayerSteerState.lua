@@ -13,8 +13,6 @@ end
 local PlayerSteerState = {
     name         = CAiState.PLAYERSTEER,
     transitions  = {
-        [CAiState.PLAYERTRAVEL] = CAiState.ToPlayerTravel,
-        [CAiState.ONSPLINE] = CAiState.ToOnSpline,
         [CAiState.NONE] = CAiState.ToNone,
     },
     cameraOffset = nil,

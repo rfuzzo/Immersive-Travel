@@ -349,6 +349,10 @@ local function Move(vehicle, dt)
     end
 
     -- speed change
+    if vehicle.current_speed >= vehicle.maxSpeed or vehicle.current_speed <= vehicle.minSpeed then
+        vehicle.speedChange = 0
+    end
+
     if vehicle.speedChange > 0 then
         local change = vehicle.current_speed + (vehicle.changeSpeed * dt)
         vehicle.current_speed = math.clamp(change, vehicle.minSpeed, vehicle.maxSpeed)

@@ -1,9 +1,31 @@
 [position]
-x = 22831.307
-y = -101250.633
+x = 21557.115
+y = -101913.711
 z = 0
 
 [rotation]
 x = 0
 y = 0
 z = 354.3
+
+# [positionEnd]
+# x = 21557.115
+# y = -101913.711
+# z = 0
+
+# [rotationEnd]
+# x = 0
+# y = 0
+# z = 308.4
+
+[positionStart]
+x = 22831.307
+y = -101250.633
+z = 0
+
+[rotationStart]
+x = 0
+y = 0
+z = 354.3
+
+reverseStart = true

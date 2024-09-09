@@ -1,5 +1,6 @@
-local interop       = require("ImmersiveTravel.interop")
 local lib           = require("ImmersiveTravel.lib")
+local interop       = require("ImmersiveTravel.interop")
+
 local log           = lib.log
 
 -- Define a class to manage the splines
@@ -7,12 +8,10 @@ local log           = lib.log
 ---@field services table<string, ServiceData>? -- serviceId -> ServiceData
 ---@field spawnPoints table<string, SPointDto[]>
 ---@field private routes table<string, PositionRecord[]> -- routeId -> spline
----@field routesServices table<string, string> -- routeId -> serviceId
 local RoutesManager = {
-    services       = {},
-    spawnPoints    = {},
-    routes         = {},
-    routesServices = {}
+    services    = {},
+    spawnPoints = {},
+    routes      = {},
 }
 
 function RoutesManager:new()
@@ -35,6 +34,7 @@ end
 
 --- Load all route splines for a given service
 ---@param service ServiceData
+---@return table<string, string[]>
 local function loadRoutes(service)
     local map = {} ---@type table<string, table>
 
@@ -75,32 +75,25 @@ local function loadRoutes(service)
                         result[destination] = 1
                         map[start] = result
                     end
-
-                    -- add return trip
-                    -- result = table.get(map, destination, nil)
-                    -- if not result then
-                    --     local v = {}
-                    --     v[start] = 1
-                    --     map[destination] = v
-                    -- else
-                    --     result[start] = 1
-                    --     map[destination] = result
-                    -- end
                 end
             end
         end
     end
 
-    local r = {}
+    local r = {} ---@type table<string, string[]>
     for key, value in pairs(map) do
-        local v = {}
-        for d, _ in pairs(value) do table.insert(v, d) end
+        local v = {} ---@type string[]
+        for d, _ in pairs(value) do
+            table.insert(v, d)
+        end
         r[key] = v
     end
-    service.routes = r
+
+    return r
 end
 
 ---@param service ServiceData
+---@return table<string, PortData>
 local function loadPorts(service)
     local map = {} ---@type table<string, PortData>
 
@@ -120,7 +113,7 @@ local function loadPorts(service)
         end
     end
 
-    service.ports = map
+    return map
 end
 
 --- load json spline from file
@@ -187,7 +180,6 @@ function RoutesManager:Init()
     -- cleanup
     table.clear(self.services)
     table.clear(self.routes)
-    table.clear(self.routesServices)
     table.clear(self.spawnPoints)
 
     -- init services
@@ -198,11 +190,11 @@ function RoutesManager:Init()
 
     -- load routes into memory
     log:info("Found %s services", table.size(self.services))
-    for key, service in pairs(self.services) do
+    for _, service in pairs(self.services) do
         log:info("\tAdding %s service", service.class)
 
-        loadPorts(service)
-        loadRoutes(service)
+        service.ports = loadPorts(service)
+        service.routes = loadRoutes(service)
 
         local destinations = service.routes
         if destinations then
@@ -213,7 +205,6 @@ function RoutesManager:Init()
                         -- save route in memory
                         local routeId = start .. "_" .. destination
                         self.routes[routeId] = spline
-                        self.routesServices[routeId] = service.class
 
                         log:debug("\t\tAdding route '%s' (%s)", routeId, service.class)
 
@@ -224,22 +215,25 @@ function RoutesManager:Init()
                                 goto continue
                             end
 
+                            local cell = tes3.getCell({
+                                position = tes3vector3.new(pos.x, pos.y, 0)
+                            })
+                            if cell then
+                                local cell_key = tostring(cell.gridX) .. "," .. tostring(cell.gridY)
+                                if not self.spawnPoints[cell_key] then
+                                    self.spawnPoints[cell_key] = {}
+                                end
 
-                            local cx = math.floor(pos.x / 8192)
-                            local cy = math.floor(pos.y / 8192)
-
-                            local cell_key = tostring(cx) .. "," .. tostring(cy)
-                            if not self.spawnPoints[cell_key] then
-                                self.spawnPoints[cell_key] = {}
+                                ---@type SPointDto
+                                local point = {
+                                    point = pos,
+                                    routeId = routeId,
+                                    splineIndex = idx,
+                                    service = service.class
+                                }
+                                table.insert(self.spawnPoints[cell_key], point)
                             end
 
-                            ---@type SPointDto
-                            local point = {
-                                point = pos,
-                                routeId = routeId,
-                                splineIndex = idx
-                            }
-                            table.insert(self.spawnPoints[cell_key], point)
 
                             ::continue::
                         end
@@ -262,6 +256,23 @@ end
 ---@return PositionRecord[]?
 function RoutesManager:GetRoute(routeId)
     return self.routes[routeId]
+end
+
+---@param serviceId string
+---@param routeId string
+---@return PortData?
+function RoutesManager:GetDestinationPort(serviceId, routeId)
+    local service = self.services[serviceId]
+
+    if service then
+        local split = string.split(routeId, "_")
+        if #split == 2 then
+            local destination = split[2]
+            return table.get(service.ports, destination, nil)
+        end
+    end
+
+    return nil
 end
 
 return RoutesManager
