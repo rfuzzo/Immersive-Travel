@@ -24,7 +24,7 @@ local function StartTravel(start, destination, service, guide)
     m:destroy()
 
     local routeId = start .. "_" .. destination
-    local currentSpline = GRoutesManager.getInstance().routes[routeId]
+    local currentSpline = GRoutesManager.getInstance():GetRoute(routeId)
     if currentSpline == nil then return end
 
     -- fade out
@@ -46,16 +46,7 @@ local function StartTravel(start, destination, service, guide)
             local facing = math.atan2(orientation.x, orientation.y)
 
             -- vehicle id
-            local mountId = service.mount
-            if service.override_mount then
-                for _, o in ipairs(service.override_mount) do
-                    if lib.is_in(o.points, start) and
-                        lib.is_in(o.points, destination) then
-                        mountId = o.id
-                        break
-                    end
-                end
-            end
+            local mountId = lib.ResolveMountId(service, start, destination)
 
             -- create vehicle
             local vehicle = interop.createVehicle(mountId, startPos, orientation, facing)

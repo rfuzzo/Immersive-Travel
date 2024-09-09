@@ -12,7 +12,6 @@ local log              = lib.log
 -- CONSTANTS
 
 local localmodpath     = "mods\\ImmersiveVehicles\\"
-local fullmodpath      = "Data Files\\MWSE\\" .. localmodpath
 
 -- debug
 local mountMarkerMesh  = nil

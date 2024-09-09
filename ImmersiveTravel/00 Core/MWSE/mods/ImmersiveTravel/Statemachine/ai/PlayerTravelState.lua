@@ -201,7 +201,7 @@ local function uiShowRestMenuCallback(e)
                             local vehicle = GPlayerVehicleManager.getInstance().trackedVehicle
                             if vehicle then
                                 -- teleport to last position
-                                local spline = GRoutesManager.getInstance().routes[vehicle.routeId]
+                                local spline = GRoutesManager.getInstance():GetRoute(vehicle.routeId)
                                 if spline ~= nil then
                                     tes3.positionCell({
                                         reference = tes3.mobilePlayer,
@@ -304,7 +304,11 @@ end
 function PlayerTravelState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
     GPlayerVehicleManager.getInstance().trackedVehicle = vehicle
-    GPlayerVehicleManager.getInstance().free_movement = true
+
+    -- check if player is slotted
+    if not vehicle:isPlayerInPassengerSlot() then
+        GPlayerVehicleManager.getInstance().free_movement = true
+    end
 
     -- register travel events
     event.register(tes3.event.mouseWheel, lib.mouseWheelCallback)
@@ -327,7 +331,7 @@ function PlayerTravelState:update(dt, scriptedObject)
     CAiState.update(self, dt, scriptedObject)
 
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    local spline = GRoutesManager.getInstance().routes[vehicle.routeId]
+    local spline = GRoutesManager.getInstance():GetRoute(vehicle.routeId)
     if spline == nil then
         vehicle.routeId = nil
     elseif vehicle.splineIndex > #spline then

@@ -37,7 +37,7 @@ end
 function OnSplineState:update(dt, scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
 
-    local spline = GRoutesManager.getInstance().routes[vehicle.routeId]
+    local spline = GRoutesManager.getInstance():GetRoute(vehicle.routeId)
     if spline == nil then
         return
     end

@@ -311,7 +311,7 @@ local function getNextPositionHeading(vehicle)
         return nil
     end
 
-    local spline = GRoutesManager.getInstance().routes[vehicle.routeId]
+    local spline = GRoutesManager.getInstance():GetRoute(vehicle.routeId)
     if spline == nil then
         return nil
     end

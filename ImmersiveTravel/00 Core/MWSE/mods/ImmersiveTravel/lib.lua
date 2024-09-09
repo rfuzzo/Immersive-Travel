@@ -542,116 +542,22 @@ function this.vec(pos)
     return tes3vector3.new(pos.x, pos.y, pos.z)
 end
 
-this.localmodpath = "mods\\ImmersiveTravel\\"
+this.localmodpath = "mods\\ImmersiveTravel"
 this.fullmodpath = "Data Files\\MWSE\\" .. this.localmodpath
-
-local localmodpath = this.localmodpath
-local fullmodpath = this.fullmodpath
 
 ---@class ServiceData
 ---@field class string The npc class name
 ---@field mount string The mount
 ---@field override_npc string[]? register specific npcs with the service
 ---@field override_mount table<string,string[]>? register specific mounts with the service
----@field routes table<string, string[]>? routes
+---@field routes table<string, string[]>? Destinations for this Cell name
 ---@field ground_offset number DEPRECATED: editor marker offset
 ---@field guide string[]? guide npcs
+---@field ports table<string, PortData>? port list
 
---- load json spline from file
----@param start string
----@param destination string
----@param data ServiceData
----@return PositionRecord[]|nil
-function this.loadSpline(start, destination, data)
-    local fileName = start .. "_" .. destination
-    local filePath = localmodpath .. data.class .. "\\" .. fileName
-    if tes3.getFileExists("MWSE\\" .. filePath .. ".json") then
-        local result = json.loadfile(filePath)
-        if result ~= nil then
-            -- log:debug("loaded spline: " .. fileName)
-            return result
-        else
-            this.log:error("!!! failed to load spline: " .. fileName)
-            return nil
-        end
-    else
-        -- check if return route exists
-        fileName = destination .. "_" .. start
-        filePath = localmodpath .. data.class .. "\\" .. fileName
-        if tes3.getFileExists("MWSE\\" .. filePath .. ".json") then
-            local result = json.loadfile(filePath)
-            if result ~= nil then
-                -- log:debug("loaded spline: " .. fileName)
-
-                -- reverse result
-                local reversed = {}
-                for i = #result, 1, -1 do
-                    local val = result[i]
-                    table.insert(reversed, val)
-                end
-
-                this.log:debug("reversed spline: " .. fileName)
-                return reversed
-            else
-                this.log:error("!!! failed to load spline: " .. fileName)
-                return nil
-            end
-        else
-            this.log:error("!!! failed to find any file: " .. fileName)
-        end
-    end
-end
-
---- Load all route splines for a given service
----@param service ServiceData
-function this.loadRoutes(service)
-    local map = {} ---@type table<string, table>
-    for file in lfs.dir(fullmodpath .. service.class) do
-        if (string.endswith(file, ".json")) then
-            local split = string.split(file:sub(0, -6), "_")
-            if #split == 2 then
-                local start = ""
-                local destination = ""
-                for i, id in ipairs(split) do
-                    if i == 1 then
-                        start = id
-                    else
-                        destination = id
-                    end
-                end
-
-                local result = table.get(map, start, nil)
-                if not result then
-                    local v = {}
-                    v[destination] = 1
-                    map[start] = v
-                else
-                    result[destination] = 1
-                    map[start] = result
-                end
-
-                -- add return trip
-                result = table.get(map, destination, nil)
-                if not result then
-                    local v = {}
-                    v[start] = 1
-                    map[destination] = v
-                else
-                    result[start] = 1
-                    map[destination] = result
-                end
-            end
-        end
-    end
-
-    local r = {}
-    for key, value in pairs(map) do
-        local v = {}
-        for d, _ in pairs(value) do table.insert(v, d) end
-        r[key] = v
-    end
-    service.routes = r
-end
+---@class PortData
+---@field position PositionRecord The port position
+---@field rotation PositionRecord The port orientation
 
 --#endregion
 
@@ -661,6 +567,25 @@ function this.shuffle(tbl)
         local j = math.random(i)
         tbl[i], tbl[j] = tbl[j], tbl[i]
     end
+end
+
+---@param service ServiceData
+---@param start string
+---@param destination string
+---@return string
+function this.ResolveMountId(service, start, destination)
+    -- create mount
+    local mountId = service.mount
+    -- override mounts
+    if service.override_mount then
+        for _, o in ipairs(service.override_mount) do
+            if this.is_in(o.points, start) and this.is_in(o.points, destination) then
+                mountId = o.id
+                break
+            end
+        end
+    end
+    return mountId
 end
 
 return this

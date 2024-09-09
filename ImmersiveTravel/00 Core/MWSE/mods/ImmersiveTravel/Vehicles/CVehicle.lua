@@ -385,6 +385,20 @@ function CVehicle:isPlayerInGuideSlot()
     return false
 end
 
+--- checks if player is slotted in passenger slot
+---@return boolean
+function CVehicle:isPlayerInPassengerSlot()
+    for index, slot in ipairs(self.slots) do
+        if slot.handle and slot.handle:valid() then
+            local ref = slot.handle:getObject()
+            if ref == tes3.player then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 ---@return tes3npc?
 function CVehicle:GetGuide()
     if self.guideSlot.handle and self.guideSlot.handle:valid() then

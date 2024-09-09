@@ -64,7 +64,7 @@ local function doSpawn(point)
     if not service then
         return
     end
-    local spline = GRoutesManager.getInstance().routes[point.routeId]
+    local spline = GRoutesManager.getInstance():GetRoute(point.routeId)
     if not spline then
         return
     end
@@ -83,19 +83,11 @@ local function doSpawn(point)
     local facing = math.atan2(orientation.x, orientation.y)
 
     -- create and register the vehicle
-    local mountId = service.mount
     local split = string.split(point.routeId, "_")
     local start = split[1]
     local destination = split[2]
-    if service.override_mount then
-        for _, o in ipairs(service.override_mount) do
-            if lib.is_in(o.points, start) and
-                lib.is_in(o.points, destination) then
-                mountId = o.id
-                break
-            end
-        end
-    end
+    local mountId = lib.ResolveMountId(service, start, destination)
+
 
     if lib.IsLogLevelAtLeast("DEBUG") then
         local cx = math.floor(point.point.x / 8192)

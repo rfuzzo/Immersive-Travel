@@ -134,14 +134,6 @@ function NoneState:enter(scriptedObject)
                 tes3.messageBox("New route: %s", route)
                 log:debug("[%s] New route: %s", vehicle:Id(), route)
 
-                -- rotate the vehicle into the direction of the next point
-                local spline = GRoutesManager.getInstance().routes[route]
-                if spline == nil then
-                    scriptedObject.markForDelete = true
-                    return
-                end
-
-
                 if not vehicle.referenceHandle:valid() then
                     scriptedObject.markForDelete = true
                     return
@@ -151,14 +143,6 @@ function NoneState:enter(scriptedObject)
                     scriptedObject.markForDelete = true
                     return
                 end
-
-                local startPoint = mount.position --lib.vec(spline[1])
-                local nextPoint = lib.vec(spline[2])
-                local orientation = nextPoint - startPoint
-                orientation:normalize()
-                local facing = math.atan2(orientation.x, orientation.y)
-
-                mount.facing = facing
 
                 vehicle.splineIndex = 1
                 vehicle.last_position = mount.position
