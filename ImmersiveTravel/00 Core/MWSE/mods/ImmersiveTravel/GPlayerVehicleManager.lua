@@ -259,36 +259,6 @@ local function keyDownCallback(e)
     end
 end
 
---- Override activate while in travel
---- @param e activateEventData
-local function activateCallback(e)
-    if (e.activator ~= tes3.player) then return end
-    local vehicle = PlayerVehicleManager.getInstance().trackedVehicle
-    if not vehicle then return end
-
-    -- activate the guide
-    if e.target.id == vehicle.guideSlot.handle:getObject().id and
-        PlayerVehicleManager.getInstance().free_movement then
-        -- register player in slot
-        local msg = string.format("This is a regular service on route '%s'. Do you want to sit down?", vehicle.routeId)
-        tes3ui.showMessageMenu {
-            message = msg,
-            buttons = {
-                {
-                    text = "Yes",
-                    callback = function()
-                        PlayerVehicleManager.getInstance().free_movement = false
-                        log:debug("register player")
-                        tes3.player.facing = vehicle.referenceHandle:getObject().facing
-                        vehicle:registerRefInRandomSlot(tes3.makeSafeObjectHandle(tes3.player))
-                    end
-                }
-            },
-            cancels = true
-        }
-    end
-end
-
 --#endregion
 
 function PlayerVehicleManager:StartTraveling(vehicle)
@@ -304,7 +274,6 @@ function PlayerVehicleManager:StartTraveling(vehicle)
     event.register(tes3.event.combatStart, forcedPacifism)
     event.register(tes3.event.save, saveCallback)
     event.register(tes3.event.preventRest, preventRestCallback)
-    event.register(tes3.event.activate, activateCallback)
     event.register(tes3.event.keyDown, keyDownCallback)
     event.register(tes3.event.uiShowRestMenu, uiShowRestMenuCallback)
     event.register(tes3.event.itemDropped, itemDroppedCallback)
@@ -323,7 +292,6 @@ function PlayerVehicleManager:StopTraveling()
     -- event.unregister(tes3.event.uiObjectTooltip, uiObjectTooltipCallback)
     event.unregister(tes3.event.save, saveCallback)
     event.unregister(tes3.event.preventRest, preventRestCallback)
-    event.unregister(tes3.event.activate, activateCallback)
     event.unregister(tes3.event.keyDown, keyDownCallback)
     event.unregister(tes3.event.uiShowRestMenu, uiShowRestMenuCallback)
     event.unregister(tes3.event.itemDropped, itemDroppedCallback)

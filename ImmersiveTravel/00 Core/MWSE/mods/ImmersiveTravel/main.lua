@@ -1,12 +1,15 @@
-local lib             = require("ImmersiveTravel.lib")
-local TrackingManager = require("ImmersiveTravel.GTrackingManager")
-local GRoutesManager  = require("ImmersiveTravel.GRoutesManager")
-local ui              = require("ImmersiveTravel.ui")
-local interop         = require("ImmersiveTravel.interop")
+local lib                   = require("ImmersiveTravel.lib")
+local TrackingManager       = require("ImmersiveTravel.GTrackingManager")
+local GRoutesManager        = require("ImmersiveTravel.GRoutesManager")
+local GPlayerVehicleManager = require("ImmersiveTravel.GPlayerVehicleManager")
+local ui                    = require("ImmersiveTravel.ui")
+local interop               = require("ImmersiveTravel.interop")
+
+local log                   = lib.log
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
-local config          = require("ImmersiveTravel.config")
+local config                = require("ImmersiveTravel.config")
 if not config then
     return
 end
@@ -20,25 +23,33 @@ local function initializedCallback(e)
     -- init routes manager
     if not GRoutesManager.getInstance():Init() then
         config.modEnabled = false
-        lib.log:error("Failed to initialize %s", config.mod)
+        log:error("Failed to initialize %s", config.mod)
         return
     end
 
-    lib.log:info("%s Initialized", config.mod)
+    log:info("%s Initialized", config.mod)
 end
 event.register(tes3.event.initialized, initializedCallback)
+
+local TRIP_TOPIC = "this trip"
 
 --- Cleanup on save load
 --- @param e loadedEventData
 local function loadedCallback(e)
     TrackingManager.getInstance():Cleanup()
     TrackingManager.getInstance():StartTimer()
-    lib.log:debug("TrackingManager started")
+    log:debug("TrackingManager started")
 
     -- found vehicles
     for id, _ in pairs(interop.vehicles) do
-        lib.log:debug("\tregistered vehicle %s", id)
+        log:debug("\tregistered vehicle %s", id)
     end
+
+    -- add topics
+    local result = tes3.addTopic({
+        topic = TRIP_TOPIC
+    })
+    log:debug("addTopic %s: %s", TRIP_TOPIC, result)
 end
 event.register(tes3.event.loaded, loadedCallback)
 
@@ -70,7 +81,7 @@ local function onMenuDialog(e)
         end
 
         if service == nil then
-            lib.log:debug("no service found for %s", npc.id)
+            log:debug("no service found for %s", npc.id)
             return
         end
 
@@ -79,13 +90,64 @@ local function onMenuDialog(e)
         if destinations == nil then return end
         if #destinations == 0 then return end
 
-        lib.log:debug("createTravelButton for %s", npc.id)
+        log:debug("createTravelButton for %s", npc.id)
         ui.createTravelButton(menuDialog, ref, service)
         menuDialog:updateLayout()
     end
 end
 event.register("uiActivated", onMenuDialog, { filter = "MenuDialog" })
 
+local function onDialogueEnvironmentCreated(e)
+    -- Cache the environment variables outside the function for easier access.
+    -- Dialogue scripters shouldn't have to constantly pass these to the functions anyway.
+    local env = e.environment
+
+    -- Define the "global" function.
+    function env.GuideDialogueContext()
+        -- activate the guide
+        local manager = GPlayerVehicleManager.getInstance()
+        local vehicle = manager.trackedVehicle
+        if vehicle and manager.free_movement then
+            local start, destination = lib.SplitRouteId(vehicle.routeId)
+            tes3.messageBox("This is a regular service on route to %s. Would you like to sit down?", destination)
+
+            tes3ui.choice("Yes", 2)
+            tes3ui.choice("No", 1)
+        elseif vehicle and manager:IsPlayerTraveling() then
+            local start, destination = lib.SplitRouteId(vehicle.routeId)
+            tes3.messageBox("This is a regular service on route to %s", destination)
+        else
+            tes3.messageBox("I'm a shipmaster. I can transport you by ship to various destinations for a modest fee.")
+        end
+    end
+
+    function env.GuideSitDown()
+        local manager = GPlayerVehicleManager.getInstance()
+        local vehicle = manager.trackedVehicle
+        if vehicle then
+            manager.free_movement = false
+            tes3.player.facing = vehicle.referenceHandle:getObject().facing
+            vehicle:registerRefInRandomSlot(tes3.makeSafeObjectHandle(tes3.player))
+        end
+    end
+end
+event.register(tes3.event.dialogueEnvironmentCreated, onDialogueEnvironmentCreated)
+
+--- @param e infoFilterEventData
+local function infoFilterCallback(e)
+    -- This early check will make sure our function
+    -- isn't executing unnecesarily
+    if (not e.passes) then
+        return
+    end
+
+    if e.dialogue.id == TRIP_TOPIC then
+        if not GPlayerVehicleManager.getInstance():IsPlayerTraveling() then
+            e.passes = false
+        end
+    end
+end
+event.register(tes3.event.infoFilter, infoFilterCallback)
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIG

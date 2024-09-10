@@ -52,7 +52,7 @@ local function StartTravel(start, destination, service, guide)
                 return
             end
 
-            vehicle:StartPlayerTravel(guide.baseObject.id, routeId)
+            vehicle:StartPlayerTravel(routeId, service)
         end)
     })
 end
@@ -65,8 +65,8 @@ end
 local function createTravelWindow(service, guide, npcMenu)
     -- Return if window is already open
     if (tes3ui.findMenu(travelMenuId) ~= nil) then return end
-    -- Return if no destinations
-    local destinations = service.routes[guide.cell.id]
+    local start = guide.cell.id
+    local destinations = service.routes[start]
     if destinations == nil then return end
     if #destinations == 0 then return end
 
@@ -77,7 +77,7 @@ local function createTravelWindow(service, guide, npcMenu)
         dragFrame = true
     }
     menu.alpha = 1.0
-    menu.text = tes3.player.cell.id
+    menu.text = start
     menu.width = 350
     menu.height = 350
 
@@ -86,14 +86,27 @@ local function createTravelWindow(service, guide, npcMenu)
     label.borderBottom = 5
 
     local pane = menu:createVerticalScrollPane { id = "sortedPane" }
-    for _key, name in ipairs(destinations) do
+    for _, destination in ipairs(destinations) do
+        local routeId = start .. "_" .. destination
+        local price = GRoutesManager.getInstance():GetRoutePrice(routeId)
+        local buton_text = string.format("%s (%d g)", destination, price)
         local button = pane:createButton {
-            id = "button_spline_" .. name,
-            text = name
+            id = "button_spline_" .. destination,
+            text = buton_text
         }
 
         button:register(tes3.uiEvent.mouseClick, function()
-            StartTravel(tes3.player.cell.id, name, service, guide)
+            local goldCount = tes3.getPlayerGold()
+            if goldCount < price then
+                tes3.messageBox("You don't have enough gold.")
+                return
+            end
+
+            tes3.removeItem({ reference = tes3.player, item = "Gold_001", count = price })
+            tes3.playSound({ sound = "Item Gold Up" })
+
+            StartTravel(start, destination, service, guide)
+
             local npc_menu = tes3ui.findMenu(npcMenu)
             if npc_menu then
                 npc_menu:destroy()

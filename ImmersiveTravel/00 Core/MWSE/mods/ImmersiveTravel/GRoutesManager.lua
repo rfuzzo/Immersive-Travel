@@ -1,18 +1,23 @@
-local lib           = require("ImmersiveTravel.lib")
-local interop       = require("ImmersiveTravel.interop")
+local lib            = require("ImmersiveTravel.lib")
+local interop        = require("ImmersiveTravel.interop")
 
-local log           = lib.log
+local log            = lib.log
 
 -- Define a class to manage the splines
 ---@class GRoutesManager
 ---@field services table<string, ServiceData>? -- serviceId -> ServiceData
 ---@field spawnPoints table<string, SPointDto[]>
 ---@field private routes table<string, PositionRecord[]> -- routeId -> spline TODO this presupposes unique IDs
-local RoutesManager = {
+---@field private routesPrice table<string, number> -- routeId -> spline TODO this presupposes unique IDs
+local RoutesManager  = {
     services    = {},
     spawnPoints = {},
     routes      = {},
+    routesPrice = {},
 }
+
+-- TODO MCM
+local PRICE_PER_CELL = 4
 
 function RoutesManager:new()
     local newObj = {}
@@ -160,6 +165,27 @@ local function loadSpline(start, destination, data)
     end
 end
 
+---@param spline PositionRecord[]
+---@return number
+local function GetPrice(spline)
+    local price = 0
+    for i = 1, #spline - 1 do
+        local p1 = lib.vec(spline[i])
+        local p2 = lib.vec(spline[i + 1])
+
+        local distance = p1:distance(p2)
+        price = price + distance
+    end
+
+    -- divide by cell size
+    price = price / 8192
+
+    -- multiply by set number
+    price = price * PRICE_PER_CELL
+
+    return price
+end
+
 -- init manager
 --- @return boolean
 function RoutesManager:Init()
@@ -191,6 +217,7 @@ function RoutesManager:Init()
                         -- save route in memory
                         local routeId = start .. "_" .. destination
                         self.routes[routeId] = spline
+                        self.routesPrice[routeId] = GetPrice(spline)
 
                         log:debug("\t\tAdding route '%s' (%s)", routeId, service.class)
 
@@ -242,6 +269,12 @@ end
 ---@return PositionRecord[]?
 function RoutesManager:GetRoute(routeId)
     return self.routes[routeId]
+end
+
+---@param routeId string
+---@return number?
+function RoutesManager:GetRoutePrice(routeId)
+    return self.routesPrice[routeId]
 end
 
 ---@param serviceId string

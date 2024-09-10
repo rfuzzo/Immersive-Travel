@@ -1,5 +1,6 @@
 local CTickingEntity        = require("ImmersiveTravel.CTickingEntity")
 local GPlayerVehicleManager = require("ImmersiveTravel.GPlayerVehicleManager")
+local GRoutesManager        = require("ImmersiveTravel.GRoutesManager")
 local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local lib                   = require("ImmersiveTravel.lib")
 local log                   = lib.log
@@ -207,26 +208,13 @@ function CVehicle:StartOnSpline(routeId, service)
 
     -- register guide
     local mount = self.referenceHandle:getObject()
-    local guides = service.guide
-    if guides then
-        local randomIndex = math.random(1, #guides)
-        local guideId = guides[randomIndex]
+    local guideId = lib.GetRandomGuide(service)
+    if guideId then
         local guide = tes3.createReference {
             object = guideId,
             position = mount.position,
             orientation = mount.orientation
         }
-
-        -- disable scripts
-        if guide.baseObject.script then
-            guide.attachments.variables.script = nil
-            guide.data.rfuzzo_noscript = true;
-            tes3.setAIWander({ reference = guide, idles = { 0, 0, 0, 0, 0, 0, 0, 0 } })
-
-            log:debug("Disabled script %s on %s", guide.baseObject.script.id, guide.baseObject.id)
-        end
-
-        log:debug("\tregistering guide")
         self:registerGuide(tes3.makeSafeObjectHandle(guide))
     end
 
@@ -235,10 +223,10 @@ function CVehicle:StartOnSpline(routeId, service)
 end
 
 --- StartPlayerTravel is called when the player starts traveling
----@param guideId string
 ---@param routeId string
-function CVehicle:StartPlayerTravel(guideId, routeId)
-    log:debug("StartPlayerTravel %s", self.id)
+---@param service ServiceData
+function CVehicle:StartPlayerTravel(routeId, service)
+    log:trace("StartPlayerTravel %s", self.id)
 
     self:Attach()
 
@@ -249,15 +237,16 @@ function CVehicle:StartPlayerTravel(guideId, routeId)
     local mount = self.referenceHandle:getObject()
     GPlayerVehicleManager.getInstance():StartTraveling(self)
 
-    -- register guide
-    log:debug("\tregistering guide")
-    local guide = tes3.createReference {
-        object = guideId,
-        position = mount.position,
-        orientation = mount.orientation
-    }
-    self:registerGuide(tes3.makeSafeObjectHandle(guide))
-    guide.mobile.hello = 0
+    local guideId = lib.GetRandomGuide(service)
+    if guideId then
+        local guide = tes3.createReference {
+            object = guideId,
+            position = mount.position,
+            orientation = mount.orientation
+        }
+        self:registerGuide(tes3.makeSafeObjectHandle(guide))
+        guide.mobile.hello = 0
+    end
 
     -- register player
     log:debug("\tregistering player")
@@ -550,11 +539,6 @@ function CVehicle:UpdateSlots(dt)
             guide.facing = mount.facing
 
             if guide ~= tes3.player then
-                -- disable scripts
-                if guide.baseObject.script and not lib.isFollower(guide.mobile) and guide.data.rfuzzo_noscript then
-                    guide.attachments.variables.script = nil
-                end
-
                 -- only change anims if behind player
                 if changeAnims and
                     lib.isPointBehindObject(guide.position, tes3.player.position,
@@ -590,11 +574,6 @@ function CVehicle:UpdateSlots(dt)
                 self:getSlotTransform(slot.position, boneOffset)
 
             if obj ~= tes3.player then
-                -- disable scripts
-                if obj.baseObject.script and not lib.isFollower(obj.mobile) and obj.data.rfuzzo_noscript then
-                    obj.attachments.variables.script = nil
-                end
-
                 -- only change anims if behind player
                 if changeAnims and
                     lib.isPointBehindObject(obj.position,
@@ -708,6 +687,7 @@ end
 -- you can register a guide with the vehicle
 ---@param handle mwseSafeObjectHandle|nil
 function CVehicle:registerGuide(handle)
+    log:debug("\tregistering guide")
     if handle and handle:valid() then
         self.guideSlot.handle = handle
         -- tcl
@@ -813,21 +793,16 @@ function CVehicle:RegisterPassengers()
     local maxPassengers = math.max(0, #self.slots - 2)
     if maxPassengers > 0 then
         local n = math.random(maxPassengers);
+        local service = GRoutesManager.getInstance().services[self.serviceId]
         log:debug("\tregistering %s / %s passengers", n, maxPassengers)
-        for _i, value in ipairs(lib.getRandomNpcsInCell(n)) do
+
+        for i = 1, n, 1 do
+            local guideId = lib.GetRandomPassenger(service)
             local passenger = tes3.createReference {
-                object = value,
+                object = guideId,
                 position = mount.position,
                 orientation = mount.orientation
             }
-            -- disable scripts
-            if passenger.baseObject.script then
-                passenger.attachments.variables.script = nil
-                passenger.data.rfuzzo_noscript = true;
-                tes3.setAIWander({ reference = passenger, idles = { 0, 0, 0, 0, 0, 0, 0, 0 } })
-
-                log:debug("Disabled script %s on %s", passenger.baseObject.script.id, passenger.baseObject.id)
-            end
 
             local refHandle = tes3.makeSafeObjectHandle(passenger)
             self:registerRefInRandomSlot(refHandle)

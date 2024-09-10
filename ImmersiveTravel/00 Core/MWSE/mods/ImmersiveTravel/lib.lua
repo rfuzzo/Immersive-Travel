@@ -325,70 +325,31 @@ function this.findClosestTravelMarker()
     return results[last_index]
 end
 
---- get a table of N actors in the current 9 cells
---- @param N integer
----@return string[]
-function this.getRandomActorsInCell(N)
-    -- get all actors
-    local npcsTable = {} ---@type string[]
-    local cells = tes3.getActiveCells()
-    for _index, cell in ipairs(cells) do
-        local references = this.referenceListToTable(cell.actors)
-        for _, r in ipairs(references) do
-            local id = r.baseObject.id
-            if not this.is_in(npcsTable, id) then
-                table.insert(npcsTable, id)
-            end
-        end
+---@param service ServiceData
+---@return string?
+function this.GetRandomGuide(service)
+    local guides = service.guide
+    if guides then
+        local randomIndex = math.random(1, #guides)
+        local guideId = guides[randomIndex]
+        return guideId
     end
 
-    -- get random pick
-    local result = {} ---@type string[]
-    for i = 1, math.min(N, #npcsTable) do
-        local randomIndex = math.random(1, #npcsTable)
-        local id = npcsTable[randomIndex]
-        if not this.is_in(result, id) then
-            table.insert(result, id)
-        end
-    end
-
-    return result
+    return nil
 end
 
---- get a table of N actors in the current 9 cells
---- @param N integer
----@return string[]
-function this.getRandomNpcsInCell(N)
-    -- get all actors
-    local npcsTable = {} ---@type string[]
-    local cells = tes3.getActiveCells()
-    for _index, cell in ipairs(cells) do
-        local references = this.referenceListToTable(cell.actors)
-        for _, r in ipairs(references) do
-            if r.baseObject.objectType == tes3.objectType.npc then
-                -- only add non-scripted npcs as passengers
-                -- local script = r.baseObject.script
-                --if script == nil or (script and script.id == "nolore") then
-                local id = r.baseObject.id
-                if not this.is_in(npcsTable, id) then
-                    table.insert(npcsTable, id)
-                end
-                --end
-            end
-        end
+--TODO fix this
+---@param service ServiceData
+---@return string?
+function this.GetRandomPassenger(service)
+    local guides = service.guide
+    if guides then
+        local randomIndex = math.random(1, #guides)
+        local guideId = guides[randomIndex]
+        return guideId
     end
 
-    -- get random pick
-    local result = {} ---@type string[]
-    for i = 1, math.min(N, #npcsTable) do
-        local randomIndex = math.random(1, #npcsTable)
-        local id = npcsTable[randomIndex]
-        if not this.is_in(result, id) then
-            table.insert(result, id)
-        end
-    end
-
-    return result
+    return nil
 end
 
 --- This function returns `true` if given NPC
@@ -591,6 +552,18 @@ function this.ResolveMountId(service, start, destination)
         end
     end
     return mountId
+end
+
+---@param routeId string?
+function this.SplitRouteId(routeId)
+    local split = string.split(routeId, "_")
+    if #split == 2 then
+        local start = split[1]
+        local destination = split[2]
+        return start, destination
+    end
+
+    return nil
 end
 
 return this

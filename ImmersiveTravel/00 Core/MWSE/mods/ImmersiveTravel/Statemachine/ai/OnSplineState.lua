@@ -49,13 +49,13 @@ function OnSplineState:new()
     return newObj
 end
 
----@param scriptedObject CTickingEntity
-function OnSplineState:OnActivate(scriptedObject)
-    local vehicle = scriptedObject ---@cast vehicle CVehicle
+-- ---@param scriptedObject CTickingEntity
+-- function OnSplineState:OnActivate(scriptedObject)
+--     local vehicle = scriptedObject ---@cast vehicle CVehicle
 
-    -- get a message box with the vehicle id and the route id
-    tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
-end
+--     -- get a message box with the vehicle id and the route id
+--     tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
+-- end
 
 ---@param scriptedObject CTickingEntity
 function OnSplineState:OnDestinationReached(scriptedObject)
@@ -65,7 +65,7 @@ function OnSplineState:OnDestinationReached(scriptedObject)
     local split       = string.split(vehicle.routeId, "_")
     if #split == 2 then
         destination = split[2]
-        local service = GRoutesManager.services[vehicle.serviceId]
+        local service = GRoutesManager.getInstance().services[vehicle.serviceId]
         if service then
             local port = service.ports[destination]
             if port then
@@ -95,12 +95,12 @@ function OnSplineState:update(dt, scriptedObject)
     local manager = GPlayerVehicleManager.getInstance()
     if manager.free_movement then
         if vehicle.playerRegistered and not vehicle:isPlayerInMountBounds() and manager:IsPlayerTraveling() then
-            tes3.messageBox("You have left the vehicle")
+            -- tes3.messageBox("You have left the vehicle")
             log:debug("[%s] Player left the vehicle on route %s", vehicle:Id(), vehicle.routeId)
             vehicle.playerRegistered = false
             manager:StopTraveling()
         elseif not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() and not manager:IsPlayerTraveling() then
-            tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
+            -- tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
             log:debug("[%s] Player entered the vehicle on route %s", vehicle:Id(), vehicle.routeId)
             vehicle.playerRegistered = true
             manager:StartTraveling(vehicle)

@@ -2,9 +2,31 @@ local lib            = require("ImmersiveTravel.lib")
 local interop        = require("ImmersiveTravel.interop")
 local GRoutesManager = require("ImmersiveTravel.GRoutesManager")
 
+--[[
+
+- travel
+    -[ ] fix all todos
+    -[ ] add new animated boat
+    -[ ] fix all routes
+    -[ ] refactor routes with segments
+    -[ ] maybe start travel from the port start
+    -[ ] refactor ports for different vehicles
+    -[x] add NPCs
+    -[x] add payment
+
+- editor
+    -[ ] add port mode
+    -[ ] add segment mode
+    -[ ] display vehicles in real time
+
+- vehicles
+    -[ ] fix vehicles steer
+
+]] --
+
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
-local config         = require("ImmersiveTravelEditor.config")
+local config = require("ImmersiveTravelEditor.config")
 -- config nil check
 if not config then
     return

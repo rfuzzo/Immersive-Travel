@@ -70,7 +70,7 @@ function DockedState:enter(scriptedObject)
             duration = 5,
             callback = (function()
                 -- start timer for new route
-                local service = GRoutesManager.services[vehicle.serviceId]
+                local service = GRoutesManager.getInstance().services[vehicle.serviceId]
                 local portId = vehicle.currentPort
                 local port = service.ports[portId]
                 if port then

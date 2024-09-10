@@ -53,12 +53,12 @@ function LeaveDockState:update(dt, scriptedObject)
     local manager = GPlayerVehicleManager.getInstance()
     if manager.free_movement then
         if vehicle.playerRegistered and not vehicle:isPlayerInMountBounds() and manager:IsPlayerTraveling() then
-            tes3.messageBox("You have left the vehicle")
+            -- tes3.messageBox("You have left the vehicle")
             log:debug("[%s] Player left the vehicle on route %s", vehicle:Id(), vehicle.routeId)
             vehicle.playerRegistered = false
             manager:StopTraveling()
         elseif not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() and not manager:IsPlayerTraveling() then
-            tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
+            -- tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
             log:debug("[%s] Player entered the vehicle on route %s", vehicle:Id(), vehicle.routeId)
             vehicle.playerRegistered = true
             manager:StartTraveling(vehicle)
@@ -79,7 +79,7 @@ function LeaveDockState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
 
     vehicle.speedChange = 0.5
-    local service = GRoutesManager.services[vehicle.serviceId]
+    local service = GRoutesManager.getInstance().services[vehicle.serviceId]
     if service then
         local port = service.ports[vehicle.currentPort]
         if port then
@@ -101,7 +101,7 @@ function LeaveDockState:exit(scriptedObject)
     vehicle.virtualDestination = nil
 
     -- get random destination
-    local service = GRoutesManager.services[vehicle.serviceId]
+    local service = GRoutesManager.getInstance().services[vehicle.serviceId]
     local destinations = service.routes[vehicle.currentPort]
     if destinations then
         local destination = destinations[math.random(#destinations)]
