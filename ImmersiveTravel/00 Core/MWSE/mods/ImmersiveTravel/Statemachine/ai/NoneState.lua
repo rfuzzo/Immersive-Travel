@@ -6,7 +6,7 @@ local log            = lib.log
 
 ---@param ctx any
 ---@return boolean?
-function ToOnSpline(ctx)
+local function ToOnSpline(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
     if vehicle:isPlayerInGuideSlot() then
         return false
@@ -19,9 +19,13 @@ end
 ---@class NoneState : CAiState
 local NoneState = {
     name = CAiState.NONE,
+    states = {
+        CAiState.PLAYERSTEER,
+        CAiState.ONSPLINE,
+    },
     transitions = {
-        [CAiState.PLAYERSTEER] = CAiState.ToPlayerSteer,
-        [CAiState.ONSPLINE] = ToOnSpline,
+        CAiState.ToPlayerSteer,
+        ToOnSpline,
         -- TODO the port states
     }
 }

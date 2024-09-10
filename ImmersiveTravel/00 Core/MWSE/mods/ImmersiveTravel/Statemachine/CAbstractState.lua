@@ -3,7 +3,8 @@
 -- Define the CAbstractState class
 ---@class CAbstractState
 ---@field name? string
----@field transitions table<string, function>
+---@field transitions function[]
+---@field states string[]
 local CAbstractState = {}
 
 -- Constructor

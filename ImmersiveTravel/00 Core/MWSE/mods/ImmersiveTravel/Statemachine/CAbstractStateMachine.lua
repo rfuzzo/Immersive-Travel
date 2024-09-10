@@ -1,5 +1,6 @@
-local lib = require("ImmersiveTravel.lib")
-local log = lib.log
+local lib                   = require("ImmersiveTravel.lib")
+local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
+local log                   = lib.log
 
 -- Define the CAbstractStateMachine class
 ---@class CAbstractStateMachine
@@ -26,13 +27,16 @@ function CAbstractStateMachine:update(dt, scriptedObject)
     local ctx = {
         scriptedObject = scriptedObject
     }
-    for state, transition in pairs(self.currentState.transitions) do
+    for idx, transition in ipairs(self.currentState.transitions) do
         if transition(ctx) then
+            local state = self.currentState.states[idx]
             log:trace("[%s] %s Exiting state: %s -> %s", self.name, scriptedObject:Id(), self.currentState.name, state)
             self.currentState:exit(scriptedObject)
             self.currentState = self.states[state]
-            log:trace("[%s] %s Entering state: %s", self.name, scriptedObject:Id(), self.currentState.name)
+            -- log:trace("[%s] %s Entering state: %s", self.name, scriptedObject:Id(), self.currentState.name)
             self.currentState:enter(scriptedObject)
+
+            break
         end
     end
 

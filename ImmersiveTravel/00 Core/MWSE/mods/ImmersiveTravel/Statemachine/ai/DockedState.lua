@@ -1,41 +1,57 @@
-local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
-local lib                   = require("ImmersiveTravel.lib")
-local GRoutesManager        = require("ImmersiveTravel.GRoutesManager")
-local GPlayerVehicleManager = require("ImmersiveTravel.GPlayerVehicleManager")
+local CAiState       = require("ImmersiveTravel.Statemachine.ai.CAiState")
+local lib            = require("ImmersiveTravel.lib")
+local GRoutesManager = require("ImmersiveTravel.GRoutesManager")
 
-local log                   = lib.log
+local log            = lib.log
 
 ---@param ctx any
 ---@return boolean?
-function ToLeavePort(ctx)
+local function ToLeavePort(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
     if vehicle:isPlayerInGuideSlot() then
         return false
     end
 
-    return vehicle.currentPort ~= nil and vehicle.routeId == nil and vehicle.virtualDestination ~= nil
+    return vehicle.currentPort and not vehicle.routeId and vehicle.virtualDestination
 end
 
 ---@param ctx any
 ---@return boolean?
-function ToOnSpline(ctx)
+local function ToOnSpline(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
     if vehicle:isPlayerInGuideSlot() then
         return false
     end
 
-    return vehicle.currentPort == nil and vehicle.routeId ~= nil
+    return not vehicle.currentPort and vehicle.routeId
+end
+
+---@param ctx table
+---@return boolean
+local function ToNone(ctx)
+    local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
+    if vehicle:isPlayerInGuideSlot() then
+        return false
+    end
+
+    return not vehicle.currentPort and not vehicle.routeId
 end
 
 -- Docked State class
 ---@class DockedState : CAiState
 local DockedState = {
     name = CAiState.DOCKED,
+    states = {
+        CAiState.PLAYERSTEER,
+        CAiState.ONSPLINE,
+        CAiState.LEAVEDOCK,
+        CAiState.NONE,
+    },
     transitions = {
-        [CAiState.PLAYERSTEER] = CAiState.ToPlayerSteer,
-        [CAiState.ONSPLINE] = ToOnSpline,
-        [CAiState.LEAVEDOCK] = ToLeavePort,
-        [CAiState.NONE] = CAiState.ToNone,
+        CAiState.ToPlayerSteer,
+        ToOnSpline,
+        ToLeavePort,
+        ToNone,
     }
 }
 setmetatable(DockedState, { __index = CAiState })
@@ -67,6 +83,8 @@ function DockedState:enter(scriptedObject)
             iterations = 1,
             duration = 5,
             callback = (function()
+                log:trace("[%s] On new route in dock", vehicle:Id())
+
                 -- start timer for new route
                 local service = GRoutesManager.getInstance().services[vehicle.serviceId]
                 local portId = vehicle.currentPort
@@ -74,6 +92,7 @@ function DockedState:enter(scriptedObject)
                 if port then
                     if port.positionStart then
                         vehicle.virtualDestination = lib.vec(port.positionStart)
+                        vehicle.routeId = nil
                     else
                         -- get random destination
                         local destinations = service.routes[portId]

@@ -8,23 +8,39 @@ local log                   = lib.log
 
 ---@param ctx any
 ---@return boolean?
-function ToOnSpline(ctx)
+local function ToOnSpline(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
     if vehicle:isPlayerInGuideSlot() then
         return false
     end
 
-    return vehicle.currentPort == nil and vehicle.routeId ~= nil
+    return not vehicle.currentPort and vehicle.routeId
+end
+
+---@param ctx table
+---@return boolean
+local function ToNone(ctx)
+    local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
+    if vehicle:isPlayerInGuideSlot() then
+        return false
+    end
+
+    return not vehicle.currentPort and not vehicle.routeId
 end
 
 -- on spline state class
 ---@class LeaveDockState : CAiState
 local LeaveDockState = {
     name = CAiState.LEAVEDOCK,
+    states = {
+        CAiState.PLAYERSTEER,
+        CAiState.ONSPLINE,
+        CAiState.NONE,
+    },
     transitions = {
-        [CAiState.PLAYERSTEER] = CAiState.ToPlayerSteer,
-        [CAiState.ONSPLINE] = ToOnSpline,
-        [CAiState.NONE] = CAiState.ToNone,
+        CAiState.ToPlayerSteer,
+        ToOnSpline,
+        ToNone,
     }
 }
 setmetatable(LeaveDockState, { __index = CAiState })
@@ -37,6 +53,26 @@ function LeaveDockState:new()
     setmetatable(newObj, self)
     ---@cast newObj LeaveDockState
     return newObj
+end
+
+---@param scriptedObject CTickingEntity
+function LeaveDockState:OnDestinationReached(scriptedObject)
+    local vehicle = scriptedObject ---@cast vehicle CVehicle
+
+    log:trace("[%s] LeaveDockState OnDestinationReached port: %s", vehicle:Id(), vehicle.currentPort)
+
+    vehicle.virtualDestination = nil
+
+    -- get random destination
+    local service = GRoutesManager.getInstance().services[vehicle.serviceId]
+    local destinations = service.routes[vehicle.currentPort]
+    if destinations then
+        local destination = destinations[math.random(#destinations)]
+        vehicle.routeId = string.format("%s_%s", vehicle.currentPort, destination)
+        vehicle.currentPort = nil
+
+        log:trace("[%s] LeaveDockState OnDestinationReached new destination: %s", vehicle:Id(), vehicle.routeId)
+    end
 end
 
 function LeaveDockState:update(dt, scriptedObject)
@@ -72,6 +108,11 @@ function LeaveDockState:update(dt, scriptedObject)
             vehicle.markForDelete = true
         end
     end
+
+    -- reached destination
+    if vehicle.splineIndex > #spline then
+        self:OnDestinationReached(scriptedObject)
+    end
 end
 
 ---@param scriptedObject CTickingEntity
@@ -84,7 +125,9 @@ function LeaveDockState:enter(scriptedObject)
         local port = service.ports[vehicle.currentPort]
         if port then
             if port.reverseStart then
-                vehicle.speedChange = -0.5
+                -- TODO FIX THIS
+                -- vehicle.speedChange = -0.5
+                vehicle.current_speed = vehicle.minSpeed
             end
         end
     end
@@ -96,17 +139,6 @@ end
 ---@param scriptedObject CTickingEntity
 function LeaveDockState:exit(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-
-    vehicle.virtualDestination = nil
-
-    -- get random destination
-    local service = GRoutesManager.getInstance().services[vehicle.serviceId]
-    local destinations = service.routes[vehicle.currentPort]
-    if destinations then
-        local destination = destinations[math.random(#destinations)]
-        vehicle.routeId = string.format("%s_%s", vehicle.currentPort, destination)
-        vehicle.currentPort = nil
-    end
 end
 
 return LeaveDockState

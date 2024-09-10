@@ -31,7 +31,7 @@ function PlayerVehicleManager.getInstance()
 
         -- init
         instance.trackedVehicle = nil
-        instance.free_movement = false
+        instance.free_movement = true
         instance.travelMarkerMesh = tes3.loadMesh(instance.travelMarkerId)
         instance.travelMarker = nil
     end

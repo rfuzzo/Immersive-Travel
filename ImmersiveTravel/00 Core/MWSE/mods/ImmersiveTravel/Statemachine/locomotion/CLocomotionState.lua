@@ -85,10 +85,15 @@ end
 ---@class IdleState : CLocomotionState
 CLocomotionState.IdleState = {
     name = CLocomotionState.IDLE,
+    states = {
+        CLocomotionState.MOVING,
+        CLocomotionState.ACCELERATE,
+        CLocomotionState.DECELERATE,
+    },
     transitions = {
-        [CLocomotionState.MOVING] = toMovingState,
-        [CLocomotionState.ACCELERATE] = toAccelerateState,
-        [CLocomotionState.DECELERATE] = toDecelerateState
+        toMovingState,
+        toAccelerateState,
+        toDecelerateState
     }
 }
 setmetatable(CLocomotionState.IdleState, { __index = CLocomotionState })
@@ -130,10 +135,15 @@ end
 ---@class MovingState : CLocomotionState
 CLocomotionState.MovingState = {
     name = CLocomotionState.MOVING,
+    states = {
+        CLocomotionState.IDLE,
+        CLocomotionState.ACCELERATE,
+        CLocomotionState.DECELERATE,
+    },
     transitions = {
-        [CLocomotionState.IDLE] = toIdleState,
-        [CLocomotionState.ACCELERATE] = toAccelerateState,
-        [CLocomotionState.DECELERATE] = toDecelerateState
+        toIdleState,
+        toAccelerateState,
+        toDecelerateState
     }
 }
 setmetatable(CLocomotionState.MovingState, { __index = CLocomotionState })
@@ -364,7 +374,7 @@ local function Move(vehicle, dt)
         return
     end
 
-    -- speed change
+    -- TODO speed change
     if vehicle.current_speed >= vehicle.maxSpeed or vehicle.current_speed <= vehicle.minSpeed then
         vehicle.speedChange = 0
     end
@@ -468,10 +478,15 @@ end
 ---@class AccelerateState : CLocomotionState
 CLocomotionState.AccelerateState = {
     name = CLocomotionState.ACCELERATE,
+    states = {
+        CLocomotionState.IDLE,
+        CLocomotionState.MOVING,
+        CLocomotionState.DECELERATE,
+    },
     transitions = {
-        [CLocomotionState.IDLE] = toIdleState,
-        [CLocomotionState.MOVING] = toMovingState,
-        [CLocomotionState.DECELERATE] = toDecelerateState
+        toIdleState,
+        toMovingState,
+        toDecelerateState
     }
 }
 setmetatable(CLocomotionState.AccelerateState, { __index = CLocomotionState })
@@ -514,10 +529,15 @@ end
 ---@class DecelerateState : CLocomotionState
 CLocomotionState.DecelerateState = {
     name = CLocomotionState.DECELERATE,
+    states = {
+        CLocomotionState.IDLE,
+        CLocomotionState.MOVING,
+        CLocomotionState.ACCELERATE,
+    },
     transitions = {
-        [CLocomotionState.IDLE] = toIdleState,
-        [CLocomotionState.MOVING] = toMovingState,
-        [CLocomotionState.ACCELERATE] = toAccelerateState
+        toIdleState,
+        toMovingState,
+        toAccelerateState
     }
 }
 setmetatable(CLocomotionState.DecelerateState, { __index = CLocomotionState })

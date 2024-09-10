@@ -6,35 +6,41 @@ local log                   = lib.log
 
 ---@param ctx any
 ---@return boolean?
-function ToEnterPort(ctx)
+local function ToEnterPort(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
     if vehicle:isPlayerInGuideSlot() then
         return false
     end
 
-    return vehicle.currentPort ~= nil and vehicle.routeId == nil and vehicle.virtualDestination ~= nil
+    return vehicle.currentPort and not vehicle.routeId and vehicle.virtualDestination
 end
 
 ---@param ctx any
 ---@return boolean?
-function ToDocked(ctx)
+local function ToDocked(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
     if vehicle:isPlayerInGuideSlot() then
         return false
     end
 
-    return vehicle.currentPort ~= nil and vehicle.routeId == nil
+    return vehicle.currentPort and not vehicle.routeId
 end
 
 -- on spline state class
 ---@class OnSplineState : CAiState
 local OnSplineState = {
     name = CAiState.ONSPLINE,
+    states = {
+        CAiState.PLAYERSTEER,
+        CAiState.ENTERDOCK,
+        CAiState.DOCKED,
+        CAiState.NONE,
+    },
     transitions = {
-        [CAiState.PLAYERSTEER] = CAiState.ToPlayerSteer,
-        [CAiState.ENTERDOCK] = ToEnterPort,
-        [CAiState.DOCKED] = ToDocked,
-        [CAiState.NONE] = CAiState.ToNone,
+        CAiState.ToPlayerSteer,
+        ToEnterPort,
+        ToDocked,
+        CAiState.ToNone,
     }
 }
 setmetatable(OnSplineState, { __index = CAiState })
@@ -49,17 +55,11 @@ function OnSplineState:new()
     return newObj
 end
 
--- ---@param scriptedObject CTickingEntity
--- function OnSplineState:OnActivate(scriptedObject)
---     local vehicle = scriptedObject ---@cast vehicle CVehicle
-
---     -- get a message box with the vehicle id and the route id
---     tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
--- end
-
 ---@param scriptedObject CTickingEntity
 function OnSplineState:OnDestinationReached(scriptedObject)
-    local vehicle     = scriptedObject ---@cast vehicle CVehicle
+    local vehicle = scriptedObject ---@cast vehicle CVehicle
+
+
 
     local destination = nil
     local split       = string.split(vehicle.routeId, "_")
@@ -71,11 +71,12 @@ function OnSplineState:OnDestinationReached(scriptedObject)
             if port then
                 vehicle.currentPort = destination
 
-                -- now check if there is a route into dock
-                if port.positionEnd then
-                    -- get route into port
-                    vehicle.virtualDestination = lib.vec(port.positionEnd)
-                end
+                log:trace("[%s] OnSplineState OnDestinationReached port: %s", vehicle:Id(), vehicle.currentPort)
+                -- TODO now check if there is a route into dock
+                -- if port.positionEnd then
+                --     -- get route into port
+                --     vehicle.virtualDestination = lib.vec(port.positionEnd)
+                -- end
             end
         end
     end
@@ -95,12 +96,18 @@ function OnSplineState:update(dt, scriptedObject)
     local manager = GPlayerVehicleManager.getInstance()
     if manager.free_movement then
         if vehicle.playerRegistered and not vehicle:isPlayerInMountBounds() and manager:IsPlayerTraveling() then
-            -- tes3.messageBox("You have left the vehicle")
+            if lib.IsLogLevelAtLeast("DEBUG") then
+                tes3.messageBox("You have left the vehicle")
+            end
             log:debug("[%s] Player left the vehicle on route %s", vehicle:Id(), vehicle.routeId)
             vehicle.playerRegistered = false
+            -- TODO
+            tes3.player.tempData.itpsl = nil
             manager:StopTraveling()
         elseif not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() and not manager:IsPlayerTraveling() then
-            -- tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
+            if lib.IsLogLevelAtLeast("DEBUG") then
+                tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
+            end
             log:debug("[%s] Player entered the vehicle on route %s", vehicle:Id(), vehicle.routeId)
             vehicle.playerRegistered = true
             manager:StartTraveling(vehicle)

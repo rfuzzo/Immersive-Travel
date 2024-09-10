@@ -90,7 +90,7 @@ function TrackingManager:StartTimer()
         callback = function()
             self:doCull()
 
-            for key, entity in pairs(self.trackingList) do
+            for _, entity in pairs(self.trackingList) do
                 -- skip marked
                 if entity and entity.markForDelete == false then
                     entity:OnTick(self.TIMER_TICK)
@@ -127,13 +127,15 @@ function TrackingManager:OnActivate(reference)
         if reference.tempData.scriptedEntityId then
             -- get entity from tracking list
             local scriptedEntity = self:GetEntity(reference.tempData.scriptedEntityId)
-            if scriptedEntity then
+            local vehicle = scriptedEntity ---@cast vehicle CVehicle
+            if scriptedEntity and vehicle and vehicle.userData then
                 scriptedEntity:OnActivate()
             end
         else
             -- make new scripted class and register it
             local scriptedEntity = interop.newVehicle(reference.id)
-            if scriptedEntity then
+            local vehicle = scriptedEntity ---@cast vehicle CVehicle
+            if scriptedEntity and vehicle and vehicle.userData then
                 scriptedEntity.referenceHandle = tes3.makeSafeObjectHandle(reference)
                 self:AddEntity(scriptedEntity)
 
@@ -161,7 +163,7 @@ end
 --- @param e saveEventData
 local function saveCallback(e)
     -- go through all tracked objects and set .modified = false
-    for key, s in pairs(TrackingManager.getInstance().trackingList) do
+    for _, s in pairs(TrackingManager.getInstance().trackingList) do
         -- only if ai state is onspline or none
         if s.aiStateMachine and (s.aiStateMachine.currentState.name == CAiState.ONSPLINE
                 or s.aiStateMachine.currentState.name == CAiState.NONE) then
@@ -220,7 +222,7 @@ event.register(tes3.event.save, saveCallback)
 function TrackingManager:doCull()
     ---@type CTickingEntity[]
     local toremove = {}
-    for key, s in pairs(self.trackingList) do
+    for _, s in pairs(self.trackingList) do
         local vehicle = s ---@cast vehicle CVehicle
 
         if s.markForDelete then

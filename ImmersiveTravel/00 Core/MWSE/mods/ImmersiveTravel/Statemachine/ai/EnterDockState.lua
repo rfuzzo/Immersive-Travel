@@ -8,7 +8,7 @@ local log                   = lib.log
 
 ---@param ctx any
 ---@return boolean?
-function ToDocked(ctx)
+local function ToDocked(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
     if vehicle:isPlayerInGuideSlot() then
         return false
@@ -21,10 +21,15 @@ end
 ---@class EnterDockState : CAiState
 local EnterDockState = {
     name = CAiState.ENTERDOCK,
+    states = {
+        CAiState.PLAYERSTEER,
+        CAiState.DOCKED,
+        CAiState.NONE,
+    },
     transitions = {
-        [CAiState.PLAYERSTEER] = CAiState.ToPlayerSteer,
-        [CAiState.DOCKED] = ToDocked,
-        [CAiState.NONE] = CAiState.ToNone,
+        CAiState.ToPlayerSteer,
+        ToDocked,
+        CAiState.ToNone,
     }
 }
 setmetatable(EnterDockState, { __index = CAiState })

@@ -10,19 +10,21 @@ local log                   = lib.log
 --[[
 
 - travel
-    -[ ] fix all todos
 
     -[ ] refactor routes with segments
+    -[ ] fix locomotion in reverse
     -[x] add NPCs
     -[x] add payment
+    -[ ] slow down in port
 
     -[ ] proper class and name randomization for passengers
-
+    -[ ] fix all todos
     -[ ] add new animated boat
     -[ ] refactor ports for different vehicles
-    -[ ] maybe start travel from the port start
 
+    -[ ] maybe start travel from the port start
     -[ ] add a deck interior cell
+
 
 - editor
     -[ ] add port mode
@@ -97,7 +99,7 @@ local function onMenuDialog(e)
         -- get npc class
         local class = npc.class.id
         local service = table.get(services, class)
-        for key, value in pairs(services) do
+        for _, value in pairs(services) do
             if value.override_npc ~= nil then
                 if lib.is_in(value.override_npc, npc.id) then
                     service = value

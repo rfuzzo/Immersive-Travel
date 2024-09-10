@@ -12,8 +12,11 @@ end
 ---@field cameraOffset tes3vector3?
 local PlayerSteerState = {
     name         = CAiState.PLAYERSTEER,
+    states       = {
+        CAiState.NONE,
+    },
     transitions  = {
-        [CAiState.NONE] = CAiState.ToNone,
+        CAiState.ToNone,
     },
     cameraOffset = nil,
 }
