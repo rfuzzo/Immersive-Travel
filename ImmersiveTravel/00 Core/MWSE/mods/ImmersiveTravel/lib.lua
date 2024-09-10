@@ -338,7 +338,6 @@ function this.GetRandomGuide(service)
     return nil
 end
 
---TODO fix this
 ---@param service ServiceData
 ---@return string?
 function this.GetRandomPassenger(service)

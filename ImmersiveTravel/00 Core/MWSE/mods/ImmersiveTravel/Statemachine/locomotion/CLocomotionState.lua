@@ -12,7 +12,6 @@ local CLocomotionState = {
 }
 setmetatable(CLocomotionState, { __index = CAbstractState })
 
--- TODO move to mcm?
 local EVADE_RADIUS          = 1024 * 3
 local EVADE_FORWARD_OFFSET  = 0.1
 local EVADE_TURN_MULT       = 2.0
@@ -236,7 +235,6 @@ local function CalculatePositions(vehicle, nextPos)
     if isReversing then
         forward = tes3vector3.new(-f.x, -f.y, lerp.z):normalized()
     end
-    -- TODO fix speed buffers
     local delta = forward * math.abs(current_speed)
     local position = currentPos + delta + mountOffset
 
@@ -410,7 +408,7 @@ local function Move(vehicle, dt)
     -- save positions
     vehicle.last_position = position
     vehicle.last_facing = facing
-    vehicle.last_forwardDirection = mount.forwardDirection -- TODO calculate this
+    vehicle.last_forwardDirection = mount.forwardDirection --  calculate this
 
     ---if not skipMove then
     -- sway
@@ -418,7 +416,7 @@ local function Move(vehicle, dt)
     -- update slots
     vehicle:UpdateSlots(dt)
     --else
-    -- TODO unregister slots
+    --  unregister slots
     --end
 end
 

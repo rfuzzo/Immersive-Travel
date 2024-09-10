@@ -84,7 +84,6 @@ function LeaveDockState:enter(scriptedObject)
         local port = service.ports[vehicle.currentPort]
         if port then
             if port.reverseStart then
-                -- TODO check this
                 vehicle.speedChange = -0.5
             end
         end

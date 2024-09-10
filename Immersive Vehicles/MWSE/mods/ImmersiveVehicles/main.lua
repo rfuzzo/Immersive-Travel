@@ -127,16 +127,21 @@ event.register(tes3.event.activate, activateCallback)
 -- upon entering the dialog menu, create the travel menu
 ---@param e uiActivatedEventData
 local function onMenuDialog(e)
-    local menuDialog = e.element
-    local mobileActor = menuDialog:getPropertyObject("PartHyperText_actor") ---@cast mobileActor tes3mobileActor
-    if mobileActor.actorType == tes3.actorType.npc then
-        local ref = mobileActor.reference
+    local actor = tes3ui.getServiceActor()
+
+    if actor and actor.actorType == tes3.actorType.npc then
+        local ref = actor.reference
+        if ref.tempData.it_name then
+            return
+        end
+
         local obj = ref.baseObject
         local npc = obj ---@cast obj tes3npc
 
         -- TODO add other mounts
         if npc.class.id == "Shipmaster" then
             log:debug("createPurchaseTopic for %s", npc.id)
+            local menuDialog = e.element
             ui.createPurchaseTopic(menuDialog, ref)
             menuDialog:updateLayout()
         end

@@ -60,8 +60,6 @@ function DockedState:enter(scriptedObject)
         vehicle:EndPlayerTravel()
     end
 
-    -- TODO unregister passengers?
-
     local guide = vehicle:GetGuide()
     if vehicle.referenceHandle:valid() and guide then
         timer.start({

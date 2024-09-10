@@ -3,6 +3,8 @@ local GPlayerVehicleManager = require("ImmersiveTravel.GPlayerVehicleManager")
 local GRoutesManager        = require("ImmersiveTravel.GRoutesManager")
 local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local lib                   = require("ImmersiveTravel.lib")
+local names                 = require("ImmersiveTravel.names")
+
 local log                   = lib.log
 
 ---@class Slot
@@ -215,11 +217,20 @@ function CVehicle:StartOnSpline(routeId, service)
             position = mount.position,
             orientation = mount.orientation
         }
+
+        -- generate a random name
+        local randomName = names.Generate(guide)
+        if randomName then
+            guide.tempData.it_name = randomName
+        end
+
+        guide.mobile.hello = 0
+
         self:registerGuide(tes3.makeSafeObjectHandle(guide))
     end
 
-    -- TODO register passengers
-    -- self:RegisterPassengers()
+    -- register passengers
+    self:RegisterPassengers()
 end
 
 --- StartPlayerTravel is called when the player starts traveling
@@ -244,8 +255,16 @@ function CVehicle:StartPlayerTravel(routeId, service)
             position = mount.position,
             orientation = mount.orientation
         }
-        self:registerGuide(tes3.makeSafeObjectHandle(guide))
+
+        -- generate a random name
+        local randomName = names.Generate(guide)
+        if randomName then
+            guide.tempData.it_name = randomName
+        end
+
         guide.mobile.hello = 0
+
+        self:registerGuide(tes3.makeSafeObjectHandle(guide))
     end
 
     -- register player
@@ -797,14 +816,21 @@ function CVehicle:RegisterPassengers()
         log:debug("\tregistering %s / %s passengers", n, maxPassengers)
 
         for i = 1, n, 1 do
-            local guideId = lib.GetRandomPassenger(service)
+            local npcId = lib.GetRandomPassenger(service)
             local passenger = tes3.createReference {
-                object = guideId,
+                object = npcId,
                 position = mount.position,
                 orientation = mount.orientation
             }
 
-            local refHandle = tes3.makeSafeObjectHandle(passenger)
+            -- generate a random name
+            local randomName = names.Generate(passenger)
+            if not randomName then
+                randomName = "Passenger"
+            end
+            passenger.tempData.it_name = randomName
+
+            local refHandle            = tes3.makeSafeObjectHandle(passenger)
             self:registerRefInRandomSlot(refHandle)
         end
     end

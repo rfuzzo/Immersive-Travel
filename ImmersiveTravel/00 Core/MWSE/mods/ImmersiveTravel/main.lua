@@ -7,9 +7,36 @@ local interop               = require("ImmersiveTravel.interop")
 
 local log                   = lib.log
 
+--[[
+
+- travel
+    -[ ] fix all todos
+
+    -[ ] refactor routes with segments
+    -[x] add NPCs
+    -[x] add payment
+
+    -[ ] proper class and name randomization for passengers
+
+    -[ ] add new animated boat
+    -[ ] refactor ports for different vehicles
+    -[ ] maybe start travel from the port start
+
+    -[ ] add a deck interior cell
+
+- editor
+    -[ ] add port mode
+    -[ ] add segment mode
+    -[ ] display vehicles in real time
+
+- vehicles
+    -[ ] fix vehicles steer
+
+]] --
+
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
-local config                = require("ImmersiveTravel.config")
+local config = require("ImmersiveTravel.config")
 if not config then
     return
 end
@@ -56,10 +83,9 @@ event.register(tes3.event.loaded, loadedCallback)
 -- upon entering the dialog menu, create the travel menu
 ---@param e uiActivatedEventData
 local function onMenuDialog(e)
-    local menuDialog = e.element
-    local mobileActor = menuDialog:getPropertyObject("PartHyperText_actor") ---@cast mobileActor tes3mobileActor
-    if mobileActor.actorType == tes3.actorType.npc then
-        local ref = mobileActor.reference
+    local actor = tes3ui.getServiceActor()
+    if actor and actor.actorType == tes3.actorType.npc then
+        local ref = actor.reference
         local obj = ref.baseObject
         local npc = obj ---@cast obj tes3npc
 
@@ -91,6 +117,7 @@ local function onMenuDialog(e)
         if #destinations == 0 then return end
 
         log:debug("createTravelButton for %s", npc.id)
+        local menuDialog = e.element
         ui.createTravelButton(menuDialog, ref, service)
         menuDialog:updateLayout()
     end
@@ -148,6 +175,29 @@ local function infoFilterCallback(e)
     end
 end
 event.register(tes3.event.infoFilter, infoFilterCallback)
+
+--- @param e uiObjectTooltipEventData
+local function uiObjectTooltipCallback(e)
+    if e.reference and e.reference.tempData.it_name then
+        local label = e.tooltip:findChild("HelpMenu_name")
+        if label then
+            label.text = e.reference.tempData.it_name
+        end
+    end
+end
+event.register(tes3.event.uiObjectTooltip, uiObjectTooltipCallback)
+
+--- @param e uiActivatedEventData
+local function uiActivatedCallback(e)
+    local actor = tes3ui.getServiceActor()
+    if actor and actor.reference.tempData.it_name then
+        local title = e.element:findChild("PartDragMenu_title")
+        if title then
+            title.text = actor.reference.tempData.it_name
+        end
+    end
+end
+event.register(tes3.event.uiActivated, uiActivatedCallback, { filter = "MenuDialog" })
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIG

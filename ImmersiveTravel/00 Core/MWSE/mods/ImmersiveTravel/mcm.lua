@@ -41,6 +41,16 @@ local function registerModConfig()
         end
     }
 
+    generalCategory:createSlider({
+        label = "Travel price",
+        description = "Change the price multiplier for travel services.",
+        min = 0,
+        max = 100,
+        step = 1,
+        jump = 10,
+        variable = mwse.mcm.createTableVariable { id = "priceMult", table = config }
+    })
+
     local striderCategory = settingsPage:createCategory("Silt Strider")
     striderCategory:createDropdown {
         label = "Silt Strider Walking Animation",

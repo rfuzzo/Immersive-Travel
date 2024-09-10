@@ -25,7 +25,7 @@ local defaultConfig = {
     spawnRadius = 3,
     cullRadius = 4,
     budget = 100,
-    enableEvade = true,
+    enableEvade = false,
 }
 
 return mwse.loadConfig("ImmersiveTravelAddonWorld", defaultConfig)

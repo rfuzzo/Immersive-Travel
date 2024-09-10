@@ -1,7 +1,9 @@
-local lib            = require("ImmersiveTravel.lib")
-local interop        = require("ImmersiveTravel.interop")
+local lib     = require("ImmersiveTravel.lib")
+local interop = require("ImmersiveTravel.interop")
+local config  = require("ImmersiveTravel.config")
+if not config then return end
 
-local log            = lib.log
+local log           = lib.log
 
 -- Define a class to manage the splines
 ---@class GRoutesManager
@@ -9,15 +11,12 @@ local log            = lib.log
 ---@field spawnPoints table<string, SPointDto[]>
 ---@field private routes table<string, PositionRecord[]> -- routeId -> spline TODO this presupposes unique IDs
 ---@field private routesPrice table<string, number> -- routeId -> spline TODO this presupposes unique IDs
-local RoutesManager  = {
+local RoutesManager = {
     services    = {},
     spawnPoints = {},
     routes      = {},
     routesPrice = {},
 }
-
--- TODO MCM
-local PRICE_PER_CELL = 4
 
 function RoutesManager:new()
     local newObj = {}
@@ -181,7 +180,7 @@ local function GetPrice(spline)
     price = price / 8192
 
     -- multiply by set number
-    price = price * PRICE_PER_CELL
+    price = price * config.priceMult
 
     return price
 end
