@@ -13,7 +13,7 @@ function ToLeavePort(ctx)
         return false
     end
 
-    return vehicle.currentPort ~= nil and vehicle.routeId ~= nil
+    return vehicle.currentPort ~= nil and vehicle.routeId == nil and vehicle.virtualDestination ~= nil
 end
 
 ---@param ctx any
@@ -57,7 +57,7 @@ function DockedState:enter(scriptedObject)
     vehicle.current_speed = 0 -- this pops idle locomotion state
 
     if vehicle.playerRegistered then
-        GPlayerVehicleManager.getInstance():StopTraveling()
+        vehicle:EndPlayerTravel()
     end
 
     -- TODO unregister passengers?
@@ -75,7 +75,7 @@ function DockedState:enter(scriptedObject)
                 local port = service.ports[portId]
                 if port then
                     if port.positionStart then
-                        -- TODO get route out of port
+                        vehicle.virtualDestination = lib.vec(port.positionStart)
                     else
                         -- get random destination
                         local destinations = service.routes[portId]

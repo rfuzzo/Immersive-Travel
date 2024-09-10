@@ -165,14 +165,14 @@ local function cellChangedCallback(e)
     end
 
     if not config.modEnabled then
-        -- delete all vehicles
-        for id, s in pairs(GTrackingManager.getInstance().trackingList) do
-            local vehicle = s ---@cast vehicle CVehicle
-            -- only mark vehicles that are in onspline ai state
-            if vehicle.aiStateMachine and vehicle:isOnSpline() then
-                vehicle.markForDelete = true
-            end
-        end
+        -- -- delete all vehicles
+        -- for id, s in pairs(GTrackingManager.getInstance().trackingList) do
+        --     local vehicle = s ---@cast vehicle CVehicle
+        --     -- only mark vehicles that are in onspline ai state
+        --     if vehicle.aiStateMachine and vehicle:isOnSpline() and not vehicle.playerRegistered then
+        --         vehicle.markForDelete = true
+        --     end
+        -- end
 
         return
     end

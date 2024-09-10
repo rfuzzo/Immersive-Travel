@@ -7,7 +7,7 @@ local log           = lib.log
 ---@class GRoutesManager
 ---@field services table<string, ServiceData>? -- serviceId -> ServiceData
 ---@field spawnPoints table<string, SPointDto[]>
----@field private routes table<string, PositionRecord[]> -- routeId -> spline
+---@field private routes table<string, PositionRecord[]> -- routeId -> spline TODO this presupposes unique IDs
 local RoutesManager = {
     services    = {},
     spawnPoints = {},
@@ -133,9 +133,18 @@ local function loadSpline(start, destination, data)
             local destinationPort = table.get(data.ports, destination, nil) ---@type PortData?
 
             if startPort and destinationPort then
-                -- add start and end points
-                table.insert(result, 1, startPort.position)
+                -- add start and end ports
+                if startPort.positionStart then
+                    table.insert(result, 1, startPort.positionStart)
+                else
+                    table.insert(result, 1, startPort.position)
+                end
+
+                -- if destinationPort.positionEnd then
+                --     table.insert(result, destinationPort.positionEnd)
+                -- else
                 table.insert(result, destinationPort.position)
+                --end
 
                 return result
             else
@@ -147,30 +156,7 @@ local function loadSpline(start, destination, data)
             return nil
         end
     else
-        -- -- check if return route exists
-        -- fileName = destination .. "_" .. start
-        -- filePath = lib.localmodpath .. data.class .. "\\" .. fileName
-        -- if tes3.getFileExists("MWSE\\" .. filePath .. ".json") then
-        --     local result = json.loadfile(filePath)
-        --     if result ~= nil then
-        --         -- log:debug("loaded spline: " .. fileName)
-
-        --         -- reverse result
-        --         local reversed = {}
-        --         for i = #result, 1, -1 do
-        --             local val = result[i]
-        --             table.insert(reversed, val)
-        --         end
-
-        --         log:debug("reversed spline: " .. fileName)
-        --         return reversed
-        --     else
-        --         log:error("!!! failed to load spline: " .. fileName)
-        --         return nil
-        --     end
-        -- else
         log:error("!!! failed to find any file: " .. fileName)
-        -- end
     end
 end
 
@@ -178,9 +164,9 @@ end
 --- @return boolean
 function RoutesManager:Init()
     -- cleanup
-    table.clear(self.services)
-    table.clear(self.routes)
-    table.clear(self.spawnPoints)
+    self.services = {}
+    self.routes = {}
+    self.spawnPoints = {}
 
     -- init services
     self.services = table.copy(interop.services)

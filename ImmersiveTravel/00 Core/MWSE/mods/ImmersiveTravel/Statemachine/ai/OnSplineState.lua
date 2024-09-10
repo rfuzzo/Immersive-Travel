@@ -12,7 +12,7 @@ function ToEnterPort(ctx)
         return false
     end
 
-    return vehicle.currentPort ~= nil and vehicle.routeId ~= nil
+    return vehicle.currentPort ~= nil and vehicle.routeId == nil and vehicle.virtualDestination ~= nil
 end
 
 ---@param ctx any
@@ -73,9 +73,8 @@ function OnSplineState:OnDestinationReached(scriptedObject)
 
                 -- now check if there is a route into dock
                 if port.positionEnd then
-                    -- TODO get route into port
-
-                    return
+                    -- get route into port
+                    vehicle.virtualDestination = lib.vec(port.positionEnd)
                 end
             end
         end
@@ -92,18 +91,22 @@ function OnSplineState:update(dt, scriptedObject)
         return
     end
 
-    -- handle player leaving vehicle
-    if vehicle.playerRegistered and not vehicle:isPlayerInMountBounds() and GPlayerVehicleManager.getInstance():IsPlayerTraveling() then
-        tes3.messageBox("You have left the vehicle")
-        log:debug("[%s] Player left the vehicle on route %s", vehicle:Id(), vehicle.routeId)
-        vehicle.playerRegistered = false
+    -- handle player leaving and entering the vehicle
+    local manager = GPlayerVehicleManager.getInstance()
+    if manager.free_movement then
+        if vehicle.playerRegistered and not vehicle:isPlayerInMountBounds() and manager:IsPlayerTraveling() then
+            tes3.messageBox("You have left the vehicle")
+            log:debug("[%s] Player left the vehicle on route %s", vehicle:Id(), vehicle.routeId)
+            vehicle.playerRegistered = false
+            manager:StopTraveling()
+        elseif not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() and not manager:IsPlayerTraveling() then
+            tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
+            log:debug("[%s] Player entered the vehicle on route %s", vehicle:Id(), vehicle.routeId)
+            vehicle.playerRegistered = true
+            manager:StartTraveling(vehicle)
+        end
     end
-    -- handle player entering vehicle
-    if not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() and not GPlayerVehicleManager.getInstance():IsPlayerTraveling() then
-        tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
-        log:debug("[%s] Player entered the vehicle on route %s", vehicle:Id(), vehicle.routeId)
-        vehicle.playerRegistered = true
-    end
+
 
     if not vehicle.playerRegistered then
         if lib.IsColliding(vehicle) then
@@ -121,7 +124,8 @@ end
 
 function OnSplineState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    vehicle.speedChange = 1
+    vehicle.speedChange = 0.5
+    vehicle.current_turnspeed = vehicle.turnspeed
 end
 
 return OnSplineState

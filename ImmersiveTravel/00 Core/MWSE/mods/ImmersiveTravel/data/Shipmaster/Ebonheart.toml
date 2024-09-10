@@ -6,7 +6,7 @@ z = 0
 [rotation]
 x = 0
 y = 0
-z = 354.3
+z = 308.4
 
 # [positionEnd]
 # x = 21557.115
@@ -16,11 +16,11 @@ z = 354.3
 # [rotationEnd]
 # x = 0
 # y = 0
-# z = 308.4
+# z = 354.3
 
 [positionStart]
-x = 22831.307
-y = -101250.633
+x = 22186.482
+y = -103603.828
 z = 0
 
 [rotationStart]

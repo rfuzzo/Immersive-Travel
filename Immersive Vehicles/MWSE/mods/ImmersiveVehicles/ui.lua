@@ -126,7 +126,6 @@ local function trySpawnBoat(ref, id)
                 --         child.translation = test
                 --         child.rotation = rotation
                 --         child.appCulled = false
-                --         ---@diagnostic disable-next-line: param-type-mismatch
                 --         vfxRoot:attachChild(child)
                 --     end
                 -- end

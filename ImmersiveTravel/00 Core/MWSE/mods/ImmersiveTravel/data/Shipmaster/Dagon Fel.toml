@@ -1,21 +1,21 @@
 [position]
-x = -49481.836
-y = -39131.723
+x = 61754.305
+y = 184755.625
 z = 0
 
 [rotation]
 x = 0
 y = 0
-z = 75.131
+z = 166.2
 
 [positionStart]
-x = -51577.629
-y = -41039.508
+x = 62600.941
+y = 188210.297
 z = 0
 
 [rotationStart]
-z = 205.3
 x = 0
 y = 0
+z = 274.1
 
 reverseStart = true

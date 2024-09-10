@@ -45,16 +45,14 @@ local function StartTravel(start, destination, service, guide)
             orientation:normalize()
             local facing = math.atan2(orientation.x, orientation.y)
 
-            -- vehicle id
+            -- create reference
             local mountId = lib.ResolveMountId(service, start, destination)
-
-            -- create vehicle
             local vehicle = interop.createVehicle(mountId, startPos, orientation, facing)
             if not vehicle then
                 return
             end
 
-            vehicle:StartPlayerTravel(guide.baseObject.id, routeId, service)
+            vehicle:StartPlayerTravel(guide.baseObject.id, routeId)
         end)
     })
 end

@@ -4,12 +4,25 @@ local GRoutesManager = require("ImmersiveTravel.GRoutesManager")
 
 local log            = lib.log
 
+---@param ctx any
+---@return boolean?
+function ToOnSpline(ctx)
+    local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
+    if vehicle:isPlayerInGuideSlot() then
+        return false
+    end
+
+    return vehicle.currentPort == nil and vehicle.routeId ~= nil
+end
+
 -- None State class
 ---@class NoneState : CAiState
-local NoneState      = {
+local NoneState = {
     name = CAiState.NONE,
     transitions = {
         [CAiState.PLAYERSTEER] = CAiState.ToPlayerSteer,
+        [CAiState.ONSPLINE] = ToOnSpline,
+        -- TODO the port states
     }
 }
 setmetatable(NoneState, { __index = CAiState })

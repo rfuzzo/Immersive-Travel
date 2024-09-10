@@ -49,22 +49,23 @@ function LeaveDockState:update(dt, scriptedObject)
         return
     end
 
-    -- handle player leaving vehicle
-    if vehicle.playerRegistered and not vehicle:isPlayerInMountBounds() and GPlayerVehicleManager.getInstance():IsPlayerTraveling() then
-        tes3.messageBox("You have left the vehicle")
-        log:debug("[%s] Player left the vehicle on route %s", vehicle:Id(), vehicle.routeId)
-        vehicle.playerRegistered = false
-    end
-    -- handle player entering vehicle
-    if not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() and not GPlayerVehicleManager.getInstance():IsPlayerTraveling() then
-        tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
-        log:debug("[%s] Player entered the vehicle on route %s", vehicle:Id(), vehicle.routeId)
-        vehicle.playerRegistered = true
+    -- handle player leaving and entering the vehicle
+    local manager = GPlayerVehicleManager.getInstance()
+    if manager.free_movement then
+        if vehicle.playerRegistered and not vehicle:isPlayerInMountBounds() and manager:IsPlayerTraveling() then
+            tes3.messageBox("You have left the vehicle")
+            log:debug("[%s] Player left the vehicle on route %s", vehicle:Id(), vehicle.routeId)
+            vehicle.playerRegistered = false
+            manager:StopTraveling()
+        elseif not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() and not manager:IsPlayerTraveling() then
+            tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
+            log:debug("[%s] Player entered the vehicle on route %s", vehicle:Id(), vehicle.routeId)
+            vehicle.playerRegistered = true
+            manager:StartTraveling(vehicle)
+        end
     end
 
-    if vehicle.playerRegistered then
-
-    else
+    if not vehicle.playerRegistered then
         if lib.IsColliding(vehicle) then
             log:debug("[%s] Collision", vehicle:Id())
             vehicle.current_speed = 0 -- this pops idle locomotion state
@@ -77,23 +78,27 @@ end
 function LeaveDockState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
 
-    vehicle.speedChange = 1
+    vehicle.speedChange = 0.5
     local service = GRoutesManager.services[vehicle.serviceId]
     if service then
         local port = service.ports[vehicle.currentPort]
         if port then
             if port.reverseStart then
                 -- TODO check this
-                vehicle.speedChange = -1
+                vehicle.speedChange = -0.5
             end
         end
     end
+
+    vehicle.current_turnspeed = vehicle.turnspeed * 2
 end
 
 -- Method to exit the state
 ---@param scriptedObject CTickingEntity
 function LeaveDockState:exit(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
+
+    vehicle.virtualDestination = nil
 
     -- get random destination
     local service = GRoutesManager.services[vehicle.serviceId]

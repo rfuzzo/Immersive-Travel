@@ -4,21 +4,22 @@ local interop          = require("ImmersiveTravel.interop")
 local lib              = require("ImmersiveVehicles.lib")
 local ui               = require("ImmersiveVehicles.ui")
 local config           = require("ImmersiveVehicles.config")
+if not config then return end
 
-local log              = lib.log
+local log             = lib.log
 
 --#region debugging
 
 -- CONSTANTS
 
-local localmodpath     = "mods\\ImmersiveVehicles\\"
+local localmodpath    = "mods\\ImmersiveVehicles\\"
 
 -- debug
-local mountMarkerMesh  = nil
-local mountMarker      = nil ---@type niNode?
-local editmode         = false
-local mountData        = nil ---@type CVehicle?
-local dbg_mount_id     = nil ---@type string?
+local mountMarkerMesh = nil
+local mountMarker     = nil ---@type niNode?
+local editmode        = false
+local mountData       = nil ---@type CVehicle?
+local dbg_mount_id    = nil ---@type string?
 
 --- @param e keyDownEventData
 local function keyDownCallback(e)
@@ -60,7 +61,6 @@ local function keyDownCallback(e)
                         child.scale = mountData.scale
                         child.appCulled = false
                         local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-                        ---@diagnostic disable-next-line: param-type-mismatch
                         vfxRoot:attachChild(child)
                         vfxRoot:update()
                         mountMarker = child

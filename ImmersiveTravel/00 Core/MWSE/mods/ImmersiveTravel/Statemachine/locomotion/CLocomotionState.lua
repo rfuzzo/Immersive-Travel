@@ -163,7 +163,7 @@ local function CalculatePositions(vehicle, nextPos)
     -- change position when about to collide
     local virtualpos    = nextPos
     local current_speed = vehicle.current_speed
-    local turnspeed     = vehicle.turnspeed
+    local turnspeed     = vehicle.current_turnspeed
 
     -- only in onspline AI states
     -- evade
@@ -219,13 +219,25 @@ local function CalculatePositions(vehicle, nextPos)
         end
     end
 
+    local isReversing = vehicle.current_speed < 0
+
     -- calculate diffs
     local forwardDirection = vehicle.last_forwardDirection
+    if isReversing then
+        forwardDirection = tes3vector3.new(-forwardDirection.x, -forwardDirection.y, forwardDirection.z)
+    end
+
     forwardDirection:normalize()
     local d = (virtualpos - currentPos):normalized()
     local lerp = forwardDirection:lerp(d, turnspeed / 10):normalized()
-    local forward = tes3vector3.new(mount.forwardDirection.x, mount.forwardDirection.y, lerp.z):normalized()
-    local delta = forward * current_speed
+    local f = mount.forwardDirection
+    local forward = tes3vector3.new(f.x, f.y, lerp.z):normalized()
+    -- TODO fix for vehicle steering
+    if isReversing then
+        forward = tes3vector3.new(-f.x, -f.y, lerp.z):normalized()
+    end
+    -- TODO fix speed buffers
+    local delta = forward * math.abs(current_speed)
     local position = currentPos + delta + mountOffset
 
     -- calculate facing
@@ -240,9 +252,15 @@ local function CalculatePositions(vehicle, nextPos)
     if diff > 0 and diff > angle then
         facing = current_facing + angle
         turn = 1
+        if isReversing then
+            facing = current_facing - angle
+        end
     elseif diff < 0 and diff < -angle then
         facing = current_facing - angle
         turn = -1
+        if isReversing then
+            facing = current_facing + angle
+        end
     else
         facing = new_facing
     end

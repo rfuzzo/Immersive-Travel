@@ -10,16 +10,44 @@ if not config then
     return
 end
 
-local logger = require("logging.logger")
-local log    = logger.new {
+local logger      = require("logging.logger")
+local log         = logger.new {
     name = config.mod,
     logLevel = config.logLevel,
     logToConsole = false,
     includeTimestamp = false
 }
 
+---@enum EMarkerType
+local EMarkerType = {
+    PortStart = 1,
+    PortEnd = 2,
+    Port = 3,
+    Route = 4
+}
+
+---@enum EEditorMode
+local EEditorMode = {
+    Routes = 1,
+    Ports = 2,
+    Segments = 2
+}
+
+---@param val EEditorMode
+---@return string
+local function ToString(val)
+    if val == EEditorMode.Routes then return "Routes" end
+    if val == EEditorMode.Ports then return "Ports" end
+    if val == EEditorMode.Segments then return "Segments" end
+    return "Unknown"
+end
+
 ---@class SPreviewData
 ---@field mount tes3reference?
+
+---@class SPreviewMarker
+---@field node niNode
+---@field type EMarkerType
 
 ---@class SEditorData
 ---@field service ServiceData
@@ -27,8 +55,8 @@ local log    = logger.new {
 ---@field destination string
 ---@field mount tes3reference?
 ---@field splineIndex integer
----@field editorMarkers niNode[]?
----@field currentMarker niNode?
+---@field editorMarkers SPreviewMarker[]?
+---@field currentMarker SPreviewMarker?
 
 ---@class SEditorPortData
 ---@field mount tes3reference?
@@ -46,7 +74,6 @@ Current Usage (Debug)
 --]]
 local editMenuId = tes3ui.registerID("it:MenuEdit")
 local editMenuSaveId = tes3ui.registerID("it:MenuEdit_Display")
-local editMenuPrintId = tes3ui.registerID("it:MenuEdit_Print")
 local editMenuModeId = tes3ui.registerID("it:MenuEdit_Mode")
 local editMenuRoutesId = tes3ui.registerID("it:MenuEdit_Routes")
 local editMenuCancelId = tes3ui.registerID("it:MenuEdit_Cancel")
@@ -66,7 +93,7 @@ local editorMarkerMesh = nil ---@type niNode?
 local portMarkerMesh = nil ---@type niNode?
 
 -- editor
-local currentEditorMode = "Routes"
+local currentEditorMode = EEditorMode.Routes ---@type EEditorMode
 ---@type string | nil
 local currentServiceName = nil
 ---@type SEditorData | nil
@@ -85,12 +112,14 @@ local filter_text = ""
 local arrows = {} ---@type niNode[]
 local arrow = nil ---@type niNode?
 
+local last_position = nil ---@type tes3vector3|nil
+local last_forwardDirection = nil ---@type tes3vector3|nil
+local last_facing = nil ---@type number|nil
+
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// FUNCTIONS
 
----@param pos PositionRecord
---- @return tes3vector3
-local function vec(pos) return tes3vector3.new(pos.x, pos.y, pos.z) end
+--#region general
 
 ---@param startPoint tes3vector3
 ---@param port PortData
@@ -99,6 +128,10 @@ local function vec(pos) return tes3vector3.new(pos.x, pos.y, pos.z) end
 ---@return tes3reference
 local function createMount(startPoint, port, mountId, offset)
     local orientation = lib.radvec(lib.vec(port.rotation))
+    if port.rotationStart then
+        orientation = lib.radvec(lib.vec(port.rotationStart))
+    end
+
     local mountOffset = tes3vector3.new(0, 0, offset)
     local mount = tes3.createReference {
         object = mountId,
@@ -109,224 +142,6 @@ local function createMount(startPoint, port, mountId, offset)
     mount.facing = orientation.z -- TODO needed?
 
     return mount
-end
-
---- @param from tes3vector3
---- @return number?
-local function getGroundZ(from)
-    local rayhit = tes3.rayTest {
-        position = from,
-        direction = tes3vector3.new(0, 0, -1),
-        returnNormal = true
-    }
-
-    if (rayhit) then
-        local to = rayhit.intersection
-        return to.z
-    end
-
-    return nil
-end
-
-local function updateMarkers()
-    if not editorData then return end
-    local editorMarkers = editorData.editorMarkers
-    if not editorMarkers then return end
-
-    -- update rotation
-    for index, marker in ipairs(editorMarkers) do
-        -- ignore first and last
-        if index > 1 and index < #editorMarkers then
-            local nextMarker = editorMarkers[index + 1]
-            local direction = nextMarker.translation - marker.translation
-            local rotation_matrix = lib.rotationFromDirection(direction)
-            marker.rotation = rotation_matrix
-        end
-    end
-
-    tes3.worldController.vfxManager.worldVFXRoot:update()
-end
-
----@return number?
-local function getClosestMarkerIdx()
-    if not editorData then return nil end
-    local editorMarkers = editorData.editorMarkers
-    if not editorMarkers then return nil end
-
-    -- get closest marker
-    local pp = tes3.player.position
-
-    local final_idx = 0
-    local last_distance = nil
-    for index, marker in ipairs(editorMarkers) do
-        local distance_to_marker = pp:distance(marker.translation)
-
-        -- first
-        if last_distance == nil then
-            last_distance = distance_to_marker
-            final_idx = 1
-        end
-
-        if distance_to_marker < last_distance then
-            final_idx = index
-            last_distance = distance_to_marker
-        end
-    end
-
-    if final_idx == 0 then
-        return nil
-    end
-
-    return final_idx
-end
-
----comment
----@param spline PositionRecord[]
-local function renderMarkers(spline)
-    if not editorData then return nil end
-    if not editorMarkerMesh then return nil end
-    if not portMarkerMesh then return nil end
-
-    editorData.editorMarkers = {}
-    editorData.currentMarker = nil
-
-    local startPort = editorData.service.ports[editorData.start] ---@type PortData?
-    local destinationPort = editorData.service.ports[editorData.destination] ---@type PortData?
-
-    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-
-    -- add markers
-    for idx, v in ipairs(spline) do
-        local child = editorMarkerMesh:clone()
-        -- first and last marker are ports with fixed markers
-        if idx == 1 or idx == #spline then
-            child = portMarkerMesh:clone()
-
-            -- start port
-            if idx == 1 and startPort then
-                local m = tes3matrix33.new()
-
-                local x = math.rad(startPort.rotation.x)
-                local y = math.rad(startPort.rotation.y)
-                local z = math.rad(startPort.rotation.z)
-
-                m:fromEulerXYZ(x, y, z)
-                child.rotation = m
-            end
-
-            -- destination port
-            if idx == #spline and destinationPort then
-                local m = tes3matrix33.new()
-
-                local x = math.rad(destinationPort.rotation.x)
-                local y = math.rad(destinationPort.rotation.y)
-                local z = math.rad(destinationPort.rotation.z)
-
-                m:fromEulerXYZ(x, y, z)
-                child.rotation = m
-            end
-        end
-
-        child.translation = tes3vector3.new(v.x, v.y, v.z)
-        child.appCulled = false
-
-        ---@diagnostic disable-next-line: param-type-mismatch
-        vfxRoot:attachChild(child)
-
-        ---@diagnostic disable-next-line: assign-type-mismatch
-        editorData.editorMarkers[idx] = child
-    end
-
-    updateMarkers()
-end
-
-local function cleanup()
-    if editorData then
-        if editorData.mount ~= nil then editorData.mount:delete() end
-    end
-    editorData = nil
-end
-
-local last_position = nil ---@type tes3vector3|nil
-local last_forwardDirection = nil ---@type tes3vector3|nil
-local last_facing = nil ---@type number|nil
-
----@param startpos tes3vector3
----@param mountData CVehicle
-local function calculatePositions(startpos, mountData)
-    if not editorData then return end
-    if not editorData.editorMarkers then return end
-
-    editorData.splineIndex = 2
-    last_position = editorData.mount.position
-    last_forwardDirection = editorData.mount.forwardDirection
-    last_facing = editorData.mount.facing
-
-    arrows = {}
-
-    for idx = 1, config.tracemax * 1000, 1 do
-        if editorData.splineIndex <= #editorData.editorMarkers then
-            local mountOffset = tes3vector3.new(0, 0, mountData.offset)
-            local point = editorData.editorMarkers[editorData.splineIndex]
-                .translation
-            local nextPos = tes3vector3.new(point.x, point.y, point.z)
-            local currentPos = last_position - mountOffset
-
-            local forwardDirection = last_forwardDirection
-            -- if idx > 1 then v = currentPos - positions[idx - 1] end
-            forwardDirection:normalize()
-            local d = (nextPos - currentPos):normalized()
-            local lerp = forwardDirection:lerp(d, mountData.turnspeed / 10):normalized()
-
-            -- calculate heading
-            local current_facing = last_facing
-            local new_facing = math.atan2(d.x, d.y)
-            local facing = new_facing
-            local diff = new_facing - current_facing
-            if diff < -math.pi then diff = diff + 2 * math.pi end
-            if diff > math.pi then diff = diff - 2 * math.pi end
-            local angle = mountData.turnspeed / 10000 * config.grain
-            if diff > 0 and diff > angle then
-                facing = current_facing + angle
-            elseif diff < 0 and diff < -angle then
-                facing = current_facing - angle
-            else
-                facing = new_facing
-            end
-            editorData.mount.facing = facing
-
-            -- calculate position
-            local forward = tes3vector3.new(editorData.mount.forwardDirection.x,
-                editorData.mount.forwardDirection.y,
-                lerp.z):normalized()
-            local delta = forward * mountData.speed * config.grain
-            local mountPosition = currentPos + delta + mountOffset
-            editorData.mount.position = mountPosition
-
-            -- save
-            last_position = editorData.mount.position
-            last_forwardDirection = editorData.mount.forwardDirection
-            last_facing = editorData.mount.facing
-
-            -- draw vfx lines
-            if arrow then
-                local child = arrow:clone()
-                child.translation = mountPosition - mountOffset
-                child.appCulled = false
-                child.rotation = lib.rotationFromDirection(forward)
-                table.insert(arrows, child)
-            end
-
-            -- move to next marker
-            local isBehind = lib.isPointBehindObject(nextPos, mountPosition,
-                forward)
-            if isBehind then
-                editorData.splineIndex = editorData.splineIndex + 1
-            end
-        else
-            break
-        end
-    end
 end
 
 ---@param name string
@@ -358,6 +173,204 @@ local function createLine(name, origin, destination)
     line:update()
     line:updateEffects()
     line:updateProperties()
+end
+
+--- @param from tes3vector3
+--- @return number?
+local function getGroundZ(from)
+    local rayhit = tes3.rayTest {
+        position = from,
+        direction = tes3vector3.new(0, 0, -1),
+        returnNormal = true
+    }
+
+    if (rayhit) then
+        local to = rayhit.intersection
+        return to.z
+    end
+
+    return nil
+end
+
+--#endregion
+
+-- /////////////////////////////////////////////////////////////////////////////////////////
+-- ////////////// EDITOR
+
+local function updateMarkers()
+    if not editorData then return end
+    local editorMarkers = editorData.editorMarkers
+    if not editorMarkers then return end
+
+    -- update rotation
+    for index, marker in ipairs(editorMarkers) do
+        -- ignore first and last
+        if index > 1 and index < #editorMarkers then
+            local nextMarker = editorMarkers[index + 1]
+            local direction = nextMarker.node.translation - marker.node.translation
+            local rotation_matrix = lib.rotationFromDirection(direction)
+            marker.node.rotation = rotation_matrix
+        end
+    end
+
+    tes3.worldController.vfxManager.worldVFXRoot:update()
+end
+
+--#region editor helpers
+
+---@return number?
+local function getClosestMarkerIdx()
+    if not editorData then return nil end
+    local editorMarkers = editorData.editorMarkers
+    if not editorMarkers then return nil end
+
+    -- get closest marker
+    local pp = tes3.player.position
+
+    local final_idx = 0
+    local last_distance = nil
+    for index, marker in ipairs(editorMarkers) do
+        local distance_to_marker = pp:distance(marker.node.translation)
+
+        -- first
+        if last_distance == nil then
+            last_distance = distance_to_marker
+            final_idx = 1
+        end
+
+        if distance_to_marker < last_distance then
+            final_idx = index
+            last_distance = distance_to_marker
+        end
+    end
+
+    if final_idx == 0 then
+        return nil
+    end
+
+    return final_idx
+end
+
+---@param startPort PortData?
+---@param destinationPort PortData?
+local function renderAdditionalMarkers(startPort, destinationPort)
+    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
+    if not portMarkerMesh then return nil end
+
+    -- TODO
+
+    -- -- render start maneuvre
+    if startPort then
+        local child = portMarkerMesh:clone()
+        child.translation = tes3vector3.new(startPort.position.x, startPort.position.y, startPort.position.z)
+        local m = tes3matrix33.new()
+        local x = math.rad(startPort.rotation.x)
+        local y = math.rad(startPort.rotation.y)
+        local z = math.rad(startPort.rotation.z)
+        m:fromEulerXYZ(x, y, z)
+        child.rotation = m
+        child.appCulled = false
+        vfxRoot:attachChild(child)
+        tes3.worldController.vfxManager.worldVFXRoot:update()
+    end
+
+    -- additional position at the end
+    -- if destinationPort and destinationPort.positionEnd then
+
+    -- end
+end
+
+---@param spline PositionRecord[]
+local function renderMarkers(spline)
+    if not editorData then return nil end
+    if not editorMarkerMesh then return nil end
+    if not portMarkerMesh then return nil end
+
+    editorData.editorMarkers = {}
+    editorData.currentMarker = nil
+
+    local startPort = editorData.service.ports[editorData.start] ---@type PortData?
+    local destinationPort = editorData.service.ports[editorData.destination] ---@type PortData?
+
+    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
+
+    -- add markers
+    for idx, v in ipairs(spline) do
+        local child = editorMarkerMesh:clone()
+        local type = EMarkerType.Route
+
+        -- first and last marker are ports with fixed markers
+        if idx == 1 or idx == #spline then
+            child = portMarkerMesh:clone()
+
+            -- start port
+            if idx == 1 and startPort then
+                type = EMarkerType.Port
+                local m = tes3matrix33.new()
+
+                local x = math.rad(startPort.rotation.x)
+                local y = math.rad(startPort.rotation.y)
+                local z = math.rad(startPort.rotation.z)
+
+                -- start from override instead
+                if startPort.rotationStart then
+                    x = math.rad(startPort.rotationStart.x)
+                    y = math.rad(startPort.rotationStart.y)
+                    z = math.rad(startPort.rotationStart.z)
+
+                    type = EMarkerType.PortStart
+                end
+
+                m:fromEulerXYZ(x, y, z)
+                child.rotation = m
+            end
+
+            -- destination port
+            if idx == #spline and destinationPort then
+                type = EMarkerType.Port
+                local m = tes3matrix33.new()
+
+                local x = math.rad(destinationPort.rotation.x)
+                local y = math.rad(destinationPort.rotation.y)
+                local z = math.rad(destinationPort.rotation.z)
+                if destinationPort.rotationEnd then
+                    -- TODO
+                    -- x = math.rad(destinationPort.rotationEnd.x)
+                    -- y = math.rad(destinationPort.rotationEnd.y)
+                    -- z = math.rad(destinationPort.rotationEnd.z)
+
+                    type = EMarkerType.PortEnd
+                end
+
+                m:fromEulerXYZ(x, y, z)
+                child.rotation = m
+            end
+        end
+
+        child.translation = tes3vector3.new(v.x, v.y, v.z)
+        child.appCulled = false
+
+        vfxRoot:attachChild(child)
+
+        ---@type SPreviewMarker
+        local object = {
+            node = child,
+            type = type
+        }
+        editorData.editorMarkers[idx] = object
+    end
+
+    updateMarkers()
+
+    -- not needed for now
+    renderAdditionalMarkers(startPort, destinationPort)
+end
+
+local function cleanup()
+    if editorData then
+        if editorData.mount ~= nil then editorData.mount:delete() end
+    end
+    editorData = nil
 end
 
 ---@param service ServiceData
@@ -401,6 +414,136 @@ local function traceAll(service)
     vfxRoot:update()
 end
 
+-- TODO use method from locomotion state
+---@param vehicle CVehicle
+---@param nextPos tes3vector3
+---@return boolean
+local function calculatePosition(vehicle, nextPos)
+    if not editorData then return false end
+    if not last_forwardDirection then return false end
+
+    local isReversing = vehicle.current_speed < 0
+
+    local mountOffset = tes3vector3.new(0, 0, vehicle.offset)
+    local currentPos = last_position - mountOffset
+
+    local forwardDirection = last_forwardDirection
+    if isReversing then
+        forwardDirection = tes3vector3.new(-forwardDirection.x, -forwardDirection.y, forwardDirection.z)
+    end
+
+    -- if idx > 1 then v = currentPos - positions[idx - 1] end
+    forwardDirection:normalize()
+    local d = (nextPos - currentPos):normalized()
+    local lerp = forwardDirection:lerp(d, vehicle.current_turnspeed / 10):normalized()
+    local f = editorData.mount.forwardDirection
+    local forward = tes3vector3.new(f.x, f.y, lerp.z):normalized()
+    if isReversing then
+        forward = tes3vector3.new(-f.x, -f.y, lerp.z):normalized()
+    end
+    -- TODO fix speed buffers
+    local delta = forward * math.abs(vehicle.current_speed) * config.grain
+    local mountPosition = currentPos + delta + mountOffset
+
+    -- calculate heading
+    local current_facing = last_facing
+    local new_facing = math.atan2(d.x, d.y)
+    local facing = new_facing
+    local diff = new_facing - current_facing
+    if diff < -math.pi then diff = diff + 2 * math.pi end
+    if diff > math.pi then diff = diff - 2 * math.pi end
+    local angle = vehicle.current_turnspeed / 10000 * config.grain
+    if diff > 0 and diff > angle then
+        facing = current_facing + angle
+        if isReversing then
+            facing = current_facing - angle
+        end
+    elseif diff < 0 and diff < -angle then
+        facing = current_facing - angle
+        if isReversing then
+            facing = current_facing + angle
+        end
+    else
+        facing = new_facing
+    end
+
+    -- calculate position
+    editorData.mount.facing = facing
+    editorData.mount.position = mountPosition
+
+    -- save
+    last_position = editorData.mount.position
+    last_forwardDirection = editorData.mount.forwardDirection
+    last_facing = editorData.mount.facing
+
+    -- draw vfx lines
+    if arrow then
+        local child = arrow:clone()
+        child.translation = mountPosition - mountOffset
+        child.appCulled = false
+        child.rotation = lib.rotationFromDirection(editorData.mount.forwardDirection)
+        table.insert(arrows, child)
+    end
+
+    -- move to next marker
+    local isBehind = lib.isPointBehindObject(nextPos, mountPosition, forward)
+    if isBehind then
+        return true
+    end
+
+    return false
+end
+
+---@param startpos tes3vector3
+---@param mountData CVehicle
+local function calculatePositions(startpos, mountData)
+    if not editorData then return end
+    if not editorData.editorMarkers then return end
+
+    editorData.splineIndex = 2
+    last_position = editorData.mount.position
+    last_forwardDirection = editorData.mount.forwardDirection
+    last_facing = editorData.mount.facing
+
+    for idx = 1, config.tracemax * 1000, 1 do
+        if editorData.splineIndex <= #editorData.editorMarkers then
+            local point = editorData.editorMarkers[editorData.splineIndex].node.translation
+            local nextPos = tes3vector3.new(point.x, point.y, point.z)
+
+            local isBehind = calculatePosition(mountData, nextPos)
+            if isBehind then
+                editorData.splineIndex = editorData.splineIndex + 1
+            end
+        else
+            break
+        end
+    end
+end
+
+---@param service ServiceData
+---@param mountData CVehicle
+---@param startPort PortData
+local function calculateLeavePort(service, mountData, startPort)
+    if not editorData then return end
+
+    -- position the vehicle in port
+    -- TODO get the proper position
+    editorData.mount.position = lib.vec(startPort.position)
+    editorData.mount.orientation = lib.radvec(lib.vec(startPort.rotation))
+
+    last_position = editorData.mount.position
+    last_forwardDirection = editorData.mount.forwardDirection
+    last_facing = editorData.mount.facing
+    local nextPos = lib.vec(startPort.positionStart)
+
+    for idx = 1, config.tracemax * 1000, 1 do
+        local arrived = calculatePosition(mountData, nextPos)
+        if arrived then
+            break
+        end
+    end
+end
+
 ---@param service ServiceData
 local function traceRoute(service)
     if not editorData then return end
@@ -409,10 +552,10 @@ local function traceRoute(service)
 
 
     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-    for index, value in ipairs(arrows) do vfxRoot:detachChild(value) end
+    for _, value in ipairs(arrows) do vfxRoot:detachChild(value) end
 
     -- trace the route
-    local start_point = editorData.editorMarkers[1].translation
+    local start_point = editorData.editorMarkers[1].node.translation
     local start_pos = tes3vector3.new(start_point.x, start_point.y, start_point.z)
     local mountId = lib.ResolveMountId(service, editorData.start, editorData.destination)
 
@@ -421,9 +564,18 @@ local function traceRoute(service)
     local mountData = interop.getVehicleStaticData(mountId)
     if not mountData then return end
 
-    local startPort = service.ports[editorData.start] --TODO pass this as arg
+    local startPort = service.ports[editorData.start]
+    local destinationPort = service.ports[editorData.destination]
     editorData.mount = createMount(start_point, startPort, mountId, mountData.offset)
 
+    arrows = {}
+
+    mountData.current_turnspeed = mountData.turnspeed * 1.5
+    mountData.current_speed = mountData.speed * -1
+    calculateLeavePort(service, mountData, startPort)
+
+    mountData.current_turnspeed = mountData.turnspeed
+    mountData.current_speed = mountData.speed
     calculatePositions(start_pos, mountData)
 
     -- validation
@@ -431,7 +583,7 @@ local function traceRoute(service)
     -- check if the last position is near the last marker
     local lastMarker = editorData.editorMarkers[#editorData.editorMarkers]
     local lastPos = editorData.mount.position
-    local distance = lastPos:distance(lastMarker.translation)
+    local distance = lastPos:distance(lastMarker.node.translation)
     log:debug("Last position is %d from the last marker", distance)
     if distance > 200 then
         log:warn("!!! Last position is too far from the last marker: %d", distance)
@@ -439,7 +591,7 @@ local function traceRoute(service)
     end
 
     -- check if the last orientation does not have a big difference
-    local destinationPort = service.ports[editorData.destination] --TODO pass this as arg
+
     local lastOrientation = editorData.mount.orientation
     local destinationPortOrientation = lib.radvec(lib.vec(destinationPort.rotation))
     local diff = lastOrientation.z - destinationPortOrientation.z
@@ -481,16 +633,12 @@ local function traceRoute(service)
     editorData.mount = nil
 
     -- vfx
-    for index, child in ipairs(arrows) do
-        ---@diagnostic disable-next-line: param-type-mismatch
+    for _, child in ipairs(arrows) do
         vfxRoot:attachChild(child)
     end
 
     vfxRoot:update()
 end
-
--- /////////////////////////////////////////////////////////////////////////////////////////
--- ////////////// EDITOR
 
 ---@param service ServiceData
 ---@return string[]
@@ -532,11 +680,15 @@ local function getAllPortNames(service)
 end
 
 local function IsPortMode()
-    return currentEditorMode == "Ports"
+    return currentEditorMode == EEditorMode.Ports
 end
 
 local function IsRouteMode()
-    return currentEditorMode == "Routes"
+    return currentEditorMode == EEditorMode.Routes
+end
+
+local function IsSegmentsMode()
+    return currentEditorMode == EEditorMode.Segments
 end
 
 ---@param name string
@@ -563,10 +715,17 @@ local function teleportToCell(name)
     end
 end
 
+--#endregion
+
+-- /////////////////////////////////////////////////////////////////////////////////////////
+-- ////////////// UI
 
 local function createEditWindow()
     -- Return if window is already open
     if (tes3ui.findMenu(editMenuId) ~= nil) then return end
+
+    GRoutesManager.getInstance():Init()
+
     -- load services
     local services = GRoutesManager.getInstance().services
     if not services then return end
@@ -581,7 +740,7 @@ local function createEditWindow()
     -- To avoid low contrast, text input windows should not use menu transparency settings
     menu.alpha = 1.0
     menu.width = 700
-    menu.height = 600
+    menu.height = 500
 
 
     -- get current service
@@ -722,7 +881,7 @@ local function createEditWindow()
 
     local button_mode = button_block:createButton {
         id = editMenuModeId,
-        text = "Mode: " .. currentEditorMode
+        text = "Mode: " .. ToString(currentEditorMode)
     }
 
     local button_service = button_block:createButton {
@@ -755,7 +914,7 @@ local function createEditWindow()
                 if #editorData.editorMarkers > 1 then
                     tes3.positionCell({
                         reference = tes3.mobilePlayer,
-                        position = editorData.editorMarkers[1].translation
+                        position = editorData.editorMarkers[1].node.translation
                     })
 
                     tes3ui.leaveMenuMode()
@@ -773,7 +932,7 @@ local function createEditWindow()
                 if #editorData.editorMarkers > 1 then
                     tes3.positionCell({
                         reference = tes3.mobilePlayer,
-                        position = editorData.editorMarkers[#editorData.editorMarkers].translation
+                        position = editorData.editorMarkers[#editorData.editorMarkers].node.translation
                     })
 
                     tes3ui.leaveMenuMode()
@@ -788,7 +947,7 @@ local function createEditWindow()
 
             local tempSpline = {}
             for i, value in ipairs(editorData.editorMarkers) do
-                local t = value.translation
+                local t = value.node.translation
 
                 -- save currently edited markers back to spline
                 table.insert(tempSpline, i, {
@@ -816,10 +975,7 @@ local function createEditWindow()
         id = editMenuAllId,
         text = "All"
     }
-    local button_reload = button_block:createButton {
-        id = editMenuReloadId,
-        text = "Reload"
-    }
+
     local button_cancel = button_block:createButton {
         id = editMenuCancelId,
         text = "Exit"
@@ -854,27 +1010,15 @@ local function createEditWindow()
     button_mode:register(tes3.uiEvent.mouseClick, function()
         local m = tes3ui.findMenu(editMenuId)
         if (m) then
-            if currentEditorMode == "Routes" then
-                currentEditorMode = "Ports"
-            elseif currentEditorMode == "Ports" then
-                currentEditorMode = "Routes"
+            if currentEditorMode == EEditorMode.Routes then
+                currentEditorMode = EEditorMode.Ports
+            elseif currentEditorMode == EEditorMode.Ports then
+                currentEditorMode = EEditorMode.Segments
+            elseif currentEditorMode == EEditorMode.Segments then
+                currentEditorMode = EEditorMode.Routes
             end
 
             cleanup()
-            m:destroy()
-            createEditWindow()
-        end
-    end)
-
-    --- Reload
-    button_reload:register(tes3.uiEvent.mouseClick, function()
-        local m = tes3ui.findMenu(editMenuId)
-        if (m) then
-            -- reload routes
-            GRoutesManager.getInstance():Init()
-            tes3.messageBox("Reloaded routes")
-
-            tes3ui.leaveMenuMode()
             m:destroy()
             createEditWindow()
         end
@@ -916,8 +1060,8 @@ local function simulatedCallback(e)
             end
         end
 
-        editorData.currentMarker.translation = from
-        editorData.currentMarker:update()
+        editorData.currentMarker.node.translation = from
+        editorData.currentMarker.node:update()
     end
 
     if editorPortData and editorPortData.mount then
@@ -929,13 +1073,10 @@ local function simulatedCallback(e)
 end
 event.register(tes3.event.simulated, simulatedCallback)
 
---- @param e keyDownEventData
-local function editor_keyDownCallback(e)
-    -- editor menu
-    if e.keyCode == config.openkeybind.keyCode then createEditWindow() end
-
-    -- insert
-    if e.keyCode == config.placekeybind.keyCode then
+local function insertMarker()
+    if IsPortMode() then
+        -- TODO it can bei either start or destination
+    elseif IsRouteMode() then
         if not editorData then return end
         if not editorMarkerMesh then return end
         if not editorData.editorMarkers then return end
@@ -945,16 +1086,13 @@ local function editor_keyDownCallback(e)
             return
         end
 
+        local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
+
         local child = editorMarkerMesh:clone()
-
-        local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() *
-            256
-
         child.translation = tes3vector3.new(from.x, from.y, from.z)
         child.appCulled = false
 
         local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-        ---@diagnostic disable-next-line: param-type-mismatch
         vfxRoot:attachChild(child)
         vfxRoot:update()
 
@@ -968,42 +1106,57 @@ local function editor_keyDownCallback(e)
             newIdx = idx + 1
         end
 
-        table.insert(editorData.editorMarkers, newIdx, child)
+        local type = EMarkerType.Route
+        ---@type SPreviewMarker
+        local struct = {
+            node = child,
+            type = type
+        }
 
-        editorData.currentMarker = child
+        table.insert(editorData.editorMarkers, newIdx, struct)
+
+        editorData.currentMarker = struct
         editmode = true
     end
+end
 
-    -- marker edit mode
-    if e.keyCode == config.editkeybind.keyCode then
+local function editMarker()
+    if IsPortMode() then
+        -- TODO
+    elseif IsRouteMode() then
         if not editorData then return end
 
         local idx = getClosestMarkerIdx()
-        if idx then
-            -- if the first then get the second
-            if idx == 1 then
-                idx = 2
-            end
-            -- if the last then get the second last
-            if idx == #editorData.editorMarkers then
-                idx = #editorData.editorMarkers - 1
-            end
+        if not idx then
+            return
+        end
 
-            editorData.currentMarker = editorData.editorMarkers[idx]
-            updateMarkers()
+        -- if the first then get the second
+        if idx == 1 then
+            idx = 2
+        end
+        -- if the last then get the second last
+        if idx == #editorData.editorMarkers then
+            idx = #editorData.editorMarkers - 1
+        end
 
-            editmode = not editmode
-            tes3.messageBox("Marker index: " .. idx)
-            if not editmode then
-                if editorData and config.traceOnSave then
-                    traceRoute(editorData.service)
-                end
-            end
+        editorData.currentMarker = editorData.editorMarkers[idx]
+        updateMarkers()
+
+        editmode = not editmode
+
+        tes3.messageBox("Marker index: " .. idx)
+
+        if not editmode and config.traceOnSave then
+            traceRoute(editorData.service)
         end
     end
+end
 
-    -- delete
-    if e.keyCode == config.deletekeybind.keyCode then
+local function deleteMarker()
+    if IsPortMode() then
+        -- TODO
+    elseif IsRouteMode() then
         if not editorData then return end
         if not editorData.editorMarkers then return end
 
@@ -1023,7 +1176,7 @@ local function editor_keyDownCallback(e)
 
             local instance = editorData.editorMarkers[idx]
             local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-            vfxRoot:detachChild(instance)
+            vfxRoot:detachChild(instance.node)
             vfxRoot:update()
 
             table.remove(editorData.editorMarkers, idx)
@@ -1033,13 +1186,32 @@ local function editor_keyDownCallback(e)
             end
         end
     end
+end
+
+--- @param e keyDownEventData
+local function editor_keyDownCallback(e)
+    -- editor menu
+    if e.keyCode == config.openkeybind.keyCode then createEditWindow() end
+
+    -- insert
+    if e.keyCode == config.placekeybind.keyCode then
+        insertMarker()
+    end
+
+    -- marker edit mode
+    if e.keyCode == config.editkeybind.keyCode then
+        editMarker()
+    end
+
+    -- delete
+    if e.keyCode == config.deletekeybind.keyCode then
+        deleteMarker()
+    end
 
     -- trace
     if e.keyCode == config.tracekeybind.keyCode then
         if editorData then traceRoute(editorData.service) end
     end
-
-    -- port functions
 end
 event.register(tes3.event.keyDown, editor_keyDownCallback)
 

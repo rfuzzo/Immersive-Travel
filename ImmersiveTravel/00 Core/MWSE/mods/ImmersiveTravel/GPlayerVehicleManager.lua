@@ -215,10 +215,9 @@ local function uiShowRestMenuCallback(e)
 
                                 lib.teleportToClosestMarker()
 
-                                vehicle:EndPlayerTravel()
+                                PlayerVehicleManager.getInstance():StopTraveling()
 
-                                vehicle:Delete()
-                                PlayerVehicleManager.getInstance().trackedVehicle = nil
+                                vehicle:release()
                             end
                         end)
                     })
@@ -315,6 +314,8 @@ function PlayerVehicleManager:StartTraveling(vehicle)
 end
 
 function PlayerVehicleManager:StopTraveling()
+    self.trackedVehicle = nil
+
     -- unregister events
     event.unregister(tes3.event.mouseWheel, lib.mouseWheelCallback)
     event.unregister(tes3.event.damage, damageInvincibilityGate)
@@ -329,22 +330,6 @@ function PlayerVehicleManager:StopTraveling()
     event.unregister(tes3.event.referenceActivated, referenceActivatedCallback)
     event.unregister("CraftingFramework:EndPlacement", CFEndPlacementCallback)
     event.unregister("CraftingFramework:StartPlacement", CFStartPlacementCallback)
-
-    -- TODO disable teleport in mcm
-    tes3.fadeOut()
-    timer.start({
-        type = timer.simulate,
-        duration = 1,
-        callback = (function()
-            tes3.fadeIn()
-
-            lib.teleportToClosestMarker()
-
-            local vehicle = self.trackedVehicle ---@cast vehicle CVehicle
-            vehicle:EndPlayerTravel()
-            self.trackedVehicle = nil
-        end)
-    })
 end
 
 return PlayerVehicleManager

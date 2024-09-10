@@ -148,7 +148,6 @@ function PlayerSteerState:enter(scriptedObject)
         local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
         child.translation = from
         child.appCulled = false
-        ---@diagnostic disable-next-line: param-type-mismatch
         vfxRoot:attachChild(child)
         vfxRoot:update()
         manager.travelMarker = child

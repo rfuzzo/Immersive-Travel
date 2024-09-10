@@ -73,6 +73,7 @@ local log                   = lib.log
 ---@field splineIndex number
 ---@field virtualDestination tes3vector3?
 ---@field current_speed number
+---@field current_turnspeed number
 ---@field current_sound string?
 ---@field speedChange number
 ---@field playerRegistered boolean
@@ -95,6 +96,7 @@ function CVehicle:new()
     newObj.sway = 0
     newObj.speed = 0
     newObj.turnspeed = 0
+    newObj.current_turnspeed = 0
     newObj.hasFreeMovement = false
     newObj.slots = {}
     newObj.changeSpeed = 1
@@ -123,7 +125,7 @@ function CVehicle:OnCreate()
 
     -- register statics
     if self.clutter then
-        log:trace("\tregistering statics")
+        log:debug("\tregistering statics")
         for index, clutter in ipairs(self.clutter) do
             if clutter.id then
                 -- instantiate
@@ -200,7 +202,7 @@ function CVehicle:StartOnSpline(routeId, service)
 
     log:trace("StartOnSpline %s", self:Id())
 
-    -- this pushes the AI statemachine
+    -- TODO start in port, needs to adjust the start position and state machine transitions
     self:StartRoute(routeId)
 
     -- register guide
@@ -235,10 +237,8 @@ end
 --- StartPlayerTravel is called when the player starts traveling
 ---@param guideId string
 ---@param routeId string
----@param service ServiceData
-function CVehicle:StartPlayerTravel(guideId, routeId, service)
+function CVehicle:StartPlayerTravel(guideId, routeId)
     log:debug("StartPlayerTravel %s", self.id)
-    log:debug("AI state: %s", self.aiStateMachine.currentState.name)
 
     self:Attach()
 
@@ -247,6 +247,7 @@ function CVehicle:StartPlayerTravel(guideId, routeId, service)
     self:StartRoute(routeId)
 
     local mount = self.referenceHandle:getObject()
+    GPlayerVehicleManager.getInstance():StartTraveling(self)
 
     -- register guide
     log:debug("\tregistering guide")
@@ -256,7 +257,6 @@ function CVehicle:StartPlayerTravel(guideId, routeId, service)
         orientation = mount.orientation
     }
     self:registerGuide(tes3.makeSafeObjectHandle(guide))
-
     guide.mobile.hello = 0
 
     -- register player
@@ -276,8 +276,22 @@ end
 function CVehicle:EndPlayerTravel()
     log:debug("EndPlayerTravel")
 
-    self.playerRegistered = false
-    self:release()
+    GPlayerVehicleManager.getInstance():StopTraveling()
+
+    -- TODO disable teleport in mcm
+    tes3.fadeOut()
+    timer.start({
+        type = timer.simulate,
+        duration = 1,
+        callback = (function()
+            tes3.fadeIn()
+
+            lib.teleportToClosestMarker()
+
+            self.playerRegistered = false
+            self:release()
+        end)
+    })
 end
 
 function CVehicle:release()

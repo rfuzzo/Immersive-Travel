@@ -120,9 +120,9 @@ end
 --- activate the entity
 ---@param reference tes3reference
 function TrackingManager:OnActivate(reference)
-    log:debug("TrackingManager:OnActivate %s", reference.id)
-
     if interop.isScriptedEntity(reference.id) then
+        log:trace("TrackingManager: OnActivate %s", reference.id)
+
         -- check if entity is already in tracking list
         if reference.tempData.scriptedEntityId then
             -- get entity from tracking list
@@ -224,22 +224,22 @@ function TrackingManager:doCull()
         local vehicle = s ---@cast vehicle CVehicle
 
         if s.markForDelete then
-            log:debug("Marked as deleted %s", s:Id())
+            log:debug("doCull: Marked as deleted %s", s:Id())
             table.insert(toremove, s)
             goto continue
         end
 
         -- only cull vehicles that are in onspline ai state
-        if vehicle.aiStateMachine and vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
+        if vehicle.aiStateMachine and vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE and not vehicle.playerRegistered then
             if not vehicle:GetRootBone() then
-                log:debug("doCull No root bone %s", s:Id())
+                log:debug("doCull: No root bone %s", s:Id())
                 table.insert(toremove, s)
                 goto continue
             end
 
             local d = tes3.player.position:distance(vehicle.last_position)
             if d > self.cullRadius * 8192 then
-                log:debug("doCull Culled out of distance %s", s:Id())
+                log:debug("doCull: Culled out of distance %s", s:Id())
                 table.insert(toremove, s)
                 goto continue
             end
