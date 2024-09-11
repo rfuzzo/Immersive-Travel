@@ -24,7 +24,6 @@
   ],
   "minSpeed": 0,
   "maxSpeed": 10,
-  "changeSpeed": 3.0,
   "freedomtype": "ground",
   "accelerateAnimation": "runForward",
   "forwardAnimation": "runForward",

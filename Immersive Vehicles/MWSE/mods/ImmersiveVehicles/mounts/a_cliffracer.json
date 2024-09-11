@@ -24,7 +24,6 @@
   ],
   "minSpeed": 0,
   "maxSpeed": 20,
-  "changeSpeed": 3.0,
   "freedomtype": "flying",
   "accelerateAnimation": "idle",
   "forwardAnimation": "runForward",

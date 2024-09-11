@@ -27,7 +27,6 @@ function CLongboat:new()
     newObj.speed = 4
     newObj.minSpeed = -2
     newObj.maxSpeed = 4
-    newObj.changeSpeed = 1.5
     newObj.turnspeed = 24
     newObj.hasFreeMovement = true
     newObj.freedomtype = "boat"

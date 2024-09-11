@@ -54,7 +54,7 @@ local log                   = lib.log
 ---@field freedomtype string flying, boat, ground
 -- optionals
 ---@field serviceId string? -- the id of the service
----@field changeSpeed number? -- default 1
+---@field changeSpeed number?
 ---@field minSpeed number?
 ---@field slots Slot[]
 ---@field guideSlot Slot
@@ -78,7 +78,6 @@ local log                   = lib.log
 ---@field current_speed number
 ---@field current_turnspeed number
 ---@field current_sound string?
----@field speedChange number
 ---@field playerRegistered boolean
 local CVehicle              = {}
 setmetatable(CVehicle, { __index = CTickingEntity })
@@ -102,11 +101,10 @@ function CVehicle:new()
     newObj.current_turnspeed = 0
     newObj.hasFreeMovement = false
     newObj.slots = {}
-    newObj.changeSpeed = 1
+    newObj.changeSpeed = 0
     newObj.swayTime = 0
     newObj.splineIndex = 1
     newObj.current_speed = 0
-    newObj.speedChange = 0
     newObj.playerRegistered = false
     newObj.scale = 1
 

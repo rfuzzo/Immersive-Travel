@@ -131,7 +131,7 @@ end
 
 function OnSplineState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    vehicle.speedChange = 0.5
+    vehicle.changeSpeed = 0.5
     vehicle.current_turnspeed = vehicle.turnspeed
 end
 

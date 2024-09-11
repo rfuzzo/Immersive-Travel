@@ -80,10 +80,6 @@ function LeaveDockState:update(dt, scriptedObject)
     CAiState.update(self, dt, scriptedObject)
 
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    local spline = GRoutesManager.getInstance():GetRoute(vehicle.routeId)
-    if spline == nil then
-        return
-    end
 
     -- handle player leaving and entering the vehicle
     local manager = GPlayerVehicleManager.getInstance()
@@ -110,7 +106,7 @@ function LeaveDockState:update(dt, scriptedObject)
     end
 
     -- reached destination
-    if vehicle.splineIndex > #spline then
+    if vehicle.last_position:distance(vehicle.virtualDestination) < 100 then
         self:OnDestinationReached(scriptedObject)
     end
 end
@@ -119,26 +115,20 @@ end
 function LeaveDockState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
 
-    vehicle.speedChange = 0.5
+    vehicle.changeSpeed = 0.5
     local service = GRoutesManager.getInstance().services[vehicle.serviceId]
     if service then
         local port = service.ports[vehicle.currentPort]
         if port then
             if port.reverseStart then
-                -- TODO FIX THIS
-                -- vehicle.speedChange = -0.5
+                vehicle.changeSpeed = -0.5
                 vehicle.current_speed = vehicle.minSpeed
+                debug.log(vehicle.current_speed)
             end
         end
     end
 
     vehicle.current_turnspeed = vehicle.turnspeed * 2
-end
-
--- Method to exit the state
----@param scriptedObject CTickingEntity
-function LeaveDockState:exit(scriptedObject)
-    local vehicle = scriptedObject ---@cast vehicle CVehicle
 end
 
 return LeaveDockState

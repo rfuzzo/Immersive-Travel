@@ -12,7 +12,7 @@ local log                   = lib.log
 - travel
 
     -[ ] refactor routes with segments
-    -[ ] fix locomotion in reverse
+    -[x] fix locomotion in reverse
     -[x] add NPCs
     -[x] add payment
     -[ ] slow down in port

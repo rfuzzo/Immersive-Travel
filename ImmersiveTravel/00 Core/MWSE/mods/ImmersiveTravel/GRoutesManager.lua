@@ -222,8 +222,8 @@ function RoutesManager:Init()
 
                         -- save points in memory
                         for idx, pos in ipairs(spline) do
-                            -- ignore first and last two points
-                            if idx < 3 or idx > #spline - 2 then
+                            -- ignore first and last points
+                            if idx < 4 or idx > #spline - 3 then
                                 goto continue
                             end
 

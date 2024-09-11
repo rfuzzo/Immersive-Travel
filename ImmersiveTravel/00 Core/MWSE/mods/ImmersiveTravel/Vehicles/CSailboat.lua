@@ -14,7 +14,6 @@ function CSailboat:new()
     ---@cast newObj CSailboat
 
     -- set default values
-    -- set default values
     newObj.id = "a_sailboat_iv"
     newObj.sound = {
         "Boat Creak"
@@ -26,7 +25,6 @@ function CSailboat:new()
     newObj.speed = 2
     newObj.minSpeed = -2
     newObj.maxSpeed = 7
-    newObj.changeSpeed = 1.5
     newObj.turnspeed = 30
     newObj.scale = 0.7
     newObj.guideSlot = {

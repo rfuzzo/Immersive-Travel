@@ -25,7 +25,6 @@ function CShipDe:new()
     newObj.speed = 3
     newObj.minSpeed = -1
     newObj.maxSpeed = 3
-    newObj.changeSpeed = 1
     newObj.turnspeed = 10
     newObj.hasFreeMovement = true
     newObj.freedomtype = "boat"

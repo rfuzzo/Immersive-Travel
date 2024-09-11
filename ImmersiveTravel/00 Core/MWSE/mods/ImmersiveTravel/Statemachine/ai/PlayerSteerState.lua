@@ -45,12 +45,12 @@ local function mountKeyDownCallback(e)
     if e.keyCode == tes3.scanCode["w"] then
         -- increment speed
         if vehicle.current_speed < vehicle.maxSpeed then
-            vehicle.speedChange = 1
+            vehicle.changeSpeed = 1
         end
     elseif e.keyCode == tes3.scanCode["s"] then
         -- decrement speed
         if vehicle.current_speed > vehicle.minSpeed then
-            vehicle.speedChange = -1
+            vehicle.changeSpeed = -1
         end
     end
 end
@@ -72,7 +72,7 @@ local function keyUpCallback(e)
     if mountHandle and mountHandle:valid() then
         if e.keyCode == tes3.scanCode["w"] or e.keyCode == tes3.scanCode["s"] then
             -- stop increment speed
-            vehicle.speedChange = 0
+            vehicle.changeSpeed = 0
             -- if DEBUG then
             --     tes3.messageBox("Current Speed: " .. tostring(vehicle.current_speed))
             -- end

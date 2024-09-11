@@ -7,7 +7,7 @@ local interop             = require("ImmersiveTravel.interop")
 ---@field point PositionRecord  the actual point
 ---@field splineIndex number    the index of the point in the spline
 ---@field routeId string        the route id
----@field service string        the route id
+---@field service string        the service id
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
@@ -51,14 +51,12 @@ end
 --- spawn an object on the vfx node and register it
 ---@param point SPointDto
 local function doSpawn(point)
-    log:trace("doSpawn")
     if not GRoutesManager.getInstance().services then
         return
     end
 
     -- get service and route
-    local serviceId = point.service
-    local service = GRoutesManager.getInstance().services[serviceId]
+    local service = GRoutesManager.getInstance().services[point.service]
     if not service then
         return
     end
@@ -104,7 +102,6 @@ local function doSpawn(point)
     end
 
     -- start the vehicle
-    log:trace("Trace doSpawn vehicle id: %s", vehicle.id)
     vehicle:StartOnSpline(point.routeId, service)
 end
 

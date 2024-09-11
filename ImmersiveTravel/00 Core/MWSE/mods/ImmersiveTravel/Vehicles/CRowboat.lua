@@ -26,7 +26,6 @@ function CRowboat:new()
     newObj.speed = 2
     newObj.minSpeed = -2
     newObj.maxSpeed = 7
-    newObj.changeSpeed = 1.5
     newObj.turnspeed = 30
     newObj.scale = 1
     newObj.guideSlot = {

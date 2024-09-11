@@ -39,7 +39,7 @@ end
 ---@return boolean
 local function toMovingState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return (vehicle.routeId or vehicle.virtualDestination) and vehicle.speedChange == 0 and
+    return (vehicle.routeId or vehicle.virtualDestination) and vehicle.changeSpeed == 0 and
         (vehicle.current_speed > 0.5 or vehicle.current_speed < -0.5)
 end
 
@@ -54,7 +54,7 @@ local function toIdleState(ctx)
         return true
     end
 
-    if vehicle.speedChange ~= 0 then
+    if vehicle.changeSpeed ~= 0 then
         return false
     end
 
@@ -66,7 +66,7 @@ end
 ---@return boolean
 local function toAccelerateState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return (vehicle.routeId or vehicle.virtualDestination) and vehicle.speedChange > 0
+    return (vehicle.routeId or vehicle.virtualDestination) and vehicle.changeSpeed > 0
 end
 
 --- transition to decelerate state
@@ -74,7 +74,7 @@ end
 ---@return boolean
 local function toDecelerateState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return (vehicle.routeId or vehicle.virtualDestination) and vehicle.speedChange < 0
+    return (vehicle.routeId or vehicle.virtualDestination) and vehicle.changeSpeed < 0
 end
 
 --#endregion
@@ -177,7 +177,7 @@ local function CalculatePositions(vehicle, nextPos)
     -- only in onspline AI states
     -- evade
     local rootBone      = vehicle:GetRootBone()
-    local enableEvade   = worldConfig and worldConfig.enableEvade
+    local enableEvade   = false --worldConfig and worldConfig.enableEvade
     if enableEvade and rootBone and vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
         local result = nil
         local is_evading = false;
@@ -249,9 +249,10 @@ local function CalculatePositions(vehicle, nextPos)
     local position = currentPos + delta + mountOffset
 
     -- calculate facing
-    local new_facing = math.atan2(d.x, d.y)
     local turn = 0
+
     local current_facing = vehicle.last_facing
+    local new_facing = math.atan2(d.x, d.y)
     local facing = new_facing
     local diff = new_facing - current_facing
     if diff < -math.pi then diff = diff + 2 * math.pi end
@@ -329,6 +330,11 @@ end
 local function getNextPositionHeading(vehicle)
     -- handle player steer and onspline states
     if vehicle.virtualDestination then
+        -- TODO check if close to virtual destination
+        if vehicle.last_position:distance(vehicle.virtualDestination) < 100 then
+            return nil
+        end
+
         return vehicle.virtualDestination
     end
 
@@ -350,6 +356,7 @@ local function getNextPositionHeading(vehicle)
     local isBehind = lib.isPointBehindObject(nextPos, vehicle.last_position, vehicle.last_forwardDirection)
     if isBehind then
         vehicle.splineIndex = vehicle.splineIndex + 1
+        lib.log:warn("Move %s: nextPos is behind", vehicle:Id())
     end
     if vehicle.splineIndex > #spline then
         return nil
@@ -370,29 +377,21 @@ local function Move(vehicle, dt)
 
     local nextPos = getNextPositionHeading(vehicle)
     if nextPos == nil then
-        lib.log:warn("Move %s: nextPos is nil", vehicle:Id())
+        -- lib.log:warn("Move %s: nextPos is nil", vehicle:Id())
         return
     end
 
     -- TODO speed change
-    if vehicle.current_speed >= vehicle.maxSpeed or vehicle.current_speed <= vehicle.minSpeed then
-        vehicle.speedChange = 0
+    if vehicle.changeSpeed > 0 and vehicle.current_speed >= vehicle.maxSpeed then
+        vehicle.changeSpeed = 0
+    end
+    if vehicle.changeSpeed < 0 and vehicle.current_speed <= vehicle.minSpeed then
+        vehicle.changeSpeed = 0
     end
 
-    if vehicle.speedChange > 0 then
+    if vehicle.changeSpeed ~= 0 then
         local change = vehicle.current_speed + (vehicle.changeSpeed * dt)
         vehicle.current_speed = math.clamp(change, vehicle.minSpeed, vehicle.maxSpeed)
-    elseif vehicle.speedChange < 0 then
-        local change = vehicle.current_speed - (vehicle.changeSpeed * dt)
-        vehicle.current_speed = math.clamp(change, vehicle.minSpeed, vehicle.maxSpeed)
-    end
-
-    -- skip
-    if vehicle.minSpeed then
-        if vehicle.current_speed < vehicle.minSpeed then
-            lib.log:warn("Move %s: current_speed < minSpeed", vehicle:Id())
-            return
-        end
     end
 
     -- move
@@ -416,13 +415,15 @@ local function Move(vehicle, dt)
     --end
 
     -- save positions
-    vehicle.last_position = position
-    vehicle.last_facing = facing
+    vehicle.last_position = mount.position
     vehicle.last_forwardDirection = mount.forwardDirection --  calculate this
+    vehicle.last_facing = mount.facing
 
     ---if not skipMove then
     -- sway
-    mount.orientation = calculateOrientation(vehicle, dt, turn)
+    if vehicle.current_speed > 0 then
+        mount.orientation = calculateOrientation(vehicle, dt, turn)
+    end
     -- update slots
     vehicle:UpdateSlots(dt)
     --else
