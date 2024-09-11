@@ -1,6 +1,7 @@
 local lib            = require("ImmersiveTravel.lib")
 local interop        = require("ImmersiveTravel.interop")
 local GRoutesManager = require("ImmersiveTravel.GRoutesManager")
+local PositionRecord = require("ImmersiveTravel.models.PositionRecord")
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
@@ -99,6 +100,8 @@ local editmode = false
 
 ---@type SEditorPortData | nil
 local editorPortData = nil
+local destinations = {} ---@type table<string,table<string, string[]>> -- start -> destination[] per service
+local splines = {} ---@type table<string, tes3vector3[]> -- routeId -> spline
 
 -- preview
 ---@type SPreviewData | nil
@@ -189,10 +192,147 @@ local function getGroundZ(from)
     return nil
 end
 
+--- Load all route splines for a given service
+---@param service ServiceData
+---@return table<string, string[]>
+local function loadRoutes(service)
+    local map = {} ---@type table<string, table>
+
+    for file in lfs.dir(lib.fullmodpath .. "\\" .. service.class) do
+        if (string.endswith(file, ".json")) then
+            local split = string.split(file:sub(0, -6), "_")
+            if #split == 2 then
+                local start = ""
+                local destination = ""
+
+                for i, id in ipairs(split) do
+                    if i == 1 then
+                        start = id
+                    else
+                        destination = id
+                    end
+                end
+
+                local startPort = table.get(service.ports, start, nil)
+                local destinationPort = table.get(service.ports, destination, nil)
+
+                if not startPort then
+                    log:debug("\t\t! Start port %s not found", start)
+                end
+
+                if not destinationPort then
+                    log:debug("\t\t! Destination port %s not found", destination)
+                end
+
+                -- check if both ports exist
+                if startPort and destinationPort then
+                    local result = table.get(map, start, nil)
+                    if not result then
+                        local v = {}
+                        v[destination] = 1
+                        map[start] = v
+                    else
+                        result[destination] = 1
+                        map[start] = result
+                    end
+                end
+            end
+        end
+    end
+
+    local r = {} ---@type table<string, string[]>
+    for key, value in pairs(map) do
+        local v = {} ---@type string[]
+        for d, _ in pairs(value) do
+            table.insert(v, d)
+        end
+        r[key] = v
+    end
+
+    return r
+end
+
+--- load json spline from file
+---@param start string
+---@param destination string
+---@param data ServiceData
+---@return tes3vector3[]|nil
+local function loadSpline(start, destination, data)
+    local fileName = start .. "_" .. destination
+    local filePath = string.format("%s\\%s\\%s", lib.localmodpath, data.class, fileName)
+
+    if tes3.getFileExists("MWSE\\" .. filePath .. ".json") then
+        local dto = json.loadfile(filePath) ---@type PositionRecord[]?
+        if dto ~= nil then
+            -- convert to tes3vector3[]
+            local result = {} ---@type tes3vector3[]
+            for i, pos in ipairs(dto) do
+                result[i] = PositionRecord.ToVec(pos)
+            end
+
+            -- get ports
+            local startPort = table.get(data.ports, start, nil) ---@type PortData?
+            local destinationPort = table.get(data.ports, destination, nil) ---@type PortData?
+
+            if startPort and destinationPort then
+                -- add start and end ports
+                if startPort.positionStart then
+                    table.insert(result, 1, startPort.positionStart)
+                else
+                    table.insert(result, 1, startPort.position)
+                end
+
+                -- if destinationPort.positionEnd then
+                --     table.insert(result, destinationPort.positionEnd)
+                -- else
+                table.insert(result, destinationPort.position)
+                --end
+
+                return result
+            else
+                log:error("!!! failed to find start or destination port for route %s - %s", start, destination)
+                return nil
+            end
+        else
+            log:error("!!! failed to find file: %s", filePath)
+            return nil
+        end
+    else
+        log:error("!!! failed to find any file: " .. fileName)
+    end
+end
+
+
+---@param name string
+local function teleportToCell(name)
+    -- get cell
+    local cell = tes3.getCell({ id = name })
+    if not cell then return end
+
+    -- get first doormarker
+    local marker = nil ---@type tes3reference?
+    for ref in cell:iterateReferences(tes3.objectType["static"]) do
+        if ref.id == "DoorMarker" then
+            marker = ref
+            break
+        end
+    end
+
+    -- teleport
+    if marker then
+        tes3.positionCell({
+            reference = tes3.mobilePlayer,
+            position  = marker.position,
+        })
+    end
+end
+
 --#endregion
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// EDITOR
+
+--#region editor helpers
 
 local function updateMarkers()
     if not editorData then return end
@@ -212,8 +352,6 @@ local function updateMarkers()
 
     tes3.worldController.vfxManager.worldVFXRoot:update()
 end
-
---#region editor helpers
 
 ---@return number?
 local function getClosestMarkerIdx()
@@ -690,40 +828,77 @@ local function IsSegmentsMode()
     return currentEditorMode == EEditorMode.Segments
 end
 
----@param name string
-local function teleportToCell(name)
-    -- get cell
-    local cell = tes3.getCell({ id = name })
-    if not cell then return end
-
-    -- get first doormarker
-    local marker = nil ---@type tes3reference?
-    for ref in cell:iterateReferences(tes3.objectType["static"]) do
-        if ref.id == "DoorMarker" then
-            marker = ref
-            break
-        end
-    end
-
-    -- teleport
-    if marker then
-        tes3.positionCell({
-            reference = tes3.mobilePlayer,
-            position  = marker.position,
-        })
-    end
-end
 
 --#endregion
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// UI
 
+local function Reload()
+    GRoutesManager.getInstance():Init()
+
+    local services = GRoutesManager.getInstance().services
+    if not services then return end
+
+    destinations = {}
+    splines = {}
+
+    for key, service in pairs(services) do
+        local serviceDestinations = loadRoutes(service)
+        destinations[key] = serviceDestinations
+
+        for _i, start in ipairs(table.keys(serviceDestinations)) do
+            for _j, destination in ipairs(serviceDestinations[start]) do
+                local spline = loadSpline(start, destination, service)
+                if spline then
+                    -- save route in memory
+                    local routeId = start .. "_" .. destination
+                    splines[routeId] = spline
+
+                    log:debug("\t\tAdding route '%s' (%s)", routeId, service.class)
+
+                    -- -- save points in memory
+                    -- for idx, pos in ipairs(spline) do
+                    --     -- ignore first and last points
+                    --     if idx < 4 or idx > #spline - 3 then
+                    --         goto continue
+                    --     end
+
+                    --     local cell = tes3.getCell({
+                    --         position = tes3vector3.new(pos.x, pos.y, 0)
+                    --     })
+                    --     if cell then
+                    --         local cell_key = tostring(cell.gridX) .. "," .. tostring(cell.gridY)
+                    --         if not self.spawnPoints[cell_key] then
+                    --             self.spawnPoints[cell_key] = {}
+                    --         end
+
+                    --         ---@type SPointDto
+                    --         local point = {
+                    --             point = pos,
+                    --             routeId = routeId,
+                    --             splineIndex = idx,
+                    --             service = service.class
+                    --         }
+                    --         table.insert(self.spawnPoints[cell_key], point)
+                    --     end
+
+
+                    --     ::continue::
+                    -- end
+                else
+                    log:warn("No spline found for %s -> %s", start, destination)
+                end
+            end
+        end
+    end
+end
+
 local function createEditWindow()
     -- Return if window is already open
     if (tes3ui.findMenu(editMenuId) ~= nil) then return end
 
-    GRoutesManager.getInstance():Init()
+    Reload()
 
     -- load services
     local services = GRoutesManager.getInstance().services

@@ -65,8 +65,8 @@ function LeaveDockState:OnDestinationReached(scriptedObject)
 
     -- get random destination
     local service = GRoutesManager.getInstance().services[vehicle.serviceId]
-    local destinations = service.routes[vehicle.currentPort]
-    if destinations then
+    local destinations = service:GetDestinations(vehicle.currentPort)
+    if #destinations > 0 then
         local destination = destinations[math.random(#destinations)]
         vehicle.routeId = string.format("%s_%s", vehicle.currentPort, destination)
         vehicle.currentPort = nil
@@ -118,7 +118,7 @@ function LeaveDockState:enter(scriptedObject)
     vehicle.changeSpeed = 0.5
     local service = GRoutesManager.getInstance().services[vehicle.serviceId]
     if service then
-        local port = service.ports[vehicle.currentPort]
+        local port = GRoutesManager.getInstance().ports[vehicle.currentPort]
         if port then
             if port.reverseStart then
                 vehicle.changeSpeed = -0.5

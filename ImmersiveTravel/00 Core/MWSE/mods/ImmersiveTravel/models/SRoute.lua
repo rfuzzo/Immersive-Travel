@@ -1,14 +1,20 @@
 ---@class SRoute
----@field start string The start cell name
----@field destination string The destination cell name
----@field service string The service class name
+---@field id RouteId The route id
 ---@field segments string[] The route segments
 ---@field segmentsMetaData table<string, SSegmentMetaData> The route segments meta data
 local SRoute = {}
 
+---@return SRoute
+function SRoute:new(o)
+    o = o or {} -- create object if user does not provide one
+    setmetatable(o, self)
+    self.__index = self
+    return o
+end
+
 ---@return string
 function SRoute:GetId()
-    return self.start .. "_" .. self.destination
+    return self.id:__tostring()
 end
 
 return SRoute

@@ -66,8 +66,7 @@ local function createTravelWindow(service, guide, npcMenu)
     -- Return if window is already open
     if (tes3ui.findMenu(travelMenuId) ~= nil) then return end
     local start = guide.cell.id
-    local destinations = service.routes[start]
-    if destinations == nil then return end
+    local destinations = service:GetDestinations(start)
     if #destinations == 0 then return end
 
     -- Create window and frame

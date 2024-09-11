@@ -1,5 +1,7 @@
 
-destination = "Ebonheart"
 segments = ["Ebonheart", "Vivec", "Hla Oad"]
+
+[id]
+destination = "Ebonheart"
 start = "Hla Oad"
 service = "Shipmaster"

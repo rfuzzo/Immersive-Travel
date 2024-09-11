@@ -1,25 +1,27 @@
-local lib            = require("ImmersiveTravel.lib")
-local interop        = require("ImmersiveTravel.interop")
-local PositionRecord = require("ImmersiveTravel.models.PositionRecord")
-local PortData       = require("ImmersiveTravel.models.PortData")
-local SSegment       = require("ImmersiveTravel.models.SSegment")
-local config         = require("ImmersiveTravel.config")
+local lib      = require("ImmersiveTravel.lib")
+local interop  = require("ImmersiveTravel.interop")
+local SRoute   = require("ImmersiveTravel.models.SRoute")
+local PortData = require("ImmersiveTravel.models.PortData")
+local SSegment = require("ImmersiveTravel.models.SSegment")
+local config   = require("ImmersiveTravel.config")
 if not config then return end
 
 local log           = lib.log
 
 -- Define a class to manage the splines
 ---@class GRoutesManager
----@field services table<string, ServiceData>? -- serviceId -> ServiceData
----@field spawnPoints table<string, SPointDto[]>
----@field private routes table<string, tes3vector3[]> -- routeId -> spline TODO this presupposes unique IDs
----@field private segments table<string, SSegment> -- segmentId -> SSegment
----@field private routesPrice table<string, number> -- routeId -> spline TODO this presupposes unique IDs
+---@field services table<string, ServiceData>? service name -> ServiceData
+---@field spawnPoints table<string, SPointDto[]> TODO
+---@field routesPrice table<RouteId, number> TODO
+---@field private segments table<string, SSegment> segment name -> SSegment
+---@field private ports table<string, PortData> cell name -> PortData
+---@field private routes table<RouteId, SRoute> routeId -> SRoute
 local RoutesManager = {
     services    = {},
     spawnPoints = {},
-    routes      = {},
     segments    = {},
+    ports       = {},
+    routes      = {},
     routesPrice = {},
 }
 
@@ -39,66 +41,6 @@ function RoutesManager.getInstance()
         instance = RoutesManager:new()
     end
     return instance
-end
-
---- Load all route splines for a given service
----@param service ServiceData
----@return table<string, string[]>
-local function loadRoutes(service)
-    local map = {} ---@type table<string, table>
-
-    for file in lfs.dir(lib.fullmodpath .. "\\" .. service.class) do
-        if (string.endswith(file, ".json")) then
-            local split = string.split(file:sub(0, -6), "_")
-            if #split == 2 then
-                local start = ""
-                local destination = ""
-
-                for i, id in ipairs(split) do
-                    if i == 1 then
-                        start = id
-                    else
-                        destination = id
-                    end
-                end
-
-                local startPort = table.get(service.ports, start, nil)
-                local destinationPort = table.get(service.ports, destination, nil)
-
-                if not startPort then
-                    log:debug("\t\t! Start port %s not found", start)
-                end
-
-                if not destinationPort then
-                    log:debug("\t\t! Destination port %s not found", destination)
-                end
-
-                -- check if both ports exist
-                if startPort and destinationPort then
-                    local result = table.get(map, start, nil)
-                    if not result then
-                        local v = {}
-                        v[destination] = 1
-                        map[start] = v
-                    else
-                        result[destination] = 1
-                        map[start] = result
-                    end
-                end
-            end
-        end
-    end
-
-    local r = {} ---@type table<string, string[]>
-    for key, value in pairs(map) do
-        local v = {} ---@type string[]
-        for d, _ in pairs(value) do
-            table.insert(v, d)
-        end
-        r[key] = v
-    end
-
-    return r
 end
 
 ---@param service ServiceData
@@ -138,12 +80,11 @@ local function loadSegments(service)
 
             local result = toml.loadFile(filePath) ---@type SSegmentDto?
             if result then
-                local id = result.id
-                map[id] = SSegment.fromDto(result)
+                map[result.id] = SSegment.fromDto(result)
 
-                log:debug("\t\tAdding port %s", id)
+                log:debug("\t\tAdding segment %s", result.id)
             else
-                log:warn("\t\tFailed to load port %s", file)
+                log:warn("\t\tFailed to load segment %s", file)
             end
         end
     end
@@ -151,54 +92,28 @@ local function loadSegments(service)
     return map
 end
 
---- load json spline from file
----@param start string
----@param destination string
----@param data ServiceData
----@return tes3vector3[]|nil
-local function loadSpline(start, destination, data)
-    local fileName = start .. "_" .. destination
-    local filePath = string.format("%s\\%s\\%s", lib.localmodpath, data.class, fileName)
+---@param service ServiceData
+---@return table<RouteId, SRoute>
+local function loadRoutes(service)
+    local map = {} ---@type table<RouteId, SRoute>
 
-    if tes3.getFileExists("MWSE\\" .. filePath .. ".json") then
-        local dto = json.loadfile(filePath) ---@type PositionRecord[]?
-        if dto ~= nil then
-            -- convert to tes3vector3[]
-            local result = {} ---@type tes3vector3[]
-            for i, pos in ipairs(dto) do
-                result[i] = PositionRecord.ToVec(pos)
-            end
+    local portPath = string.format("%s\\data\\%s\\routes", lib.fullmodpath, service.class)
+    for file in lfs.dir(portPath) do
+        if (string.endswith(file, ".toml")) then
+            local filePath = string.format("%s\\%s", portPath, file)
 
-            -- get ports
-            local startPort = table.get(data.ports, start, nil) ---@type PortData?
-            local destinationPort = table.get(data.ports, destination, nil) ---@type PortData?
+            local result = toml.loadFile(filePath) ---@type SRoute?
+            if result then
+                map[result.id] = SRoute:new(result)
 
-            if startPort and destinationPort then
-                -- add start and end ports
-                if startPort.positionStart then
-                    table.insert(result, 1, startPort.positionStart)
-                else
-                    table.insert(result, 1, startPort.position)
-                end
-
-                -- if destinationPort.positionEnd then
-                --     table.insert(result, destinationPort.positionEnd)
-                -- else
-                table.insert(result, destinationPort.position)
-                --end
-
-                return result
+                log:debug("\t\tAdding route %s", result.id)
             else
-                log:error("!!! failed to find start or destination port for route %s - %s", start, destination)
-                return nil
+                log:warn("\t\tFailed to load route %s", file)
             end
-        else
-            log:error("!!! failed to find file: %s", filePath)
-            return nil
         end
-    else
-        log:error("!!! failed to find any file: " .. fileName)
     end
+
+    return map
 end
 
 ---@param spline tes3vector3[]
@@ -227,9 +142,11 @@ end
 function RoutesManager:Init()
     -- cleanup
     self.services = {}
-    self.routes = {}
     self.spawnPoints = {}
     self.segments = {}
+    self.ports = {}
+    self.routes = {}
+    self.routesPrice = {}
 
     -- init services
     self.services = table.copy(interop.services)
@@ -239,74 +156,15 @@ function RoutesManager:Init()
 
     -- load routes into memory
     log:info("Found %s services", table.size(self.services))
-    for _, service in pairs(self.services) do
+    for _, service in ipairs(self.services) do
         log:info("\tAdding %s service", service.class)
 
-        service.ports = loadPorts(service)
-        service.routes = loadRoutes(service)
-        service.segments = loadSegments(service)
-
-        local destinations = service.routes
-        if destinations then
-            for _i, start in ipairs(table.keys(destinations)) do
-                for _j, destination in ipairs(destinations[start]) do
-                    local spline = loadSpline(start, destination, service)
-                    if spline then
-                        -- save route in memory
-                        local routeId = start .. "_" .. destination
-                        self.routes[routeId] = spline
-                        self.routesPrice[routeId] = GetPrice(spline)
-
-                        log:debug("\t\tAdding route '%s' (%s)", routeId, service.class)
-
-                        -- save points in memory
-                        for idx, pos in ipairs(spline) do
-                            -- ignore first and last points
-                            if idx < 4 or idx > #spline - 3 then
-                                goto continue
-                            end
-
-                            local cell = tes3.getCell({
-                                position = tes3vector3.new(pos.x, pos.y, 0)
-                            })
-                            if cell then
-                                local cell_key = tostring(cell.gridX) .. "," .. tostring(cell.gridY)
-                                if not self.spawnPoints[cell_key] then
-                                    self.spawnPoints[cell_key] = {}
-                                end
-
-                                ---@type SPointDto
-                                local point = {
-                                    point = pos,
-                                    routeId = routeId,
-                                    splineIndex = idx,
-                                    service = service.class
-                                }
-                                table.insert(self.spawnPoints[cell_key], point)
-                            end
-
-
-                            ::continue::
-                        end
-                    else
-                        log:warn("No spline found for %s -> %s", start, destination)
-                    end
-                end
-            end
-        end
+        ports = loadPorts(service)
+        routes = loadRoutes(service)
+        segments = loadSegments(service)
     end
 
-    log:debug("Loaded %s splines", table.size(self.routes))
-    log:debug("Loaded %s points", table.size(self.spawnPoints))
-
-
     return true
-end
-
----@param routeId string
----@return tes3vector3[]?
-function RoutesManager:GetRoute(routeId)
-    return self.routes[routeId]
 end
 
 ---@param routeId string

@@ -129,7 +129,7 @@ local function onMenuDialog(e)
 
         -- get npc class
         local class = npc.class.id
-        local service = table.get(services, class)
+        local service = services[class]
         for _, value in pairs(services) do
             if value.override_npc ~= nil then
                 if lib.is_in(value.override_npc, npc.id) then
@@ -144,9 +144,8 @@ local function onMenuDialog(e)
             return
         end
 
-        -- Return if no destinations
-        local destinations = service.routes[ref.cell.id]
-        if destinations == nil then return end
+        -- TODO Return if no destinations
+        local destinations = service:GetDestinations(ref.cell.id)
         if #destinations == 0 then return end
 
         log:debug("createTravelButton for %s", npc.id)
