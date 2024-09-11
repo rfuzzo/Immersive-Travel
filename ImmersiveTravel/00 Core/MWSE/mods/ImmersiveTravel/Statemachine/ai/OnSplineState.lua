@@ -75,7 +75,7 @@ function OnSplineState:OnDestinationReached(scriptedObject)
                 -- TODO now check if there is a route into dock
                 -- if port.positionEnd then
                 --     -- get route into port
-                --     vehicle.virtualDestination = lib.vec(port.positionEnd)
+                --     vehicle.virtualDestination = port.positionEnd
                 -- end
             end
         end

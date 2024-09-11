@@ -4,7 +4,7 @@ local GRoutesManager      = require("ImmersiveTravel.GRoutesManager")
 local interop             = require("ImmersiveTravel.interop")
 
 ---@class SPointDto
----@field point PositionRecord  the actual point
+---@field point tes3vector3  the actual point
 ---@field splineIndex number    the index of the point in the spline
 ---@field routeId string        the route id
 ---@field service string        the service id
@@ -38,7 +38,7 @@ local function canSpawn(p)
     for id, s in pairs(GTrackingManager.getInstance().trackingList) do
         local vehicle = s ---@cast vehicle CVehicle
         if vehicle.last_position then
-            local d = lib.vec(p.point):distance(vehicle.last_position)
+            local d = p.point:distance(vehicle.last_position)
             if d < config.spawnExlusionRadius * 8192 then
                 return false
             end
@@ -68,12 +68,12 @@ local function doSpawn(point)
 
     -- get orientation and facing
     local idx = point.splineIndex
-    local startPoint = lib.vec(spline[idx])
+    local startPoint = spline[idx]
     local nr = spline[idx + 1]
     if not nr then
         return
     end
-    local nextPoint = lib.vec(nr)
+    local nextPoint = nr
 
     local orientation = nextPoint - startPoint
     orientation:normalize()

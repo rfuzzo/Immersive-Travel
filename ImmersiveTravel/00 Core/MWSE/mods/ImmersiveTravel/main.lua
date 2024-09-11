@@ -49,6 +49,37 @@ end
 --- Init Mod
 --- @param e initializedEventData
 local function initializedCallback(e)
+    -- TODO debug
+    -- ---@type SSegment
+    -- local d1 = {
+    --     id = "test1",
+    --     routes = {
+    --         {
+    --             { x = 1, y = 0, z = 0 },
+    --             { x = 2, y = 0, z = 0 },
+    --         },
+    --     }
+    -- }
+
+    -- ---@type SSegment
+    -- local d2 = {
+    --     id = "test2",
+    --     routes = {
+    --         {
+    --             { x = 2, y = 0, z = 0 },
+    --             { x = 3, y = 0, z = 0 },
+    --         },
+    --     }
+    -- }
+
+    -- ---@type SSegment
+    -- local d3 = {
+    --     id = "Inner Sea",
+    --     segments = { d1, d2 }
+    -- }
+
+    -- toml.saveFile("Data Files\\_segment_test.toml", d3)
+
     -- init routes manager
     if not GRoutesManager.getInstance():Init() then
         config.modEnabled = false
@@ -57,36 +88,6 @@ local function initializedCallback(e)
     end
 
     log:info("%s Initialized", config.mod)
-
-    -- TODO debug
-    ---@type SSegment
-    local d = {
-        id = "test1",
-        routes = {
-            {
-                { x = 1, y = 0, z = 0 },
-                { x = 2, y = 0, z = 0 },
-            },
-            {
-                { x = 3, y = 0, z = 0 },
-                { x = 4, y = 0, z = 0 },
-            },
-        }
-    }
-    toml.saveFile("Data Files\\_segment_test.toml", d)
-
-    ---@type SRoute
-    local d1 = {
-        start = "start",
-        destination = "destination",
-        segments = {
-            "test1", "test2",
-        },
-        segmentsMetaData = {}
-    }
-    d1.segmentsMetaData["test1"] = { routeIdx = 1 }
-    d1.segmentsMetaData["test2"] = { routeIdx = 2 }
-    toml.saveFile("Data Files\\_route_test.toml", d1)
 end
 event.register(tes3.event.initialized, initializedCallback)
 

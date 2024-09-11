@@ -39,8 +39,8 @@ local function StartTravel(start, destination, service, guide)
             tes3.fadeIn({ duration = 1 })
 
             -- get spawn position
-            local startPos = lib.vec(currentSpline[1])
-            local nextPos = lib.vec(currentSpline[2])
+            local startPos = currentSpline[1]
+            local nextPos = currentSpline[2]
             local orientation = nextPos - startPos
             orientation:normalize()
             local facing = math.atan2(orientation.x, orientation.y)

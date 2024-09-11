@@ -91,7 +91,7 @@ function DockedState:enter(scriptedObject)
                 local port = service.ports[portId]
                 if port then
                     if port.positionStart then
-                        vehicle.virtualDestination = lib.vec(port.positionStart)
+                        vehicle.virtualDestination = port.positionStart
                         vehicle.routeId = nil
                     else
                         -- get random destination

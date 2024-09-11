@@ -203,7 +203,7 @@ local function uiShowRestMenuCallback(e)
                                 if spline ~= nil then
                                     tes3.positionCell({
                                         reference = tes3.mobilePlayer,
-                                        position = lib.vec(spline[#spline])
+                                        position = spline[#spline]
                                     })
                                 end
 

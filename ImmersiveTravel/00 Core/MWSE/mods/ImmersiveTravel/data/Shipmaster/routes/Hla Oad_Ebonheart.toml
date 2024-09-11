@@ -1,0 +1,5 @@
+
+destination = "Ebonheart"
+segments = ["Ebonheart", "Vivec", "Hla Oad"]
+start = "Hla Oad"
+service = "Shipmaster"

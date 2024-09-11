@@ -9,13 +9,13 @@ y = 0
 z = 75.131
 
 [positionStart]
-x = -51577.629
-y = -41039.508
+x = -52987.438
+y = -37899.434
 z = 0
 
 [rotationStart]
 x = 0
 y = 0
-z = 17.2
+z = 154.7
 
 reverseStart = true

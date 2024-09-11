@@ -484,12 +484,6 @@ end
 
 --#region io
 
----@param pos PositionRecord
---- @return tes3vector3
-function this.vec(pos)
-    return tes3vector3.new(pos.x, pos.y, pos.z)
-end
-
 this.localmodpath = "mods\\ImmersiveTravel"
 this.fullmodpath = "Data Files\\MWSE\\" .. this.localmodpath
 

@@ -352,7 +352,7 @@ local function getNextPositionHeading(vehicle)
     end
 
     -- move to next marker
-    local nextPos = lib.vec(spline[vehicle.splineIndex])
+    local nextPos = spline[vehicle.splineIndex]
     local isBehind = lib.isPointBehindObject(nextPos, vehicle.last_position, vehicle.last_forwardDirection)
     if isBehind then
         vehicle.splineIndex = vehicle.splineIndex + 1
@@ -362,7 +362,7 @@ local function getNextPositionHeading(vehicle)
         return nil
     end
 
-    nextPos = lib.vec(spline[vehicle.splineIndex])
+    nextPos = spline[vehicle.splineIndex]
 
     return nextPos
 end

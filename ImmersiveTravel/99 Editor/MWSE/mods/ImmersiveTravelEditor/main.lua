@@ -124,9 +124,9 @@ local last_facing = nil ---@type number|nil
 ---@param offset number
 ---@return tes3reference
 local function createMount(startPoint, port, mountId, offset)
-    local orientation = lib.radvec(lib.vec(port.rotation))
+    local orientation = lib.radvec(port.rotation)
     if port.rotationStart then
-        orientation = lib.radvec(lib.vec(port.rotationStart))
+        orientation = lib.radvec(port.rotationStart)
     end
 
     local mountOffset = tes3vector3.new(0, 0, offset)
@@ -277,7 +277,7 @@ local function renderAdditionalMarkers(startPort, destinationPort)
     -- end
 end
 
----@param spline PositionRecord[]
+---@param spline tes3vector3[]
 local function renderMarkers(spline)
     if not editorData then return nil end
     if not editorMarkerMesh then return nil end
@@ -398,8 +398,8 @@ local function traceAll(service)
 
                 -- simple line between the points
                 for i = 1, #spline - 1 do
-                    local from = lib.vec(spline[i])
-                    local to = lib.vec(spline[i + 1])
+                    local from = spline[i]
+                    local to = spline[i + 1]
 
                     local id = string.format("rf_line_%s_%d", routeId, i)
                     createLine(id, from, to)
@@ -407,6 +407,8 @@ local function traceAll(service)
             end
         end
     end
+
+    editorData = nil
 
     vfxRoot:update()
 end
@@ -525,13 +527,13 @@ local function calculateLeavePort(service, mountData, startPort)
 
     -- position the vehicle in port
     -- TODO get the proper position
-    editorData.mount.position = lib.vec(startPort.position)
-    editorData.mount.orientation = lib.radvec(lib.vec(startPort.rotation))
+    editorData.mount.position = startPort.position
+    editorData.mount.orientation = lib.radvec(startPort.rotation)
 
     last_position = editorData.mount.position
     last_forwardDirection = editorData.mount.forwardDirection
     last_facing = editorData.mount.facing
-    local nextPos = lib.vec(startPort.positionStart)
+    local nextPos = startPort.positionStart
 
     for idx = 1, config.tracemax * 1000, 1 do
         local arrived = calculatePosition(mountData, nextPos)
@@ -590,7 +592,7 @@ local function traceRoute(service)
     -- check if the last orientation does not have a big difference
 
     local lastOrientation = editorData.mount.orientation
-    local destinationPortOrientation = lib.radvec(lib.vec(destinationPort.rotation))
+    local destinationPortOrientation = lib.radvec(destinationPort.rotation)
     local diff = lastOrientation.z - destinationPortOrientation.z
     log:debug("Last orientation is %d from the last marker", diff)
     if diff > 0.1 then
@@ -602,7 +604,7 @@ local function traceRoute(service)
     local startCell = tes3.getCell({ id = editorData.start }) ---@type tes3cell
     local isPointInCell = startCell:isPointInCell(startPort.position.x, startPort.position.y)
     if not isPointInCell then
-        local portCell = tes3.getCell({ position = lib.vec(startPort.position) })
+        local portCell = tes3.getCell({ position = startPort.position })
         if portCell then
             log:warn("!!! Start port '%s' cell mismatch: '%s'", editorData.start, portCell.id)
             tes3.messageBox("!!! Start port '%s' cell mismatch: '%s'", editorData.start, portCell.id)
@@ -615,7 +617,7 @@ local function traceRoute(service)
     local destinationCell = tes3.getCell({ id = editorData.destination }) ---@type tes3cell
     isPointInCell = destinationCell:isPointInCell(destinationPort.position.x, destinationPort.position.y)
     if not isPointInCell then
-        local portCell = tes3.getCell({ position = lib.vec(destinationPort.position) })
+        local portCell = tes3.getCell({ position = destinationPort.position })
         if portCell then
             log:warn("!!! Destination port '%s' cell mismatch: '%s'", editorData.destination, portCell.id)
             tes3.messageBox("!!! Destination port '%s' cell mismatch: '%s'", editorData.destination,
@@ -851,7 +853,7 @@ local function createEditWindow()
                 if portData then
                     tes3.positionCell({
                         reference = tes3.mobilePlayer,
-                        position  = lib.vec(portData.position),
+                        position  = portData.position,
                     })
                 else
                     teleportToCell(port)
@@ -880,27 +882,49 @@ local function createEditWindow()
         id = editMenuModeId,
         text = "Mode: " .. ToString(currentEditorMode)
     }
+    -- Switch mode
+    button_mode:register(tes3.uiEvent.mouseClick, function()
+        local m = tes3ui.findMenu(editMenuId)
+        if (m) then
+            if currentEditorMode == EEditorMode.Routes then
+                currentEditorMode = EEditorMode.Ports
+            elseif currentEditorMode == EEditorMode.Ports then
+                currentEditorMode = EEditorMode.Segments
+            elseif currentEditorMode == EEditorMode.Segments then
+                currentEditorMode = EEditorMode.Routes
+            end
+
+            cleanup()
+            m:destroy()
+            createEditWindow()
+        end
+    end)
 
     local button_service = button_block:createButton {
         id = editMenuRoutesId,
         text = currentServiceName
     }
+    -- Switch service
+    button_service:register(tes3.uiEvent.mouseClick, function()
+        local m = tes3ui.findMenu(editMenuId)
+        if (m) then
+            -- go to next
+            local idx = table.find(table.keys(services), currentServiceName)
+            local nextIdx = idx + 1
+            if nextIdx > #table.keys(services) then nextIdx = 1 end
+            currentServiceName = table.keys(services)[nextIdx]
 
-    if IsRouteMode() then
+            cleanup()
+            m:destroy()
+            createEditWindow()
+        end
+    end)
+
+    if IsRouteMode() and editorData then
         local button_teleport = button_block:createButton {
             id = editMenuTeleportId,
             text = "Start"
         }
-        local button_teleportEnd = button_block:createButton {
-            id = editMenuTeleportEndId,
-            text = "End"
-        }
-        local button_save = button_block:createButton {
-            id = editMenuSaveId,
-            text = "Save"
-        }
-
-
         -- Teleport Start
         button_teleport:register(tes3.uiEvent.mouseClick, function()
             if not editorData then return end
@@ -919,6 +943,11 @@ local function createEditWindow()
                 end
             end
         end)
+
+        local button_teleportEnd = button_block:createButton {
+            id = editMenuTeleportEndId,
+            text = "End"
+        }
         -- Teleport End
         button_teleportEnd:register(tes3.uiEvent.mouseClick, function()
             if not editorData then return end
@@ -937,6 +966,12 @@ local function createEditWindow()
                 end
             end
         end)
+
+        local button_save = button_block:createButton {
+            id = editMenuSaveId,
+            text = "Save"
+        }
+
         --- save to file
         button_save:register(tes3.uiEvent.mouseClick, function()
             if not editorData then return end
@@ -972,12 +1007,6 @@ local function createEditWindow()
         id = editMenuAllId,
         text = "All"
     }
-
-    local button_cancel = button_block:createButton {
-        id = editMenuCancelId,
-        text = "Exit"
-    }
-
     -- Display all routes and ports
     button_all:register(tes3.uiEvent.mouseClick, function()
         local m = tes3ui.findMenu(editMenuId)
@@ -986,43 +1015,24 @@ local function createEditWindow()
         end
     end)
 
-
-    -- Switch service
-    button_service:register(tes3.uiEvent.mouseClick, function()
+    local button_segments = button_block:createButton {
+        id = editMenuAllId,
+        text = "Segments"
+    }
+    -- Display all segments
+    button_segments:register(tes3.uiEvent.mouseClick, function()
         local m = tes3ui.findMenu(editMenuId)
         if (m) then
-            -- go to next
-            local idx = table.find(table.keys(services), currentServiceName)
-            local nextIdx = idx + 1
-            if nextIdx > #table.keys(services) then nextIdx = 1 end
-            currentServiceName = table.keys(services)[nextIdx]
-
-            cleanup()
-            m:destroy()
-            createEditWindow()
+            -- TODO
         end
     end)
 
-    -- Switch mode
-    button_mode:register(tes3.uiEvent.mouseClick, function()
-        local m = tes3ui.findMenu(editMenuId)
-        if (m) then
-            if currentEditorMode == EEditorMode.Routes then
-                currentEditorMode = EEditorMode.Ports
-            elseif currentEditorMode == EEditorMode.Ports then
-                currentEditorMode = EEditorMode.Segments
-            elseif currentEditorMode == EEditorMode.Segments then
-                currentEditorMode = EEditorMode.Routes
-            end
-
-            cleanup()
-            m:destroy()
-            createEditWindow()
-        end
-    end)
-
+    local button_exit = button_block:createButton {
+        id = editMenuCancelId,
+        text = "Exit"
+    }
     -- Leave Menu
-    button_cancel:register(tes3.uiEvent.mouseClick, function()
+    button_exit:register(tes3.uiEvent.mouseClick, function()
         local m = tes3ui.findMenu(editMenuId)
         if (m) then
             tes3ui.leaveMenuMode()
