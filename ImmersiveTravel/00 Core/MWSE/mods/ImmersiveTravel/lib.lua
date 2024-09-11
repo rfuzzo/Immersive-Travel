@@ -37,13 +37,6 @@ end
 
 --#endregion
 
-
---#endregion
-
----@class ReferenceRecord
----@field cell tes3cell The cell
----@field position tes3vector3 The reference position
-
 --region math
 
 ---@param pos tes3vector3
@@ -491,11 +484,6 @@ end
 
 --#region io
 
----@class PositionRecord
----@field x number The x position
----@field y number The y position
----@field z number The z position
-
 ---@param pos PositionRecord
 --- @return tes3vector3
 function this.vec(pos)
@@ -504,25 +492,6 @@ end
 
 this.localmodpath = "mods\\ImmersiveTravel"
 this.fullmodpath = "Data Files\\MWSE\\" .. this.localmodpath
-
----@class ServiceData
----@field class string The npc class name
----@field mount string The mount
----@field override_npc string[]? register specific npcs with the service
----@field override_mount table<string,string[]>? register specific mounts with the service
----@field routes table<string, string[]>? Destinations for this Cell name
----@field ground_offset number DEPRECATED: editor marker offset
----@field guide string[]? guide npcs
----@field ports table<string, PortData>? port list
-
----@class PortData
----@field position PositionRecord The port position
----@field rotation PositionRecord The port orientation
----@field positionEnd PositionRecord? The docked orientation
----@field rotationEnd PositionRecord? The docked orientation
----@field positionStart PositionRecord? The start orientation
----@field rotationStart PositionRecord? The start orientation
----@field reverseStart boolean? reverse out of dock?
 
 --#endregion
 

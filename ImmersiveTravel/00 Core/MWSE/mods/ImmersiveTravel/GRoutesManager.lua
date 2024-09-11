@@ -101,9 +101,11 @@ end
 local function loadPorts(service)
     local map = {} ---@type table<string, PortData>
 
-    for file in lfs.dir(lib.fullmodpath .. "\\data\\" .. service.class) do
+    local portPath = string.format("%s\\data\\%s\\ports", lib.fullmodpath, service.class)
+
+    for file in lfs.dir(portPath) do
         if (string.endswith(file, ".toml")) then
-            local filePath = string.format("%s\\data\\%s\\%s", lib.fullmodpath, service.class, file)
+            local filePath = string.format("%s\\%s", portPath, file)
 
             local portName = file:sub(0, -6)
             local result = toml.loadFile(filePath)
