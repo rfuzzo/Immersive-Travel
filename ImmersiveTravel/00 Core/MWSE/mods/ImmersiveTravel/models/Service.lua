@@ -41,11 +41,6 @@ function ServiceData:GetPorts()
     return table.keys(self.ports)
 end
 
----@return RouteId[]
-function ServiceData:GetRoutes()
-    return table.keys(self.routes)
-end
-
 ---@return string[]
 function ServiceData:GetSegments()
     return table.keys(self.segments)

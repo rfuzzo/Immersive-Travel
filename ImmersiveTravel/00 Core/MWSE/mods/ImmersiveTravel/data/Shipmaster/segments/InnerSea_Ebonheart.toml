@@ -1,2 +1,32 @@
 id = "Inner Sea Ebonheart"
-segments = []
+
+
+[[segments]]
+[[segments.route1]]
+x = 31500
+y = -113243
+z = 0
+[[segments.route1]]
+x = 32470
+y = -118240
+z = 0
+
+[[segments]]
+[[segments.route1]]
+x = 32470
+y = -118240
+z = 0
+[[segments.route1]]
+x = 27730
+y = -120019
+z = 0
+
+[[segments]]
+[[segments.route1]]
+x = 27730
+y = -120019
+z = 0
+[[segments.route1]]
+x = 20280
+y = -119672
+z = 0

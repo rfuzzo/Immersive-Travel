@@ -11,7 +11,8 @@
 
 ---@class SSegmentDto
 ---@field id string unique id
----@field routes PositionRecord[][]?
+---@field route1 PositionRecord[]?
+---@field route2 PositionRecord[]?
 ---@field segments SSegmentDto[]?
 
 ---@class ReferenceRecord

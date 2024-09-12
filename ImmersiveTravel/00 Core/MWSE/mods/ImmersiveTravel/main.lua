@@ -50,35 +50,35 @@ end
 --- @param e initializedEventData
 local function initializedCallback(e)
     -- TODO debug
-    -- ---@type SSegment
-    -- local d1 = {
-    --     id = "test1",
-    --     routes = {
-    --         {
-    --             { x = 1, y = 0, z = 0 },
-    --             { x = 2, y = 0, z = 0 },
-    --         },
-    --     }
-    -- }
+    ---@type SSegmentDto
+    local d1 = {
+        id = "test1",
+        route1 =
+        {
+            { x = 1, y = 0, z = 0 },
+            { x = 2, y = 0, z = 0 },
+            { x = 2, y = 0, z = 0 },
+        },
 
-    -- ---@type SSegment
-    -- local d2 = {
-    --     id = "test2",
-    --     routes = {
-    --         {
-    --             { x = 2, y = 0, z = 0 },
-    --             { x = 3, y = 0, z = 0 },
-    --         },
-    --     }
-    -- }
+    }
 
-    -- ---@type SSegment
-    -- local d3 = {
-    --     id = "Inner Sea",
-    --     segments = { d1, d2 }
-    -- }
+    ---@type SSegmentDto
+    local d2 = {
+        id = "test2",
+        route2 = {
+            { x = 2, y = 0, z = 0 },
+            { x = 3, y = 0, z = 0 },
+        }
+    }
 
-    -- toml.saveFile("Data Files\\_segment_test.toml", d3)
+    ---@type SSegment
+    local d3 = {
+        id = "Inner Sea",
+        segments = { d1, d2 }
+    }
+
+    toml.saveFile("Data Files\\_segment_test.toml", d3)
+    toml.saveFile("Data Files\\_segment_test1.toml", d1)
 
     -- init routes manager
     if not GRoutesManager.getInstance():Init() then

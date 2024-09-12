@@ -29,7 +29,7 @@ local EMarkerType = {
 local EEditorMode = {
     Routes = 1,
     Ports = 2,
-    Segments = 2
+    Segments = 3
 }
 
 ---@param val EEditorMode
@@ -85,11 +85,12 @@ local editMenuAllId = tes3ui.registerID("it:MenuEdit_All")
 
 local editorMarkerId = "marker_travel.nif"
 local portMarkerId = "marker_arrow.nif"
--- "marker_divine.nif"
+local nodeMarkerId = "marker_divine.nif"
 -- "marker_north.nif"
 
 local editorMarkerMesh = nil ---@type niNode?
 local portMarkerMesh = nil ---@type niNode?
+local nodeMarkerMesh = nil ---@type niNode?
 
 -- editor
 local currentEditorMode = EEditorMode.Routes ---@type EEditorMode
@@ -199,7 +200,8 @@ end
 local function loadRoutes(service)
     local map = {} ---@type table<string, table>
 
-    for file in lfs.dir(lib.fullmodpath .. "\\" .. service.class) do
+    local fullmodpath = "Data Files\\MWSE\\mods\\ImmersiveTravelEditor"
+    for file in lfs.dir(fullmodpath .. "\\" .. service.class) do
         if (string.endswith(file, ".json")) then
             local split = string.split(file:sub(0, -6), "_")
             if #split == 2 then
@@ -260,7 +262,9 @@ end
 ---@return tes3vector3[]|nil
 local function loadSpline(start, destination, service)
     local fileName = start .. "_" .. destination
-    local filePath = string.format("%s\\%s\\%s", lib.localmodpath, service.class, fileName)
+
+    local localmodpath = "mods\\ImmersiveTravelEditor"
+    local filePath = string.format("%s\\%s\\%s", localmodpath, service.class, fileName)
 
     if tes3.getFileExists("MWSE\\" .. filePath .. ".json") then
         local dto = json.loadfile(filePath) ---@type PositionRecord[]?
@@ -398,7 +402,7 @@ local function renderAdditionalMarkers(startPort, destinationPort)
     -- -- render start maneuvre
     if startPort then
         local child = portMarkerMesh:clone()
-        child.translation = tes3vector3.new(startPort.position.x, startPort.position.y, startPort.position.z)
+        child.translation = startPort.position
         local m = tes3matrix33.new()
         local x = math.rad(startPort.rotation.x)
         local y = math.rad(startPort.rotation.y)
@@ -518,14 +522,14 @@ local function traceAll(service)
     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
     vfxRoot:detachAllChildren()
 
-    for _, routeId in ipairs(service:GetRoutes()) do
-        local spline = splines[routeId]
+    for routeIdString, route in pairs(service.routes) do
+        local spline = splines[routeIdString]
         if spline then
             -- render points
             editorData = {
                 service = service,
-                destination = routeId.destination,
-                start = routeId.start,
+                destination = route.id.destination,
+                start = route.id.start,
                 splineIndex = 1,
             }
             renderMarkers(spline)
@@ -535,7 +539,7 @@ local function traceAll(service)
                 local from = spline[i]
                 local to = spline[i + 1]
 
-                local id = string.format("rf_line_%s_%d", routeId, i)
+                local id = string.format("rf_line_%s_%d", route.id, i)
                 createLine(id, from, to)
             end
         end
@@ -549,30 +553,84 @@ end
 ---@param service ServiceData
 local function traceAllSegments(service)
     if not arrow then return end
+    if not nodeMarkerMesh then return end
+    if not portMarkerMesh then return end
 
     arrows = {}
+    local nodes = {}
+    -- TODO collect lines
 
     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
     vfxRoot:detachAllChildren()
 
-    for _, id in ipairs(service:GetRoutes()) do
-        local route = service:GetRoute(id)
-        if route then
-            for _, segmentName in ipairs(route.segments) do
-                local segment = service:GetSegment(segmentName)
-                if segment then
-                    for _, spline in ipairs(segment.routes) do
-                        -- simple line between the points
-                        for i = 1, #spline - 1 do
-                            local from = spline[i]
-                            local to = spline[i + 1]
+    for _, route in pairs(service.routes) do
+        log:trace("Tracing route '%s'", route.id)
+        -- for each route get the segments
+        for n, segment in ipairs(route:GetSegmentsResolved(service)) do
+            log:trace("\tTracing segment #%d '%s'", n, segment.id)
+            -- render nodes
+            local current_nodes = segment:GetNodesRecursive()
+            for _, node in ipairs(current_nodes) do
+                -- insert only unique nodes
+                if not table.find(nodes, node) then
+                    table.insert(nodes, node)
+                end
+            end
 
-                            createLine(string.format("rf_line_%s_%d", id, i), from, to)
-                        end
+            -- render vertices
+            for idx = 1, 2, 1 do
+                local spline = segment:GetRoute(idx)
+                if spline then
+                    -- simple line between the points
+                    for i = 1, #spline - 1 do
+                        local from = spline[i]
+                        local to = spline[i + 1]
+
+                        createLine(string.format("rf_line_%s_%d_%d", segment.id, idx, i), from, to)
                     end
                 end
             end
         end
+    end
+
+    -- get ports
+    for key, port in pairs(service.ports) do
+        do
+            local child = portMarkerMesh:clone()
+            child.translation = port.position
+            local m = tes3matrix33.new()
+            local x = math.rad(port.rotation.x)
+            local y = math.rad(port.rotation.y)
+            local z = math.rad(port.rotation.z)
+            m:fromEulerXYZ(x, y, z)
+            child.rotation = m
+            child.appCulled = false
+            vfxRoot:attachChild(child)
+        end
+
+
+        if port.positionStart then
+            local child = portMarkerMesh:clone()
+            child.translation = port.positionStart
+            local m = tes3matrix33.new()
+            local x = math.rad(port.rotationStart.x)
+            local y = math.rad(port.rotationStart.y)
+            local z = math.rad(port.rotationStart.z)
+            m:fromEulerXYZ(x, y, z)
+            child.rotation = m
+            child.appCulled = false
+            vfxRoot:attachChild(child)
+        end
+
+        -- TODO positionEnd
+    end
+
+    -- render nodes
+    for _, node in ipairs(nodes) do
+        local child = nodeMarkerMesh:clone()
+        child.translation = tes3vector3.new(node.x, node.y, node.z)
+        child.appCulled = false
+        vfxRoot:attachChild(child)
     end
 
     editorData = nil
@@ -1076,11 +1134,11 @@ local function createEditWindow()
     button_mode:register(tes3.uiEvent.mouseClick, function()
         local m = tes3ui.findMenu(editMenuId)
         if (m) then
-            if currentEditorMode == EEditorMode.Routes then
+            if IsRouteMode() then
                 currentEditorMode = EEditorMode.Ports
-            elseif currentEditorMode == EEditorMode.Ports then
+            elseif IsPortMode() then
                 currentEditorMode = EEditorMode.Segments
-            elseif currentEditorMode == EEditorMode.Segments then
+            elseif IsSegmentsMode() then
                 currentEditorMode = EEditorMode.Routes
             end
 
@@ -1184,9 +1242,9 @@ local function createEditWindow()
             table.remove(tempSpline, #tempSpline)
 
             -- save to file
-            local current_editor_route = editorData.start .. "_" ..
-                editorData.destination
-            local filename = string.format("%s\\%s\\%s", lib.localmodpath, service.class, current_editor_route)
+            local current_editor_route = editorData.start .. "_" .. editorData.destination
+            local localmodpath = "mods\\ImmersiveTravelEditor"
+            local filename = string.format("%s\\%s\\%s", localmodpath, service.class, current_editor_route)
             json.savefile(filename, tempSpline)
 
             tes3.messageBox("saved spline: " .. current_editor_route)
@@ -1417,7 +1475,7 @@ event.register(tes3.event.keyDown, editor_keyDownCallback)
 local function editloadCallback(e)
     editorMarkerMesh = tes3.loadMesh(editorMarkerId)
     portMarkerMesh = tes3.loadMesh(portMarkerId)
-    -- divineMarkerMesh = tes3.loadMesh(divineMarkerId)
+    nodeMarkerMesh = tes3.loadMesh(nodeMarkerId)
     -- arrowMarkerMesh = tes3.loadMesh(arrowMarkerId)
 
     -- widgets.nif
