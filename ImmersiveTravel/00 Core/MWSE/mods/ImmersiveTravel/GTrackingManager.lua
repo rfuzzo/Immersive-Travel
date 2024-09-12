@@ -164,7 +164,6 @@ end
 local function saveCallback(e)
     -- go through all tracked objects and set .modified = false
     for _, s in pairs(TrackingManager.getInstance().trackingList) do
-        -- only if ai state is onspline or none
         if s.aiStateMachine and (s.aiStateMachine.currentState.name == CAiState.ONSPLINE
                 or s.aiStateMachine.currentState.name == CAiState.NONE) then
             if s.referenceHandle and s.referenceHandle:valid() then

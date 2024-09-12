@@ -1,11 +1,20 @@
+local ServiceData = require("ImmersiveTravel.models.Service")
+
 local this = {}
 
 --#region services
 
+---@param name string
+---@return ServiceData
+local function newService(name)
+    local o = require("ImmersiveTravel.Services." .. name)
+    local service = ServiceData:new(o)
+    return service
+end
 
 ---@type table<string, ServiceData>
 this.services               = {}
-this.services["Shipmaster"] = require("ImmersiveTravel.Services.Shipmaster")
+this.services["Shipmaster"] = newService("Shipmaster")
 --this.services["Caravaner"]  = require("ImmersiveTravel.Services.Caravaner")
 --this.services["Gondolier"]  = require("ImmersiveTravel.Services.Gondolier")
 

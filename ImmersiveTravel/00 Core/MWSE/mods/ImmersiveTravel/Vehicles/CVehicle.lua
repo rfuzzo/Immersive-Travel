@@ -71,7 +71,7 @@ local log                   = lib.log
 ---@field last_facing number
 ---@field last_sway number
 ---@field swayTime number
----@field routeId string? -- the id of the route
+---@field routeId RouteId? -- the id of the route
 ---@field currentPort string? -- the id of the route
 ---@field splineIndex number
 ---@field virtualDestination tes3vector3?
@@ -190,13 +190,13 @@ function CVehicle:EndPlayerSteer()
     self:release()
 end
 
----@param routeId string
+---@param routeId RouteId
 function CVehicle:StartRoute(routeId)
     self.routeId = routeId
 end
 
 --- Starts the vehicle on a route
----@param routeId string
+---@param routeId RouteId
 ---@param service ServiceData
 function CVehicle:StartOnSpline(routeId, service)
     self:Attach()
@@ -232,7 +232,7 @@ function CVehicle:StartOnSpline(routeId, service)
 end
 
 --- StartPlayerTravel is called when the player starts traveling
----@param routeId string
+---@param routeId RouteId
 ---@param service ServiceData
 function CVehicle:StartPlayerTravel(routeId, service)
     log:trace("StartPlayerTravel %s", self.id)
@@ -809,27 +809,29 @@ function CVehicle:RegisterPassengers()
     -- register passengers
     local maxPassengers = math.max(0, #self.slots - 2)
     if maxPassengers > 0 then
-        local n = math.random(maxPassengers);
-        local service = GRoutesManager.getInstance().services[self.serviceId]
-        log:debug("\tregistering %s / %s passengers", n, maxPassengers)
+        local n = math.random(maxPassengers)
 
-        for i = 1, n, 1 do
-            local npcId = lib.GetRandomPassenger(service)
-            local passenger = tes3.createReference {
-                object = npcId,
-                position = mount.position,
-                orientation = mount.orientation
-            }
+        local service = GRoutesManager.getInstance():GetService(self.serviceId)
+        if service then
+            log:debug("\tregistering %s / %s passengers", n, maxPassengers)
+            for i = 1, n, 1 do
+                local npcId = lib.GetRandomPassenger(service)
+                local passenger = tes3.createReference {
+                    object = npcId,
+                    position = mount.position,
+                    orientation = mount.orientation
+                }
 
-            -- generate a random name
-            local randomName = names.Generate(passenger)
-            if not randomName then
-                randomName = "Passenger"
+                -- generate a random name
+                local randomName = names.Generate(passenger)
+                if not randomName then
+                    randomName = "Passenger"
+                end
+                passenger.tempData.it_name = randomName
+
+                local refHandle            = tes3.makeSafeObjectHandle(passenger)
+                self:registerRefInRandomSlot(refHandle)
             end
-            passenger.tempData.it_name = randomName
-
-            local refHandle            = tes3.makeSafeObjectHandle(passenger)
-            self:registerRefInRandomSlot(refHandle)
         end
     end
 end

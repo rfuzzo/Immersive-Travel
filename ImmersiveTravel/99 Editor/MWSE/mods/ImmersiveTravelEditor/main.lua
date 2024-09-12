@@ -2,6 +2,7 @@ local lib            = require("ImmersiveTravel.lib")
 local interop        = require("ImmersiveTravel.interop")
 local GRoutesManager = require("ImmersiveTravel.GRoutesManager")
 local PositionRecord = require("ImmersiveTravel.models.PositionRecord")
+local RouteId        = require("ImmersiveTravel.models.RouteId")
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
@@ -213,15 +214,15 @@ local function loadRoutes(service)
                     end
                 end
 
-                local startPort = table.get(service.ports, start, nil)
-                local destinationPort = table.get(service.ports, destination, nil)
+                local startPort = service:GetPort(start)
+                local destinationPort = service:GetPort(destination)
 
                 if not startPort then
-                    log:debug("\t\t! Start port %s not found", start)
+                    log:warn("\t\t! Start port %s not found", start)
                 end
 
                 if not destinationPort then
-                    log:debug("\t\t! Destination port %s not found", destination)
+                    log:warn("\t\t! Destination port %s not found", destination)
                 end
 
                 -- check if both ports exist
@@ -255,11 +256,11 @@ end
 --- load json spline from file
 ---@param start string
 ---@param destination string
----@param data ServiceData
+---@param service ServiceData
 ---@return tes3vector3[]|nil
-local function loadSpline(start, destination, data)
+local function loadSpline(start, destination, service)
     local fileName = start .. "_" .. destination
-    local filePath = string.format("%s\\%s\\%s", lib.localmodpath, data.class, fileName)
+    local filePath = string.format("%s\\%s\\%s", lib.localmodpath, service.class, fileName)
 
     if tes3.getFileExists("MWSE\\" .. filePath .. ".json") then
         local dto = json.loadfile(filePath) ---@type PositionRecord[]?
@@ -271,8 +272,8 @@ local function loadSpline(start, destination, data)
             end
 
             -- get ports
-            local startPort = table.get(data.ports, start, nil) ---@type PortData?
-            local destinationPort = table.get(data.ports, destination, nil) ---@type PortData?
+            local startPort = service:GetPort(start)
+            local destinationPort = service:GetPort(destination)
 
             if startPort and destinationPort then
                 -- add start and end ports
@@ -424,8 +425,8 @@ local function renderMarkers(spline)
     editorData.editorMarkers = {}
     editorData.currentMarker = nil
 
-    local startPort = editorData.service.ports[editorData.start] ---@type PortData?
-    local destinationPort = editorData.service.ports[editorData.destination] ---@type PortData?
+    local startPort = editorData.service:GetPort(editorData.start)
+    local destinationPort = editorData.service:GetPort(editorData.destination)
 
     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
 
@@ -517,30 +518,58 @@ local function traceAll(service)
     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
     vfxRoot:detachAllChildren()
 
-    for start, destinations in pairs(service.routes) do
-        for _i, destination in ipairs(destinations) do
-            local routeId = start .. "_" .. destination
-            local spline = GRoutesManager.getInstance():GetRoute(routeId)
-            if spline then
-                editorData = {
-                    service = service,
-                    destination = destination,
-                    start = start,
-                    splineIndex = 1,
-                }
+    for _, routeId in ipairs(service:GetRoutes()) do
+        local spline = splines[routeId]
+        if spline then
+            -- render points
+            editorData = {
+                service = service,
+                destination = routeId.destination,
+                start = routeId.start,
+                splineIndex = 1,
+            }
+            renderMarkers(spline)
 
-                log:trace("Drawing route '%s'", routeId)
+            -- simple line between the points
+            for i = 1, #spline - 1 do
+                local from = spline[i]
+                local to = spline[i + 1]
 
-                -- render points
-                renderMarkers(spline)
+                local id = string.format("rf_line_%s_%d", routeId, i)
+                createLine(id, from, to)
+            end
+        end
+    end
 
-                -- simple line between the points
-                for i = 1, #spline - 1 do
-                    local from = spline[i]
-                    local to = spline[i + 1]
+    editorData = nil
 
-                    local id = string.format("rf_line_%s_%d", routeId, i)
-                    createLine(id, from, to)
+    vfxRoot:update()
+end
+
+---@param service ServiceData
+local function traceAllSegments(service)
+    if not arrow then return end
+
+    arrows = {}
+
+    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
+    vfxRoot:detachAllChildren()
+
+    for _, id in ipairs(service:GetRoutes()) do
+        local route = service:GetRoute(id)
+        if route then
+            for _, segmentName in ipairs(route.segments) do
+                local segment = service:GetSegment(segmentName)
+                if segment then
+                    for _, spline in ipairs(segment.routes) do
+                        -- simple line between the points
+                        for i = 1, #spline - 1 do
+                            local from = spline[i]
+                            local to = spline[i + 1]
+
+                            createLine(string.format("rf_line_%s_%d", id, i), from, to)
+                        end
+                    end
                 end
             end
         end
@@ -701,8 +730,11 @@ local function traceRoute(service)
     local mountData = interop.getVehicleStaticData(mountId)
     if not mountData then return end
 
-    local startPort = service.ports[editorData.start]
-    local destinationPort = service.ports[editorData.destination]
+    local startPort = service:GetPort(editorData.start)
+    if not startPort then return end
+    local destinationPort = service:GetPort(editorData.destination)
+    if not destinationPort then return end
+
     editorData.mount = createMount(start_point, startPort, mountId, mountData.offset)
 
     arrows = {}
@@ -777,45 +809,6 @@ local function traceRoute(service)
     vfxRoot:update()
 end
 
----@param service ServiceData
----@return string[]
-local function getAllPortNames(service)
-    ---@type string[]
-    local result = {}
-
-
-    for file in lfs.dir(lib.fullmodpath .. "\\" .. service.class) do
-        if (string.endswith(file, ".json")) then
-            local split = string.split(file:sub(0, -6), "_")
-            if #split == 2 then
-                local start = ""
-                local destination = ""
-
-                for i, id in ipairs(split) do
-                    if i == 1 then
-                        start = id
-                    else
-                        destination = id
-                    end
-                end
-
-                -- insert start
-                if not table.find(result, start) then
-                    table.insert(result, start)
-                end
-
-                -- insert destination
-                if not table.find(result, destination) then
-                    table.insert(result, destination)
-                end
-            end
-        end
-    end
-
-
-    return result
-end
-
 local function IsPortMode()
     return currentEditorMode == EEditorMode.Ports
 end
@@ -837,25 +830,26 @@ end
 local function Reload()
     GRoutesManager.getInstance():Init()
 
-    local services = GRoutesManager.getInstance().services
+    log:debug("Reloading debug splines")
+    local services = GRoutesManager.GetServices()
     if not services then return end
 
-    destinations = {}
     splines = {}
+    destinations = {}
 
-    for key, service in pairs(services) do
+    for serviceName, service in pairs(services) do
         local serviceDestinations = loadRoutes(service)
-        destinations[key] = serviceDestinations
+        destinations[serviceName] = serviceDestinations
 
-        for _i, start in ipairs(table.keys(serviceDestinations)) do
-            for _j, destination in ipairs(serviceDestinations[start]) do
+        for start, currentDestinations in pairs(serviceDestinations) do
+            for _, destination in ipairs(currentDestinations) do
                 local spline = loadSpline(start, destination, service)
                 if spline then
                     -- save route in memory
-                    local routeId = start .. "_" .. destination
-                    splines[routeId] = spline
+                    local routeId = RouteId:new(service.class, start, destination)
+                    splines[routeId:ToString()] = spline
 
-                    log:debug("\t\tAdding route '%s' (%s)", routeId, service.class)
+                    log:debug("\t\tAdding route '%s'", routeId)
 
                     -- -- save points in memory
                     -- for idx, pos in ipairs(spline) do
@@ -901,8 +895,16 @@ local function createEditWindow()
     Reload()
 
     -- load services
-    local services = GRoutesManager.getInstance().services
+    local services = GRoutesManager.GetServices()
     if not services then return end
+
+    -- get current service
+    if not currentServiceName then
+        currentServiceName = table.keys(services)[1]
+    end
+    if editorData then currentServiceName = editorData.service.class end
+    local service = services[currentServiceName]
+    if not service then return end
 
     -- Create window and frame
     local menu = tes3ui.createMenu {
@@ -915,16 +917,6 @@ local function createEditWindow()
     menu.alpha = 1.0
     menu.width = 700
     menu.height = 500
-
-
-    -- get current service
-    if not currentServiceName then
-        currentServiceName = table.keys(services)[1]
-    end
-    if editorData then currentServiceName = editorData.service.class end
-
-    local service = services[currentServiceName]
-
     menu.text = "Editor"
     if editorData then
         if IsRouteMode() then
@@ -956,82 +948,81 @@ local function createEditWindow()
 
     -- list all routes
     if IsRouteMode() then
-        local destinations = service.routes
-        if destinations then
-            for _i, start in ipairs(table.keys(destinations)) do
-                for _j, destination in ipairs(destinations[start]) do
-                    -- filter
-                    local filter = filter_text:lower()
-                    if filter_text ~= "" then
-                        if (not string.find(start:lower(), filter) and not string.find(destination:lower(), filter)) then
-                            goto continue
-                        end
+        local serviceDestinations = destinations[currentServiceName]
+        for start, routeDestinations in pairs(serviceDestinations) do
+            for _, destination in ipairs(routeDestinations) do
+                -- filter
+                local filter = filter_text:lower()
+                if filter_text ~= "" then
+                    if (not string.find(start:lower(), filter) and not string.find(destination:lower(), filter)) then
+                        goto continue
                     end
-
-                    local text = start .. " - " .. destination
-                    local button = pane:createButton {
-                        id = "button_spline" .. text,
-                        text = text
-                    }
-                    button:register(tes3.uiEvent.mouseClick, function()
-                        -- start editor
-                        editorData = {
-                            service = service,
-                            destination = destination,
-                            start = start,
-                            mount = nil,
-                            splineIndex = 1,
-                            editorMarkers = nil,
-                            currentMarker = nil
-                        }
-
-                        -- render markers
-                        local routeId = start .. "_" .. destination
-                        local spline = GRoutesManager.getInstance():GetRoute(routeId)
-                        tes3.messageBox("loaded spline: %s > %s", start, destination)
-
-                        local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-                        vfxRoot:detachAllChildren()
-
-                        renderMarkers(spline)
-
-                        if config.traceOnSave then
-                            traceRoute(service)
-                        end
-                    end)
-
-                    ::continue::
                 end
+
+                local text = start .. " - " .. destination
+                local button = pane:createButton {
+                    id = "button_spline" .. text,
+                    text = text
+                }
+                button:register(tes3.uiEvent.mouseClick, function()
+                    -- start editor
+                    editorData = {
+                        service = service,
+                        destination = destination,
+                        start = start,
+                        mount = nil,
+                        splineIndex = 1,
+                        editorMarkers = nil,
+                        currentMarker = nil
+                    }
+
+                    -- render markers
+                    local routeId = RouteId:new(service.class, start, destination)
+                    local spline = splines[routeId:ToString()]
+
+                    log:error("route %s", routeId)
+                    debug.log(spline)
+
+                    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
+                    vfxRoot:detachAllChildren()
+
+                    renderMarkers(spline)
+
+                    if config.traceOnSave then
+                        traceRoute(service)
+                    end
+                end)
+
+                ::continue::
             end
         end
     end
 
     -- list all ports
     if IsPortMode() then
-        local ports = getAllPortNames(service)
-        for _i, port in ipairs(ports) do
+        for _, portName in ipairs(service:GetPorts()) do
             -- filter
             local filter = filter_text:lower()
             if filter_text ~= "" then
-                if (not string.find(port:lower(), filter)) then
+                if (not string.find(portName:lower(), filter)) then
                     goto continue
                 end
             end
 
             local button = pane:createButton {
-                id = "button_port" .. port,
-                text = port
+                id = "button_port" .. portName,
+                text = portName
             }
             button:register(tes3.uiEvent.mouseClick, function()
                 -- teleport to port
-                local portData = table.get(service.ports, port, nil) ---@class PortData?
+                local portData = service:GetPort(portName)
                 if portData then
                     tes3.positionCell({
                         reference = tes3.mobilePlayer,
                         position  = portData.position,
                     })
                 else
-                    teleportToCell(port)
+                    teleportToCell(portName)
                 end
 
                 editorPortData = {
@@ -1044,10 +1035,34 @@ local function createEditWindow()
         end
     end
 
+    -- list all segments
+    if IsSegmentsMode() then
+        for _, segmentName in ipairs(service:GetSegments()) do
+            -- filter
+            local filter = filter_text:lower()
+            if filter_text ~= "" then
+                if (not string.find(segmentName:lower(), filter)) then
+                    goto continue
+                end
+            end
+
+            local button = pane:createButton {
+                id = "button_segment" .. segmentName,
+                text = segmentName
+            }
+            button:register(tes3.uiEvent.mouseClick, function()
+                -- TODO
+            end)
+
+            ::continue::
+        end
+    end
+
     pane:getContentElement():sortChildren(function(a, b)
         return a.text < b.text
     end)
 
+    -- buttons
     local button_block = menu:createBlock {}
     button_block.widthProportional = 1.0 -- width is 100% parent width
     button_block.autoHeight = true
@@ -1182,7 +1197,7 @@ local function createEditWindow()
         id = editMenuAllId,
         text = "All"
     }
-    -- Display all routes and ports
+    -- Display all splines and ports
     button_all:register(tes3.uiEvent.mouseClick, function()
         local m = tes3ui.findMenu(editMenuId)
         if (m) then
@@ -1198,7 +1213,7 @@ local function createEditWindow()
     button_segments:register(tes3.uiEvent.mouseClick, function()
         local m = tes3ui.findMenu(editMenuId)
         if (m) then
-            -- TODO
+            traceAllSegments(service)
         end
     end)
 

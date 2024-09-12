@@ -5,8 +5,10 @@
 ---@field override_mount table<string,string[]>? register specific mounts with the service
 ---@field ground_offset number DEPRECATED: editor marker offset
 ---@field guide string[]? guide npcs
----@field ports string[]? RUNTIME port list
----@field routes RouteId[]? RUNTIME routes list
+-- RUNTIME DATA
+---@field segments table<string, SSegment>? segment name -> SSegment
+---@field ports table<string, PortData>? cell name -> PortData
+---@field routes table<string, SRoute>? routeId -> SRoute
 local ServiceData = {}
 
 ---@return ServiceData
@@ -29,4 +31,43 @@ function ServiceData:GetDestinations(start)
     return destinations
 end
 
----@return ServiceData
+---@return string[]
+function ServiceData:GetStarts()
+    return table.keys(self.routes)
+end
+
+---@return string[]
+function ServiceData:GetPorts()
+    return table.keys(self.ports)
+end
+
+---@return RouteId[]
+function ServiceData:GetRoutes()
+    return table.keys(self.routes)
+end
+
+---@return string[]
+function ServiceData:GetSegments()
+    return table.keys(self.segments)
+end
+
+---@param cell string
+---@return PortData?
+function ServiceData:GetPort(cell)
+    return self.ports[cell]
+end
+
+---@param segment string
+---@return SSegment?
+function ServiceData:GetSegment(segment)
+    return self.segments[segment]
+end
+
+---@param id RouteId
+---@return SRoute?
+function ServiceData:GetRoute(id)
+    -- TODO check this
+    return self.routes[id:ToString()]
+end
+
+return ServiceData

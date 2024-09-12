@@ -516,16 +516,4 @@ function this.ResolveMountId(service, start, destination)
     return mountId
 end
 
----@param routeId string?
-function this.SplitRouteId(routeId)
-    local split = string.split(routeId, "_")
-    if #split == 2 then
-        local start = split[1]
-        local destination = split[2]
-        return start, destination
-    end
-
-    return nil
-end
-
 return this

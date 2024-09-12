@@ -6,7 +6,7 @@ local interop             = require("ImmersiveTravel.interop")
 ---@class SPointDto
 ---@field point tes3vector3  the actual point
 ---@field splineIndex number    the index of the point in the spline
----@field routeId string        the route id
+---@field routeId RouteId        the route id
 ---@field service string        the service id
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
@@ -51,16 +51,17 @@ end
 --- spawn an object on the vfx node and register it
 ---@param point SPointDto
 local function doSpawn(point)
-    if not GRoutesManager.getInstance().services then
+    if not GRoutesManager.GetServices() then
         return
     end
 
     -- get service and route
-    local service = GRoutesManager.getInstance().services[point.service]
+    local service = GRoutesManager.getInstance():GetService(point.service)
     if not service then
         return
     end
 
+    -- TODO
     local spline = GRoutesManager.getInstance():GetRoute(point.routeId)
     if not spline then
         return
@@ -80,10 +81,7 @@ local function doSpawn(point)
     local facing = math.atan2(orientation.x, orientation.y)
 
     -- create and register the vehicle
-    local split = string.split(point.routeId, "_")
-    local start = split[1]
-    local destination = split[2]
-    local mountId = lib.ResolveMountId(service, start, destination)
+    local mountId = lib.ResolveMountId(service, point.routeId.start, point.routeId.destination)
 
 
     if lib.IsLogLevelAtLeast("DEBUG") then

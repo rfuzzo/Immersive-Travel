@@ -10,18 +10,12 @@ local log           = lib.log
 
 -- Define a class to manage the splines
 ---@class GRoutesManager
----@field services table<string, ServiceData>? service name -> ServiceData
+---@field private services table<string, ServiceData>? service name -> ServiceData
 ---@field spawnPoints table<string, SPointDto[]> TODO
----@field routesPrice table<RouteId, number> TODO
----@field private segments table<string, SSegment> segment name -> SSegment
----@field private ports table<string, PortData> cell name -> PortData
----@field private routes table<RouteId, SRoute> routeId -> SRoute
+---@field routesPrice table<string, number> TODO
 local RoutesManager = {
     services    = {},
     spawnPoints = {},
-    segments    = {},
-    ports       = {},
-    routes      = {},
     routesPrice = {},
 }
 
@@ -93,9 +87,9 @@ local function loadSegments(service)
 end
 
 ---@param service ServiceData
----@return table<RouteId, SRoute>
+---@return table<string, SRoute>
 local function loadRoutes(service)
-    local map = {} ---@type table<RouteId, SRoute>
+    local map = {} ---@type table<string, SRoute>
 
     local portPath = string.format("%s\\data\\%s\\routes", lib.fullmodpath, service.class)
     for file in lfs.dir(portPath) do
@@ -104,7 +98,8 @@ local function loadRoutes(service)
 
             local result = toml.loadFile(filePath) ---@type SRoute?
             if result then
-                map[result.id] = SRoute:new(result)
+                local route = SRoute:new(result)
+                map[route.id:ToString()] = route
 
                 log:debug("\t\tAdding route %s", result.id)
             else
@@ -113,9 +108,12 @@ local function loadRoutes(service)
         end
     end
 
+    -- TODO construct splines
+
     return map
 end
 
+-- TODO price
 ---@param spline tes3vector3[]
 ---@return number
 local function GetPrice(spline)
@@ -143,9 +141,6 @@ function RoutesManager:Init()
     -- cleanup
     self.services = {}
     self.spawnPoints = {}
-    self.segments = {}
-    self.ports = {}
-    self.routes = {}
     self.routesPrice = {}
 
     -- init services
@@ -156,38 +151,31 @@ function RoutesManager:Init()
 
     -- load routes into memory
     log:info("Found %s services", table.size(self.services))
-    for _, service in ipairs(self.services) do
+    for _, service in pairs(self.services) do
         log:info("\tAdding %s service", service.class)
 
-        ports = loadPorts(service)
-        routes = loadRoutes(service)
-        segments = loadSegments(service)
+        service.ports = loadPorts(service)
+        service.routes = loadRoutes(service)
+        service.segments = loadSegments(service)
     end
 
     return true
 end
 
----@param routeId string
+---@param routeId RouteId
 ---@return number?
 function RoutesManager:GetRoutePrice(routeId)
     return self.routesPrice[routeId]
 end
 
----@param serviceId string
----@param routeId string
----@return PortData?
-function RoutesManager:GetDestinationPort(serviceId, routeId)
-    local service = self.services[serviceId]
+---@param name string
+---@return ServiceData?
+function RoutesManager:GetService(name)
+    return self.services[name]
+end
 
-    if service then
-        local split = string.split(routeId, "_")
-        if #split == 2 then
-            local destination = split[2]
-            return table.get(service.ports, destination, nil)
-        end
-    end
-
-    return nil
+function RoutesManager.GetServices()
+    return RoutesManager.getInstance().services
 end
 
 return RoutesManager

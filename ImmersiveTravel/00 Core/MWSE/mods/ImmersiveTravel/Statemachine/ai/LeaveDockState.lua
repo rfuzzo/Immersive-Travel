@@ -1,7 +1,7 @@
 local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local GPlayerVehicleManager = require("ImmersiveTravel.GPlayerVehicleManager")
 local lib                   = require("ImmersiveTravel.lib")
-local interop               = require("ImmersiveTravel.interop")
+local RouteId               = require("ImmersiveTravel.models.RouteId")
 local GRoutesManager        = require("ImmersiveTravel.GRoutesManager")
 
 local log                   = lib.log
@@ -64,14 +64,16 @@ function LeaveDockState:OnDestinationReached(scriptedObject)
     vehicle.virtualDestination = nil
 
     -- get random destination
-    local service = GRoutesManager.getInstance().services[vehicle.serviceId]
-    local destinations = service:GetDestinations(vehicle.currentPort)
-    if #destinations > 0 then
-        local destination = destinations[math.random(#destinations)]
-        vehicle.routeId = string.format("%s_%s", vehicle.currentPort, destination)
-        vehicle.currentPort = nil
+    local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
+    if service then
+        local destinations = service:GetDestinations(vehicle.currentPort)
+        if #destinations > 0 then
+            local destination = destinations[math.random(#destinations)]
+            vehicle.routeId = RouteId:new(vehicle.serviceId, vehicle.currentPort, destination)
+            vehicle.currentPort = nil
 
-        log:trace("[%s] LeaveDockState OnDestinationReached new destination: %s", vehicle:Id(), vehicle.routeId)
+            log:trace("[%s] LeaveDockState OnDestinationReached new destination: %s", vehicle:Id(), vehicle.routeId)
+        end
     end
 end
 
@@ -116,9 +118,9 @@ function LeaveDockState:enter(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
 
     vehicle.changeSpeed = 0.5
-    local service = GRoutesManager.getInstance().services[vehicle.serviceId]
+    local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
     if service then
-        local port = GRoutesManager.getInstance().ports[vehicle.currentPort]
+        local port = service:GetPort(vehicle.currentPort)
         if port then
             if port.reverseStart then
                 vehicle.changeSpeed = -0.5

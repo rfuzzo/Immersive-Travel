@@ -59,27 +59,21 @@ end
 function OnSplineState:OnDestinationReached(scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
 
+    local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
+    if service then
+        local port = service:GetPort(vehicle.routeId.destination)
+        if port then
+            vehicle.currentPort = vehicle.routeId.destination
 
-
-    local destination = nil
-    local split       = string.split(vehicle.routeId, "_")
-    if #split == 2 then
-        destination = split[2]
-        local service = GRoutesManager.getInstance().services[vehicle.serviceId]
-        if service then
-            local port = service.ports[destination]
-            if port then
-                vehicle.currentPort = destination
-
-                log:trace("[%s] OnSplineState OnDestinationReached port: %s", vehicle:Id(), vehicle.currentPort)
-                -- TODO now check if there is a route into dock
-                -- if port.positionEnd then
-                --     -- get route into port
-                --     vehicle.virtualDestination = port.positionEnd
-                -- end
-            end
+            log:trace("[%s] OnSplineState OnDestinationReached port: %s", vehicle:Id(), vehicle.currentPort)
+            -- TODO now check if there is a route into dock
+            -- if port.positionEnd then
+            --     -- get route into port
+            --     vehicle.virtualDestination = port.positionEnd
+            -- end
         end
     end
+
 
     vehicle.routeId = nil -- this pops the none ai state
 end
@@ -87,6 +81,7 @@ end
 function OnSplineState:update(dt, scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
 
+    -- TODO
     local spline = GRoutesManager.getInstance():GetRoute(vehicle.routeId)
     if spline == nil then
         return

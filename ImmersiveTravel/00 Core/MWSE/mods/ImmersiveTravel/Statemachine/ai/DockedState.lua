@@ -1,6 +1,7 @@
 local CAiState       = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local lib            = require("ImmersiveTravel.lib")
 local GRoutesManager = require("ImmersiveTravel.GRoutesManager")
+local RouteId        = require("ImmersiveTravel.models.RouteId")
 
 local log            = lib.log
 
@@ -86,20 +87,21 @@ function DockedState:enter(scriptedObject)
                 log:trace("[%s] On new route in dock", vehicle:Id())
 
                 -- start timer for new route
-                local service = GRoutesManager.getInstance().services[vehicle.serviceId]
-                local portId = vehicle.currentPort
-                local port = GRoutesManager.getInstance().ports[portId]
-                if port then
-                    if port.positionStart then
-                        vehicle.virtualDestination = port.positionStart
-                        vehicle.routeId = nil
-                    else
-                        -- get random destination
-                        local destinations = service:GetDestinations(portId)
-                        if #destinations > 0 then
-                            local destination = destinations[math.random(#destinations)]
-                            vehicle.routeId = string.format("%s_%s", portId, destination)
-                            vehicle.currentPort = nil
+                local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
+                if service then
+                    local port = service:GetPort(vehicle.currentPort)
+                    if port then
+                        if port.positionStart then
+                            vehicle.virtualDestination = port.positionStart
+                            vehicle.routeId = nil
+                        else
+                            -- get random destination
+                            local destinations = service:GetDestinations(vehicle.currentPort)
+                            if #destinations > 0 then
+                                local destination = destinations[math.random(#destinations)]
+                                vehicle.routeId = RouteId:new(vehicle.serviceId, vehicle.currentPort, destination)
+                                vehicle.currentPort = nil
+                            end
                         end
                     end
                 end

@@ -343,7 +343,16 @@ local function getNextPositionHeading(vehicle)
         return nil
     end
 
-    local spline = GRoutesManager.getInstance():GetRoute(vehicle.routeId)
+    local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
+    if not service then
+        return nil
+    end
+
+    local currentRoute = service:GetRoute(vehicle.routeId)
+    if not currentRoute then
+        return nil
+    end
+
     if spline == nil then
         return nil
     end

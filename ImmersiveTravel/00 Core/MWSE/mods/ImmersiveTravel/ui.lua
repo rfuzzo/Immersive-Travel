@@ -1,6 +1,7 @@
 local lib                = require("ImmersiveTravel.lib")
 local interop            = require("ImmersiveTravel.interop")
 local GRoutesManager     = require("ImmersiveTravel.GRoutesManager")
+local RouteId            = require("ImmersiveTravel.models.RouteId")
 
 local this               = {}
 
@@ -23,7 +24,7 @@ local function StartTravel(start, destination, service, guide)
     tes3ui.leaveMenuMode()
     m:destroy()
 
-    local routeId = start .. "_" .. destination
+    local routeId = RouteId:new(service.class, start, destination)
     local currentSpline = GRoutesManager.getInstance():GetRoute(routeId)
     if currentSpline == nil then return end
 
@@ -86,7 +87,7 @@ local function createTravelWindow(service, guide, npcMenu)
 
     local pane = menu:createVerticalScrollPane { id = "sortedPane" }
     for _, destination in ipairs(destinations) do
-        local routeId = start .. "_" .. destination
+        local routeId = RouteId:new(service.class, start, destination)
         local price = GRoutesManager.getInstance():GetRoutePrice(routeId)
         local buton_text = string.format("%s (%d g)", destination, price)
         local button = pane:createButton {

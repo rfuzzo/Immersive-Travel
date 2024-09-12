@@ -124,7 +124,7 @@ local function onMenuDialog(e)
 
         if not lib.offersTraveling(npc) then return end
 
-        local services = GRoutesManager.getInstance().services
+        local services = GRoutesManager.GetServices()
         if not services then return end
 
         -- get npc class
@@ -167,14 +167,13 @@ local function onDialogueEnvironmentCreated(e)
         local manager = GPlayerVehicleManager.getInstance()
         local vehicle = manager.trackedVehicle
         if vehicle and manager.free_movement then
-            local start, destination = lib.SplitRouteId(vehicle.routeId)
-            tes3.messageBox("This is a regular service on route to %s. Would you like to sit down?", destination)
+            tes3.messageBox("This is a regular service on route to %s. Would you like to sit down?",
+                vehicle.routeId.destination)
 
             tes3ui.choice("Yes", 2)
             tes3ui.choice("No", 1)
         elseif vehicle and manager:IsPlayerTraveling() then
-            local start, destination = lib.SplitRouteId(vehicle.routeId)
-            tes3.messageBox("This is a regular service on route to %s", destination)
+            tes3.messageBox("This is a regular service on route to %s", vehicle.routeId.destination)
         else
             tes3.messageBox("I'm a shipmaster. I can transport you by ship to various destinations for a modest fee.")
         end
