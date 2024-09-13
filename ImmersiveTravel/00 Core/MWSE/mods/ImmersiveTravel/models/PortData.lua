@@ -32,4 +32,12 @@ function PortData.fromDto(o)
     return newObj
 end
 
+function PortData:StartPos()
+    return self.positionStart or self.position
+end
+
+function PortData:EndPos()
+    return self.positionEnd or self.position
+end
+
 return PortData

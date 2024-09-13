@@ -1,7 +1,7 @@
 local PositionRecord = require("ImmersiveTravel.models.PositionRecord")
 
 ---@class SSegment
----@field id string unique id
+---@field id string? unique id
 ---@field private route1 tes3vector3[]?
 ---@field private route2 tes3vector3[]?
 ---@field private segments SSegment[]?
@@ -119,7 +119,6 @@ function SSegment:GetNodesRecursive()
             if not table.find(nodes, first) then
                 table.insert(nodes, first)
             end
-
             local last = self.route1[#self.route1]
             if not table.find(nodes, last) then
                 table.insert(nodes, last)
@@ -141,6 +140,39 @@ function SSegment:GetNodesRecursive()
     end
 
     return nodes
+end
+
+---@class SegmentConnection
+---@field route number
+---@field pos tes3vector3
+
+---@return SegmentConnection[]
+function SSegment:GetConnections()
+    local connections = {} --@type SegmentConnection[]
+    if self:IsSegmentSet() then
+        -- todo
+    else
+        for i = 1, 2, 1 do
+            local route = self:GetRoute(i)
+            if route then
+                ---@class SegmentConnection
+                local first = {
+                    route = i,
+                    pos = route[1]
+                }
+                table.insert(connections, first)
+
+                ---@class SegmentConnection
+                local last = {
+                    route = i,
+                    pos = route[#route]
+                }
+                table.insert(connections, last)
+            end
+        end
+    end
+
+    return connections
 end
 
 return SSegment

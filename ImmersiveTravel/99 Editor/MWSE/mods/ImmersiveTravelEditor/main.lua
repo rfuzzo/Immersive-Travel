@@ -57,10 +57,6 @@ end
 ---@field editorMarkers SPreviewMarker[]?
 ---@field currentMarker SPreviewMarker?
 
----@class SEditorPortData
----@field mount tes3reference?
----@field portData PortData?
-
 --[[
 Current Usage (Debug)
 - Open route editor 						... R-Ctrl
@@ -78,7 +74,7 @@ local editMenuRoutesId = tes3ui.registerID("it:MenuEdit_Routes")
 local editMenuCancelId = tes3ui.registerID("it:MenuEdit_Cancel")
 local editMenuTeleportId = tes3ui.registerID("it:MenuEdit_Teleport")
 local editMenuTeleportEndId = tes3ui.registerID("it:MenuEdit_TeleportEnd")
-local editMenuPreviewId = tes3ui.registerID("it:MenuEdit_Preview")
+local editMenuDumpId = tes3ui.registerID("it:MenuEdit_Dump")
 local editMenuSearchId = tes3ui.registerID("it:MenuEdit_Search")
 local editMenuReloadId = tes3ui.registerID("it:MenuEdit_Reload")
 local editMenuAllId = tes3ui.registerID("it:MenuEdit_All")
@@ -100,8 +96,6 @@ local currentServiceName = nil
 local editorData = nil
 local editmode = false
 
----@type SEditorPortData | nil
-local editorPortData = nil
 local destinations = {} ---@type table<string,table<string, string[]>> -- start -> destination[] per service
 local splines = {} ---@type table<string, tes3vector3[]> -- routeId -> spline
 
@@ -946,6 +940,30 @@ local function Reload()
     end
 end
 
+---@return PositionRecord[]|nil
+local function GetSplineDto()
+    if not editorData then return nil end
+    if not editorData.editorMarkers then return nil end
+
+    local tempSpline = {} ---@type PositionRecord[]
+    for i, value in ipairs(editorData.editorMarkers) do
+        local t = value.node.translation
+
+        -- save currently edited markers back to spline
+        table.insert(tempSpline, i, {
+            x = math.round(t.x),
+            y = math.round(t.y),
+            z = math.round(t.z)
+        })
+    end
+
+    -- remove first and last marker (these are the ports)
+    table.remove(tempSpline, 1)
+    table.remove(tempSpline, #tempSpline)
+
+    return tempSpline
+end
+
 local function createEditWindow()
     -- Return if window is already open
     if (tes3ui.findMenu(editMenuId) ~= nil) then return end
@@ -1083,10 +1101,7 @@ local function createEditWindow()
                     teleportToCell(portName)
                 end
 
-                editorPortData = {
-                    portData = portData,
-                    mount = nil
-                }
+                -- TODO port mode
             end)
 
             ::continue::
@@ -1219,27 +1234,9 @@ local function createEditWindow()
             id = editMenuSaveId,
             text = "Save"
         }
-
         --- save to file
         button_save:register(tes3.uiEvent.mouseClick, function()
-            if not editorData then return end
-            if not editorData.editorMarkers then return end
-
-            local tempSpline = {}
-            for i, value in ipairs(editorData.editorMarkers) do
-                local t = value.node.translation
-
-                -- save currently edited markers back to spline
-                table.insert(tempSpline, i, {
-                    x = math.round(t.x),
-                    y = math.round(t.y),
-                    z = math.round(t.z)
-                })
-            end
-
-            -- remove first and last marker (these are the ports)
-            table.remove(tempSpline, 1)
-            table.remove(tempSpline, #tempSpline)
+            local tempSpline = GetSplineDto()
 
             -- save to file
             local current_editor_route = editorData.start .. "_" .. editorData.destination
@@ -1248,6 +1245,51 @@ local function createEditWindow()
             json.savefile(filename, tempSpline)
 
             tes3.messageBox("saved spline: " .. current_editor_route)
+        end)
+
+
+        --- save to toml
+        local button_dump = button_block:createButton {
+            id = editMenuDumpId,
+            text = "Dump"
+        }
+        button_dump:register(tes3.uiEvent.mouseClick, function()
+            local tempSpline = GetSplineDto()
+            if tempSpline then
+                -- construct segments
+                local segments = {} ---@type SSegmentDto[]
+                for index, point in ipairs(tempSpline) do
+                    -- construct route
+                    local nextpoint = tempSpline[index + 1]
+                    if not nextpoint then
+                        break
+                    end
+
+                    local route = {} ---@type PositionRecord[]
+                    table.insert(route, point)
+                    table.insert(route, nextpoint)
+
+                    ---@type SSegmentDto
+                    local segment = {
+                        id = nil,
+                        route1 = route
+                    }
+                    table.insert(segments, segment)
+                end
+
+                local current_editor_route = editorData.start .. "_" .. editorData.destination
+                local localmodpath = "mods\\ImmersiveTravelEditor"
+                local filename = string.format("%s\\%s\\%s", localmodpath, service.class, current_editor_route)
+                local tfilename = "Data Files\\MWSE\\" .. filename .. ".toml"
+                ---@type SSegmentDto
+                local t = {
+                    id = current_editor_route,
+                    segments = segments
+                }
+                toml.saveFile(tfilename, t)
+
+                tes3.messageBox("saved spline: " .. current_editor_route)
+            end
         end)
     end
 
@@ -1318,19 +1360,12 @@ local function simulatedCallback(e)
         editorData.currentMarker.node.translation = from
         editorData.currentMarker.node:update()
     end
-
-    if editorPortData and editorPortData.mount then
-        if editmode == false then return end
-
-        local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
-        editorPortData.mount.position = from
-    end
 end
 event.register(tes3.event.simulated, simulatedCallback)
 
 local function insertMarker()
-    if IsPortMode() then
-        -- TODO it can bei either start or destination
+    if IsSegmentsMode() then
+
     elseif IsRouteMode() then
         if not editorData then return end
         if not editorMarkerMesh then return end
@@ -1376,7 +1411,7 @@ local function insertMarker()
 end
 
 local function editMarker()
-    if IsPortMode() then
+    if IsSegmentsMode() then
         -- TODO
     elseif IsRouteMode() then
         if not editorData then return end
@@ -1405,6 +1440,15 @@ local function editMarker()
         if not editmode and config.traceOnSave then
             traceRoute(editorData.service)
         end
+    end
+end
+
+local function pinMarker()
+    if IsRouteMode() then
+        if not editorData then return end
+        if not editorData.editorMarkers then return end
+
+        local idx = getClosestMarkerIdx()
     end
 end
 
@@ -1461,6 +1505,11 @@ local function editor_keyDownCallback(e)
     -- delete
     if e.keyCode == config.deletekeybind.keyCode then
         deleteMarker()
+    end
+
+    -- delete
+    if e.keyCode == config.pinkeybind.keyCode then
+        pinMarker()
     end
 
     -- trace

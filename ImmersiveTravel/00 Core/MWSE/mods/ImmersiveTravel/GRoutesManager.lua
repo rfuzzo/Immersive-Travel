@@ -135,6 +135,56 @@ local function GetPrice(spline)
     return price
 end
 
+---@class Node
+---@field id string
+---@field route number
+
+---@class Edge
+---@field from string
+---@field to string
+
+
+function RoutesManager:BuildGraph()
+    local nodes = {} ---@class Node[]
+    local edges = {} ---@class Edge[]
+
+    local cursor = nil ---@type tes3vector3?
+
+    -- build a graph
+    for _, service in pairs(self.services) do
+        for _, route in pairs(service.routes) do
+            -- start and end port
+            local startPort = service.ports[route.id.start]
+            local startPos = startPort:StartPos()
+            local endPort = service.ports[route.id.destination]
+            local endPos = endPort:EndPos()
+
+            cursor = startPos
+
+            for _, segmentId in ipairs(route.segments) do
+                local segment = service:GetSegment(segmentId)
+                assert(segment)
+                local conections = segment:GetConnections()
+                -- check if we have a connection
+
+                for _, connection in ipairs(conections) do
+                    if connection.pos == cursor then
+                        -- add node
+                        ---@type Node
+                        local node = {
+                            id = segmentId,
+                            route = connection.route
+                        }
+                        table.insert(nodes, node)
+
+                        -- add edge
+                    end
+                end
+            end
+        end
+    end
+end
+
 -- init manager
 --- @return boolean
 function RoutesManager:Init()
@@ -158,6 +208,8 @@ function RoutesManager:Init()
         service.routes = loadRoutes(service)
         service.segments = loadSegments(service)
     end
+
+    self:BuildGraph()
 
     return true
 end

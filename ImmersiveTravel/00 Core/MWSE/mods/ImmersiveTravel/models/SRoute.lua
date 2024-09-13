@@ -2,7 +2,7 @@ local RouteId = require("ImmersiveTravel.models.RouteId")
 
 ---@class SRoute
 ---@field id RouteId The route id
----@field private segments string[] The route segments
+---@field segments string[] The route segments
 ---@field segmentsMetaData table<string, SSegmentMetaData> The route segments meta data
 local SRoute = {}
 

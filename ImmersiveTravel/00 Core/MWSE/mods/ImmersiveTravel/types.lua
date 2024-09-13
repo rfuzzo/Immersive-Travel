@@ -10,7 +10,7 @@
 ---@field reverseStart boolean? reverse out of dock?
 
 ---@class SSegmentDto
----@field id string unique id
+---@field id string? unique id
 ---@field route1 PositionRecord[]?
 ---@field route2 PositionRecord[]?
 ---@field segments SSegmentDto[]?

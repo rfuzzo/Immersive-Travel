@@ -111,6 +111,16 @@ local function registerModConfig()
         allowCombinations = true
     })
 
+    generalCategory:createKeyBinder({
+        label = "Pin Markers Keybind",
+        description = "Assign a new keybind.",
+        variable = mwse.mcm.createTableVariable {
+            id = "pinkeybind",
+            table = config
+        },
+        allowCombinations = true
+    })
+
     template:register()
 end
 

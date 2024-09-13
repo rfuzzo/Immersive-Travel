@@ -13,7 +13,8 @@ local defaultConfig = {
     openkeybind = { keyCode = tes3.scanCode["rCtrl"] },
     editkeybind = { keyCode = tes3.scanCode["lCtrl"] },
     deletekeybind = { keyCode = tes3.scanCode["delete"] },
-    tracekeybind = { keyCode = tes3.scanCode["forwardSlash"] }
+    tracekeybind = { keyCode = tes3.scanCode["forwardSlash"] },
+    pinkeybind = { keyCode = tes3.scanCode["p"] }
 }
 
 return mwse.loadConfig("ImmersiveTravelEditor", defaultConfig)
