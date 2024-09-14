@@ -138,49 +138,107 @@ end
 ---@class Node
 ---@field id string
 ---@field route number
+---@field from string?
+---@field to string?
+---@field position tes3vector3?
 
----@class Edge
----@field from string
----@field to string
-
+---@param node Node
+---@return string
+local function NodeId(node)
+    return string.format("%s%d", node.id, node.route)
+end
 
 function RoutesManager:BuildGraph()
-    local nodes = {} ---@class Node[]
-    local edges = {} ---@class Edge[]
+    local nodes = {} ---@type Node[]
 
-    local cursor = nil ---@type tes3vector3?
+    local cursor = {} ---@type Node[]
 
     -- build a graph
     for _, service in pairs(self.services) do
         for _, route in pairs(service.routes) do
+            log:debug("Route '%s'", route.id:ToString())
             -- start and end port
             local startPort = service.ports[route.id.start]
             local startPos = startPort:StartPos()
+            ---@type Node
+            local startNode = {
+                id = route.id.start,
+                route = 1,
+                position = startPos
+            }
+            table.insert(nodes, startNode)
+
             local endPort = service.ports[route.id.destination]
             local endPos = endPort:EndPos()
 
-            cursor = startPos
+            -- start with port
+            cursor = {}
+            table.insert(cursor, startNode)
 
             for _, segmentId in ipairs(route.segments) do
                 local segment = service:GetSegment(segmentId)
                 assert(segment)
-                local conections = segment:GetConnections()
+
+
+
                 -- check if we have a connection
+                local newCursor = {} ---@type Node[]
 
-                for _, connection in ipairs(conections) do
-                    if connection.pos == cursor then
-                        -- add node
-                        ---@type Node
-                        local node = {
-                            id = segmentId,
-                            route = connection.route
-                        }
-                        table.insert(nodes, node)
+                local conections = segment:GetConnections()
+                log:trace("Segment '%s', conections %d", segmentId, #conections)
+                for _, lastCursor in ipairs(cursor) do
+                    log:trace(" - Last cursor: %s - %s", NodeId(lastCursor), lastCursor.position)
+                    for i, connection in ipairs(conections) do
+                        log:trace(" - Connection %d - %s", i, connection.pos)
+                        if connection.pos == lastCursor.position then
+                            -- add node
+                            -- get end position of route
+                            local croute = segment:GetRoute(connection.route)
+                            assert(croute)
+                            local routeEndPos = croute[#croute]
+                            local routeStartPos = croute[1]
+                            local routePos = nil
+                            if connection.pos == routeEndPos then
+                                routePos = routeStartPos
+                            else
+                                routePos = routeEndPos
+                            end
 
-                        -- add edge
+                            ---@type Node
+                            local node = {
+                                id = segmentId,
+                                route = connection.route,
+                                from = NodeId(lastCursor),
+                                position = routePos
+                            }
+
+                            log:debug(" + Adding connection: %s -> %s", NodeId(lastCursor), NodeId(node))
+
+                            -- modify last node
+                            -- find in nodes
+                            for _, n in ipairs(nodes) do
+                                if NodeId(n) == NodeId(lastCursor) then
+                                    n.to = NodeId(node)
+                                    break
+                                end
+                            end
+
+                            table.insert(nodes, node)
+                            table.insert(newCursor, node)
+                        end
                     end
                 end
+
+                cursor = newCursor
             end
+
+            -- add end node
+            local endNode = {
+                id = route.id.destination,
+                route = 1,
+                position = endPos
+            }
+            table.insert(nodes, endNode)
         end
     end
 end
