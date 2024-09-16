@@ -330,7 +330,7 @@ end
 local function getNextPositionHeading(vehicle)
     -- handle player steer and onspline states
     if vehicle.virtualDestination then
-        -- TODO check if close to virtual destination
+        -- check if close to virtual destination
         if vehicle.last_position:distance(vehicle.virtualDestination) < 100 then
             return nil
         end
@@ -390,7 +390,7 @@ local function Move(vehicle, dt)
         return
     end
 
-    -- TODO speed change
+    -- speed change
     if vehicle.changeSpeed > 0 and vehicle.current_speed >= vehicle.maxSpeed then
         vehicle.changeSpeed = 0
     end

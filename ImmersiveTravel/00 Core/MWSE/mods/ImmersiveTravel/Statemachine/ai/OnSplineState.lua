@@ -66,7 +66,7 @@ function OnSplineState:OnDestinationReached(scriptedObject)
             vehicle.currentPort = vehicle.routeId.destination
 
             log:trace("[%s] OnSplineState OnDestinationReached port: %s", vehicle:Id(), vehicle.currentPort)
-            -- TODO now check if there is a route into dock
+            -- TODO port end
             -- if port.positionEnd then
             --     -- get route into port
             --     vehicle.virtualDestination = port.positionEnd
@@ -81,7 +81,7 @@ end
 function OnSplineState:update(dt, scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
 
-    -- TODO
+    -- TODO new route system
     local spline = GRoutesManager.getInstance():GetRoute(vehicle.routeId)
     if spline == nil then
         return
@@ -96,7 +96,6 @@ function OnSplineState:update(dt, scriptedObject)
             end
             log:debug("[%s] Player left the vehicle on route %s", vehicle:Id(), vehicle.routeId)
             vehicle.playerRegistered = false
-            -- TODO
             tes3.player.tempData.itpsl = nil
             manager:StopTraveling()
         elseif not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() and not manager:IsPlayerTraveling() then

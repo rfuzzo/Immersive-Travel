@@ -61,7 +61,6 @@ end
 ---@param id RouteId
 ---@return SRoute?
 function ServiceData:GetRoute(id)
-    -- TODO check this
     return self.routes[id:ToString()]
 end
 

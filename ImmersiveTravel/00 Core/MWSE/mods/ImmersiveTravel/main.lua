@@ -11,24 +11,28 @@ local log                   = lib.log
 
 - travel
 
+    High
     -[ ] refactor routes with segments
     -[x] fix locomotion in reverse
     -[x] add NPCs
     -[x] add payment
     -[ ] slow down in port
+    -[ ] random passengers for all services
 
+    Medium
     -[ ] proper class and name randomization for passengers
     -[ ] fix all todos
     -[ ] add new animated boat
     -[ ] refactor ports for different vehicles
 
-    -[ ] maybe start travel from the port start
+    Stretch
+    -[ ] start player travel from the port start
     -[ ] add a deck interior cell
 
 
 - editor
-    -[ ] add port mode
-    -[ ] add segment mode
+    -[x] add port mode
+    -[x] add segment mode
     -[ ] display vehicles in real time
 
 - vehicles
@@ -49,37 +53,6 @@ end
 --- Init Mod
 --- @param e initializedEventData
 local function initializedCallback(e)
-    -- -- TODO debug
-    -- ---@type SSegmentDto
-    -- local d1 = {
-    --     id = "test1",
-    --     route1 =
-    --     {
-    --         { x = 1, y = 0, z = 0 },
-    --         { x = 2, y = 0, z = 0 },
-    --         { x = 2, y = 0, z = 0 },
-    --     },
-
-    -- }
-
-    -- ---@type SSegmentDto
-    -- local d2 = {
-    --     id = "test2",
-    --     route2 = {
-    --         { x = 2, y = 0, z = 0 },
-    --         { x = 3, y = 0, z = 0 },
-    --     }
-    -- }
-
-    -- ---@type SSegment
-    -- local d3 = {
-    --     id = "Inner Sea",
-    --     segments = { d1, d2 }
-    -- }
-
-    -- toml.saveFile("Data Files\\_segment_test.toml", d3)
-    -- toml.saveFile("Data Files\\_segment_test1.toml", d1)
-
     -- init routes manager
     if not GRoutesManager.getInstance():Init() then
         config.modEnabled = false
@@ -144,7 +117,7 @@ local function onMenuDialog(e)
             return
         end
 
-        -- TODO Return if no destinations
+        -- Return if no destinations
         local destinations = service:GetDestinations(ref.cell.id)
         if #destinations == 0 then return end
 

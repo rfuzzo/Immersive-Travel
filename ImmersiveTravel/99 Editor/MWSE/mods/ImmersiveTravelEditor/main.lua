@@ -19,10 +19,12 @@ local log         = logger.new {
 
 ---@enum EMarkerType
 local EMarkerType = {
-    PortStart = 1,
-    PortEnd = 2,
-    Port = 3,
-    Route = 4
+    PortStart = 1,       -- port marker
+    PortEnd = 2,         -- port marker
+    Port = 3,            -- port marker
+    Route = 4,           -- inner segment
+    RouteConnection = 5, -- segment connection
+    Spline = 6           -- DEPRECATED spline marker
 }
 
 ---@enum EEditorMode
@@ -47,15 +49,19 @@ end
 ---@class SPreviewMarker
 ---@field node niNode
 ---@field type EMarkerType
+---@field segmentId string?
+---@field routeId number?
 
 ---@class SEditorData
 ---@field service ServiceData
----@field start string
----@field destination string
+---@field start string?
+---@field destination string?
 ---@field mount tes3reference?
----@field splineIndex integer
+---@field splineIndex integer?
 ---@field editorMarkers SPreviewMarker[]?
 ---@field currentMarker SPreviewMarker?
+---@field pin1 number?
+---@field pin2 number?
 
 --[[
 Current Usage (Debug)
@@ -79,9 +85,9 @@ local editMenuSearchId = tes3ui.registerID("it:MenuEdit_Search")
 local editMenuReloadId = tes3ui.registerID("it:MenuEdit_Reload")
 local editMenuAllId = tes3ui.registerID("it:MenuEdit_All")
 
-local editorMarkerId = "marker_travel.nif"
-local portMarkerId = "marker_arrow.nif"
-local nodeMarkerId = "marker_divine.nif"
+local editorMarkerId = "marker_travel.nif" -- for nodes
+local portMarkerId = "marker_arrow.nif"    -- for ports
+local nodeMarkerId = "marker_divine.nif"   -- for connections
 -- "marker_north.nif"
 
 local editorMarkerMesh = nil ---@type niNode?
@@ -333,6 +339,18 @@ end
 
 --#region editor helpers
 
+local function IsPortMode()
+    return currentEditorMode == EEditorMode.Ports
+end
+
+local function IsRouteMode()
+    return currentEditorMode == EEditorMode.Routes
+end
+
+local function IsSegmentsMode()
+    return currentEditorMode == EEditorMode.Segments
+end
+
 local function updateMarkers()
     if not editorData then return end
     local editorMarkers = editorData.editorMarkers
@@ -352,34 +370,71 @@ local function updateMarkers()
     tes3.worldController.vfxManager.worldVFXRoot:update()
 end
 
+---@param ignoreConnections boolean?
 ---@return number?
-local function getClosestMarkerIdx()
+local function getClosestMarkerIdx(ignoreConnections)
     if not editorData then return nil end
-    local editorMarkers = editorData.editorMarkers
-    if not editorMarkers then return nil end
+    if not editorData.editorMarkers then return nil end
 
     -- get closest marker
-    local pp = tes3.player.position
-
     local final_idx = 0
     local last_distance = nil
-    for index, marker in ipairs(editorMarkers) do
-        local distance_to_marker = pp:distance(marker.node.translation)
+    for index, marker in ipairs(editorData.editorMarkers) do
+        if IsRouteMode() then
+            if marker.type ~= EMarkerType.Spline then
+                goto continue
+            end
+        elseif IsSegmentsMode() then
+            if ignoreConnections then
+                if marker.type ~= EMarkerType.Route then
+                    goto continue
+                end
+            else
+                if marker.type ~= EMarkerType.Route and marker.type ~= EMarkerType.RouteConnection then
+                    goto continue
+                end
+            end
+        elseif IsPortMode() then
+            if marker.type ~= EMarkerType.Port and marker.type ~= EMarkerType.PortStart and marker.type ~= EMarkerType.PortEnd then
+                goto continue
+            end
+        end
+
+
+        local distance_to_marker = tes3.player.position:distance(marker.node.translation)
+        -- if distance_to_marker > 1024 then
+        --     goto continue
+        -- end
 
         -- first
         if last_distance == nil then
             last_distance = distance_to_marker
             final_idx = 1
         end
-
+        -- last
         if distance_to_marker < last_distance then
             final_idx = index
             last_distance = distance_to_marker
         end
+
+        ::continue::
     end
 
-    if final_idx == 0 then
-        return nil
+    -- make sure not to select first or last
+    if IsRouteMode() then
+        -- nothing found
+        if final_idx == 0 then
+            return nil
+        end
+
+        -- if the first then get the second
+        if final_idx == 1 then
+            final_idx = 2
+        end
+        -- if the last then get the second last
+        if final_idx == #editorData.editorMarkers then
+            final_idx = #editorData.editorMarkers - 1
+        end
     end
 
     return final_idx
@@ -390,8 +445,6 @@ end
 local function renderAdditionalMarkers(startPort, destinationPort)
     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
     if not portMarkerMesh then return nil end
-
-    -- TODO
 
     -- -- render start maneuvre
     if startPort then
@@ -408,10 +461,7 @@ local function renderAdditionalMarkers(startPort, destinationPort)
         tes3.worldController.vfxManager.worldVFXRoot:update()
     end
 
-    -- additional position at the end
-    -- if destinationPort and destinationPort.positionEnd then
-
-    -- end
+    -- TODO port end
 end
 
 ---@param spline tes3vector3[]
@@ -431,7 +481,7 @@ local function renderMarkers(spline)
     -- add markers
     for idx, v in ipairs(spline) do
         local child = editorMarkerMesh:clone()
-        local type = EMarkerType.Route
+        local type = EMarkerType.Spline
 
         -- first and last marker are ports with fixed markers
         if idx == 1 or idx == #spline then
@@ -468,7 +518,7 @@ local function renderMarkers(spline)
                 local y = math.rad(destinationPort.rotation.y)
                 local z = math.rad(destinationPort.rotation.z)
                 if destinationPort.rotationEnd then
-                    -- TODO
+                    -- TODO port end
                     -- x = math.rad(destinationPort.rotationEnd.x)
                     -- y = math.rad(destinationPort.rotationEnd.y)
                     -- z = math.rad(destinationPort.rotationEnd.z)
@@ -548,27 +598,40 @@ end
 local function traceAllSegments(service)
     if not arrow then return end
     if not nodeMarkerMesh then return end
+    if not editorMarkerMesh then return end
     if not portMarkerMesh then return end
 
     arrows = {}
-    local nodes = {}
-    -- TODO collect lines
+    editorData = {
+        editorMarkers = {},
+        service = service,
+        currentMarker = nil
+    }
 
     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
     vfxRoot:detachAllChildren()
 
+    -- get all segment connectsions and internal nodes
     for _, route in pairs(service.routes) do
         log:trace("Tracing route '%s'", route.id)
         -- for each route get the segments
         for n, segment in ipairs(route:GetSegmentsResolved(service)) do
             log:trace("\tTracing segment #%d '%s'", n, segment.id)
-            -- render nodes
-            local current_nodes = segment:GetNodesRecursive()
-            for _, node in ipairs(current_nodes) do
-                -- insert only unique nodes
-                if not table.find(nodes, node) then
-                    table.insert(nodes, node)
-                end
+            -- render connections
+            local connections = segment:GetConnections()
+            for _, connection in ipairs(connections) do
+                -- check if is connection
+                local node = nodeMarkerMesh:clone()
+                node.translation = connection.pos
+                node.appCulled = false
+                ---@type SPreviewMarker
+                local marker = {
+                    node = node,
+                    type = EMarkerType.RouteConnection,
+                    segmentId = segment.id,
+                    routeId = connection.route
+                }
+                table.insert(editorData.editorMarkers, marker)
             end
 
             -- render vertices
@@ -581,6 +644,21 @@ local function traceAllSegments(service)
                         local to = spline[i + 1]
 
                         createLine(string.format("rf_line_%s_%d_%d", segment.id, idx, i), from, to)
+
+                        if i > 1 then
+                            local node = nodeMarkerMesh:clone()
+                            node.scale = 0.5
+                            node.translation = from
+                            node.appCulled = false
+                            ---@type SPreviewMarker
+                            local marker = {
+                                node = node,
+                                type = EMarkerType.Route,
+                                segmentId = segment.id,
+                                routeId = idx
+                            }
+                            table.insert(editorData.editorMarkers, marker)
+                        end
                     end
                 end
             end
@@ -599,7 +677,13 @@ local function traceAllSegments(service)
             m:fromEulerXYZ(x, y, z)
             child.rotation = m
             child.appCulled = false
-            vfxRoot:attachChild(child)
+
+            ---@type SPreviewMarker
+            local marker = {
+                node = child,
+                type = EMarkerType.Port
+            }
+            table.insert(editorData.editorMarkers, marker)
         end
 
 
@@ -613,26 +697,26 @@ local function traceAllSegments(service)
             m:fromEulerXYZ(x, y, z)
             child.rotation = m
             child.appCulled = false
-            vfxRoot:attachChild(child)
+
+            ---@type SPreviewMarker
+            local marker = {
+                node = child,
+                type = EMarkerType.PortStart
+            }
+            table.insert(editorData.editorMarkers, marker)
         end
 
-        -- TODO positionEnd
+        -- TODO port end
     end
 
     -- render nodes
-    for _, node in ipairs(nodes) do
-        local child = nodeMarkerMesh:clone()
-        child.translation = tes3vector3.new(node.x, node.y, node.z)
-        child.appCulled = false
-        vfxRoot:attachChild(child)
+    for _, node in ipairs(editorData.editorMarkers) do
+        vfxRoot:attachChild(node.node)
     end
-
-    editorData = nil
 
     vfxRoot:update()
 end
 
--- TODO use method from locomotion state
 ---@param vehicle CVehicle
 ---@param nextPos tes3vector3
 ---@return boolean
@@ -659,7 +743,7 @@ local function calculatePosition(vehicle, nextPos)
     if isReversing then
         forward = tes3vector3.new(-f.x, -f.y, lerp.z):normalized()
     end
-    -- TODO fix speed buffers
+
     local delta = forward * math.abs(vehicle.current_speed) * config.grain
     local mountPosition = currentPos + delta + mountOffset
 
@@ -745,7 +829,6 @@ local function calculateLeavePort(service, mountData, startPort)
     if not editorData then return end
 
     -- position the vehicle in port
-    -- TODO get the proper position
     editorData.mount.position = startPort.position
     editorData.mount.orientation = lib.radvec(startPort.rotation)
 
@@ -861,18 +944,29 @@ local function traceRoute(service)
     vfxRoot:update()
 end
 
-local function IsPortMode()
-    return currentEditorMode == EEditorMode.Ports
-end
+---@param segment SSegment
+local function saveSegment(service, segment)
+    local filename = string.format("%s.toml", segment.id)
+    local segmentsPath = string.format("%s\\data\\%s\\segments\\%s", lib.fullmodpath, service.class, filename)
 
-local function IsRouteMode()
-    return currentEditorMode == EEditorMode.Routes
-end
+    local route1 = nil
+    if segment:GetRoute1() then
+        route1 = PositionRecord.ToList(segment:GetRoute1())
+    end
 
-local function IsSegmentsMode()
-    return currentEditorMode == EEditorMode.Segments
-end
+    local route2 = nil
+    if segment:GetRoute2() then
+        route2 = PositionRecord.ToList(segment:GetRoute2())
+    end
 
+    ---@type SSegmentDto
+    local dto = {
+        id = segment.id,
+        route1 = route1,
+        route2 = route2,
+    }
+    toml.saveFile(segmentsPath, dto)
+end
 
 --#endregion
 
@@ -1100,8 +1194,6 @@ local function createEditWindow()
                 else
                     teleportToCell(portName)
                 end
-
-                -- TODO port mode
             end)
 
             ::continue::
@@ -1124,7 +1216,7 @@ local function createEditWindow()
                 text = segmentName
             }
             button:register(tes3.uiEvent.mouseClick, function()
-                -- TODO
+
             end)
 
             ::continue::
@@ -1134,6 +1226,23 @@ local function createEditWindow()
     pane:getContentElement():sortChildren(function(a, b)
         return a.text < b.text
     end)
+
+    -- additional
+    if IsRouteMode() and editorData then
+        -- display pins
+        local block = menu:createBlock {}
+        block.widthProportional = 1.0 -- width is 100% parent width
+        block.autoHeight = true
+
+        if editorData.pin1 then
+            block:createLabel { text = string.format("Pin 1: %s", editorData.pin1) }
+        end
+
+        if editorData.pin2 then
+            block:createLabel { text = string.format("Pin 2: %s", editorData.pin2) }
+        end
+    end
+
 
     -- buttons
     local button_block = menu:createBlock {}
@@ -1254,11 +1363,32 @@ local function createEditWindow()
             text = "Dump"
         }
         button_dump:register(tes3.uiEvent.mouseClick, function()
+            -- pins
+            local minPin = nil
+            local maxPin = nil
+            if editorData.pin1 and editorData.pin2 then
+                minPin = math.min(editorData.pin1, editorData.pin2)
+                maxPin = math.max(editorData.pin1, editorData.pin2)
+            end
+
+
             local tempSpline = GetSplineDto()
             if tempSpline then
                 -- construct segments
                 local segments = {} ---@type SSegmentDto[]
                 for index, point in ipairs(tempSpline) do
+                    if minPin then
+                        if index < minPin then
+                            goto continue
+                        end
+                    end
+
+                    if maxPin then
+                        if index > maxPin then
+                            goto continue
+                        end
+                    end
+
                     -- construct route
                     local nextpoint = tempSpline[index + 1]
                     if not nextpoint then
@@ -1275,6 +1405,8 @@ local function createEditWindow()
                         route1 = route
                     }
                     table.insert(segments, segment)
+
+                    ::continue::
                 end
 
                 local current_editor_route = editorData.start .. "_" .. editorData.destination
@@ -1340,48 +1472,80 @@ end
 
 --- @param e simulatedEventData
 local function simulatedCallback(e)
-    if editorData and editorData.currentMarker then
-        if editmode == false then return end
+    if not editorData then return end
+    if not editorData.currentMarker then return end
+    if editmode == false then return end
 
-        local service = editorData.service
-        local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
+    local service = editorData.service
+    local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
 
-        if service.ground_offset == 0 then
-            from.z = 0
+    if service.ground_offset == 0 then
+        from.z = 0
+    else
+        local groundZ = getGroundZ(from)
+        if groundZ == nil then
+            from.z = service.ground_offset
         else
-            local groundZ = getGroundZ(from)
-            if groundZ == nil then
-                from.z = service.ground_offset
-            else
-                from.z = groundZ + service.ground_offset
-            end
+            from.z = groundZ + service.ground_offset
         end
-
-        editorData.currentMarker.node.translation = from
-        editorData.currentMarker.node:update()
     end
+
+    editorData.currentMarker.node.translation = from
+    editorData.currentMarker.node:update()
 end
 event.register(tes3.event.simulated, simulatedCallback)
 
 local function insertMarker()
-    if IsSegmentsMode() then
+    if not editorData then return end
+    if not editorData.editorMarkers then return end
 
+    if IsSegmentsMode() then
+        if not nodeMarkerMesh then return end
+
+        local idx = getClosestMarkerIdx(true)
+        if idx then
+            local instance = editorData.editorMarkers[idx]
+
+            -- get segment
+            local segment = editorData.service:GetSegment(instance.segmentId)
+            assert(segment, "Segment not found")
+            local route = segment:GetRoute(instance.routeId)
+            assert(route, "Route not found")
+
+            -- insert at index
+            -- find position in the route
+            local pos = nil
+            for i, p in ipairs(route) do
+                if p == instance.node.translation then
+                    pos = i
+                    break
+                end
+            end
+
+            if pos then
+                local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
+                table.insert(route, pos, from)
+            end
+
+            -- save affected segment to file
+            saveSegment(editorData.service, segment)
+
+            -- render again
+            traceAllSegments(editorData.service)
+        end
     elseif IsRouteMode() then
-        if not editorData then return end
         if not editorMarkerMesh then return end
-        if not editorData.editorMarkers then return end
 
         local idx = getClosestMarkerIdx()
         if not idx then
             return
         end
 
+        -- new vfx node
         local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
-
         local child = editorMarkerMesh:clone()
-        child.translation = tes3vector3.new(from.x, from.y, from.z)
+        child.translation = from
         child.appCulled = false
-
         local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
         vfxRoot:attachChild(child)
         vfxRoot:update()
@@ -1396,7 +1560,7 @@ local function insertMarker()
             newIdx = idx + 1
         end
 
-        local type = EMarkerType.Route
+        local type = EMarkerType.Spline
         ---@type SPreviewMarker
         local struct = {
             node = child,
@@ -1411,16 +1575,124 @@ local function insertMarker()
 end
 
 local function editMarker()
-    if IsSegmentsMode() then
-        -- TODO
-    elseif IsRouteMode() then
-        if not editorData then return end
+    if not editorData then return end
 
+    if IsSegmentsMode() then
+        if not editmode then
+            local idx = getClosestMarkerIdx(false)
+            if not idx then
+                return
+            end
+
+            debug.log(idx)
+
+            editorData.currentMarker = editorData.editorMarkers[idx]
+            tes3.messageBox("Marker index: " .. idx)
+        else
+            -- save
+            local segment = editorData.service:GetSegment(editorData.currentMarker.segmentId)
+            assert(segment, "Segment not found")
+
+            saveSegment(editorData.service, segment)
+
+            -- render all again
+            traceAllSegments(editorData.service)
+        end
+    elseif IsRouteMode() then
+        if not editmode then
+            local idx = getClosestMarkerIdx()
+            if not idx then
+                return
+            end
+
+            editorData.currentMarker = editorData.editorMarkers[idx]
+            tes3.messageBox("Marker index: " .. idx)
+        else
+            updateMarkers()
+
+            if config.traceOnSave then
+                traceRoute(editorData.service)
+            end
+        end
+    end
+
+    tes3.worldController.vfxManager.worldVFXRoot:update()
+    editmode = not editmode
+end
+
+local function pinMarker()
+    if IsRouteMode() then
+        if not editorData then return end
+        if not editorData.editorMarkers then return end
+
+        local idx = getClosestMarkerIdx()
+        local marker = editorData.editorMarkers[idx]
+        if marker then
+            if marker == editorData.pin1 then
+                marker.node.scale = 1
+                marker.node:update()
+                editorData.pin1 = nil
+            elseif marker == editorData.pin2 then
+                marker.node.scale = 1
+                marker.node:update()
+                editorData.pin2 = nil
+            else
+                if not editorData.pin1 then
+                    editorData.pin1 = idx
+                    marker.node.scale = 1.5
+                    marker.node:update()
+                elseif not editorData.pin2 then
+                    editorData.pin2 = idx
+                    marker.node.scale = 1.5
+                    marker.node:update()
+                end
+            end
+        end
+    end
+end
+
+local function deleteMarker()
+    if not editorData then return end
+    if not editorData.editorMarkers then return end
+
+    if IsSegmentsMode() then
+        local idx = getClosestMarkerIdx(true)
+        if not idx then
+            return
+        end
+        local instance = editorData.editorMarkers[idx]
+
+        -- get segment
+        local segment = editorData.service:GetSegment(instance.segmentId)
+        assert(segment, "Segment not found")
+        local route = segment:GetRoute(instance.routeId)
+        assert(route, "Route not found")
+
+        -- find position in the route
+        local pos = nil
+        for i, p in ipairs(route) do
+            if p == instance.node.translation then
+                pos = i
+                break
+            end
+        end
+
+        if pos then
+            table.remove(route, pos)
+        end
+
+        -- save affected segment to file
+        saveSegment(editorData.service, segment)
+
+        -- render again
+        traceAllSegments(editorData.service)
+
+        editorData.currentMarker = nil
+    elseif IsRouteMode() then
         local idx = getClosestMarkerIdx()
         if not idx then
             return
         end
-
         -- if the first then get the second
         if idx == 1 then
             idx = 2
@@ -1430,60 +1702,21 @@ local function editMarker()
             idx = #editorData.editorMarkers - 1
         end
 
-        editorData.currentMarker = editorData.editorMarkers[idx]
+
         updateMarkers()
 
-        editmode = not editmode
+        local instance = editorData.editorMarkers[idx]
+        local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
+        vfxRoot:detachChild(instance.node)
+        vfxRoot:update()
 
-        tes3.messageBox("Marker index: " .. idx)
+        table.remove(editorData.editorMarkers, idx)
 
-        if not editmode and config.traceOnSave then
+        if editorData and config.traceOnSave then
             traceRoute(editorData.service)
         end
-    end
-end
 
-local function pinMarker()
-    if IsRouteMode() then
-        if not editorData then return end
-        if not editorData.editorMarkers then return end
-
-        local idx = getClosestMarkerIdx()
-    end
-end
-
-local function deleteMarker()
-    if IsPortMode() then
-        -- TODO
-    elseif IsRouteMode() then
-        if not editorData then return end
-        if not editorData.editorMarkers then return end
-
-        local idx = getClosestMarkerIdx()
-        if idx then
-            -- if the first then get the second
-            if idx == 1 then
-                idx = 2
-            end
-            -- if the last then get the second last
-            if idx == #editorData.editorMarkers then
-                idx = #editorData.editorMarkers - 1
-            end
-
-            editorData.currentMarker = editorData.editorMarkers[idx]
-            updateMarkers()
-
-            local instance = editorData.editorMarkers[idx]
-            local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-            vfxRoot:detachChild(instance.node)
-            vfxRoot:update()
-
-            table.remove(editorData.editorMarkers, idx)
-
-            if editorData and config.traceOnSave then
-                traceRoute(editorData.service)
-            end
-        end
+        editorData.currentMarker = nil
     end
 end
 

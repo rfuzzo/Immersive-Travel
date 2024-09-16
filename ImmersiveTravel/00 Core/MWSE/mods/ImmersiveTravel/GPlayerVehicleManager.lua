@@ -198,7 +198,7 @@ local function uiShowRestMenuCallback(e)
                             -- teleport to last marker
                             local vehicle = PlayerVehicleManager.getInstance().trackedVehicle
                             if vehicle then
-                                -- TODO teleport to last position
+                                -- TODO new route system
                                 local spline = GRoutesManager.getInstance():GetRoute(vehicle.routeId)
                                 if spline ~= nil then
                                     tes3.positionCell({

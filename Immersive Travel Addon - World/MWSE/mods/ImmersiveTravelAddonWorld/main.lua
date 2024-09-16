@@ -61,7 +61,7 @@ local function doSpawn(point)
         return
     end
 
-    -- TODO
+    -- TODO new route system
     local spline = GRoutesManager.getInstance():GetRoute(point.routeId)
     if not spline then
         return

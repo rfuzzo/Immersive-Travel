@@ -108,8 +108,6 @@ local function loadRoutes(service)
         end
     end
 
-    -- TODO construct splines
-
     return map
 end
 
@@ -168,8 +166,6 @@ function RoutesManager:BuildGraph()
             }
             table.insert(nodes, startNode)
 
-            local endPort = service.ports[route.id.destination]
-            local endPos = endPort:EndPos()
 
             -- start with port
             cursor = {}
@@ -178,8 +174,6 @@ function RoutesManager:BuildGraph()
             for _, segmentId in ipairs(route.segments) do
                 local segment = service:GetSegment(segmentId)
                 assert(segment)
-
-
 
                 -- check if we have a connection
                 local newCursor = {} ---@type Node[]
@@ -208,8 +202,9 @@ function RoutesManager:BuildGraph()
                             local node = {
                                 id = segmentId,
                                 route = connection.route,
+                                position = routePos,
                                 from = NodeId(lastCursor),
-                                position = routePos
+
                             }
 
                             log:debug(" + Adding connection: %s -> %s", NodeId(lastCursor), NodeId(node))
@@ -233,12 +228,32 @@ function RoutesManager:BuildGraph()
             end
 
             -- add end node
-            local endNode = {
-                id = route.id.destination,
-                route = 1,
-                position = endPos
-            }
-            table.insert(nodes, endNode)
+            local endPort = service.ports[route.id.destination]
+            local endPos = endPort:EndPos()
+
+            for _, lastCursor in ipairs(cursor) do
+                if endPos == lastCursor.position then
+                    local node = {
+                        id = route.id.destination,
+                        route = 1,
+                        position = endPos,
+                        from = NodeId(lastCursor),
+                    }
+
+                    log:debug(" + Adding connection: %s -> %s", NodeId(lastCursor), NodeId(node))
+
+                    -- modify last node
+                    -- find in nodes
+                    for _, n in ipairs(nodes) do
+                        if NodeId(n) == NodeId(lastCursor) then
+                            n.to = NodeId(node)
+                            break
+                        end
+                    end
+
+                    table.insert(nodes, node)
+                end
+            end
         end
     end
 end

@@ -4,10 +4,31 @@
 ---@field z number The z position
 local PositionRecord = {}
 
---- @return tes3vector3
 --- @param o PositionRecord
+--- @return tes3vector3
 function PositionRecord.ToVec(o)
     return tes3vector3.new(o.x, o.y, o.z)
+end
+
+--- @param o tes3vector3
+--- @return PositionRecord
+function PositionRecord.FromVec(o)
+    return {
+        x = o.x,
+        y = o.y,
+        z = o.z
+    }
+end
+
+---@param vec tes3vector3[]
+---@return PositionRecord[]
+function PositionRecord.ToList(vec)
+    local list = {} ---@type PositionRecord[]
+    for i = 1, #vec do
+        list[i] = PositionRecord.FromVec(vec[i])
+    end
+
+    return list
 end
 
 return PositionRecord
