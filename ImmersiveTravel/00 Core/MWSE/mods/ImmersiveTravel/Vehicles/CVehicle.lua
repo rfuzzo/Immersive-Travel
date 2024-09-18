@@ -203,7 +203,6 @@ function CVehicle:StartOnSpline(routeId, service)
 
     log:trace("StartOnSpline %s", self:Id())
 
-    -- TODO start in port, needs to adjust the start position and state machine transitions
     self:StartRoute(routeId)
 
     -- register guide

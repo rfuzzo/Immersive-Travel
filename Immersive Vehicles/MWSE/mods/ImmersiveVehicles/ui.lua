@@ -116,21 +116,6 @@ local function trySpawnBoat(ref, id)
             end
 
             if not collision then
-                -- debug
-                -- local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-                -- vfxRoot:detachAllChildren()
-
-                -- for _, test in ipairs(tests) do
-                --     if travelMarkerMesh then
-                --         local child = travelMarkerMesh:clone()
-                --         child.translation = test
-                --         child.rotation = rotation
-                --         child.appCulled = false
-                --         vfxRoot:attachChild(child)
-                --     end
-                -- end
-                -- vfxRoot:update()
-
                 tes3.createReference {
                     object = id,
                     position = testpos,

@@ -19,5 +19,8 @@
 ---@field cell tes3cell The cell
 ---@field position tes3vector3 The reference position
 
----@class SSegmentMetaData
----@field routeIdx number The route index inside the Segment
+---@class Node
+---@field id string
+---@field route number
+---@field to string[]
+---@field position tes3vector3? RUNTIME

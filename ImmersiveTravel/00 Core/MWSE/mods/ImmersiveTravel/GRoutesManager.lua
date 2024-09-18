@@ -86,10 +86,159 @@ local function loadSegments(service)
     return map
 end
 
+---@param node Node
+---@return string
+local function NodeId(node)
+    return string.format("%s%d", node.id, node.route)
+end
+
+---@param service ServiceData
+---@param route SRoute
+---@return Node[]
+local function BuildGraph(service, route)
+    local cursor = {} ---@type Node[]
+    local nodes = {} ---@type Node[]
+
+    log:debug("Route '%s'", route.id:ToString())
+    -- start and end port
+    local startPort = service.ports[route.id.start]
+    local startPos = startPort:StartPos()
+    ---@type Node
+    local startNode = {
+        id = route.id.start,
+        route = 1,
+        position = startPos,
+        to = {}
+    }
+    table.insert(nodes, startNode)
+
+    -- start with port
+    cursor = {}
+    table.insert(cursor, startNode)
+
+    for _, segmentId in ipairs(route.segments) do
+        local segment = service:GetSegment(segmentId)
+        assert(segment)
+
+        -- check if we have a connection
+        local newCursor = {} ---@type Node[]
+
+        local conections = segment:GetConnections()
+        log:trace("Segment '%s', conections %d", segmentId, #conections)
+        for _, lastCursor in ipairs(cursor) do
+            log:trace(" - Last cursor: %s - %s", NodeId(lastCursor), lastCursor.position)
+            for i, connection in ipairs(conections) do
+                -- log:trace(" - Connection %d - %s", i, connection.pos)
+                if connection.pos == lastCursor.position then
+                    -- add node
+                    -- get end position of route
+                    local croute = segment:GetRoute(connection.route)
+                    assert(croute)
+                    local routeEndPos = croute[#croute]
+                    local routeStartPos = croute[1]
+                    local routePos = nil
+                    if connection.pos == routeEndPos then
+                        routePos = routeStartPos
+                    else
+                        routePos = routeEndPos
+                    end
+
+                    ---@type Node
+                    local node = {
+                        id = segmentId,
+                        route = connection.route,
+                        position = routePos,
+                        --from = NodeId(lastCursor),
+                        to = {}
+                    }
+
+                    log:debug(" + Adding connection: '%s' (%s) -> '%s' (%s)", NodeId(lastCursor), lastCursor.position,
+                        NodeId(node), routePos)
+
+                    -- modify last node
+                    for _, n in ipairs(nodes) do
+                        if NodeId(n) == NodeId(lastCursor) then
+                            table.insert(n.to, NodeId(node))
+                            break
+                        end
+                    end
+
+                    table.insert(nodes, node)
+                    table.insert(newCursor, node)
+                end
+            end
+        end
+
+        cursor = newCursor
+    end
+
+    -- add end node
+    local endPort = service.ports[route.id.destination]
+    local endPos = endPort:EndPos()
+    for _, lastCursor in ipairs(cursor) do
+        log:trace(" - Last cursor: %s - %s", NodeId(lastCursor), lastCursor.position)
+        if endPos == lastCursor.position then
+            local node = {
+                id = route.id.destination,
+                route = 1,
+                position = endPos,
+                to = {}
+                --from = NodeId(lastCursor),
+            }
+
+            log:debug(" + Adding connection: %s -> %s", NodeId(lastCursor), NodeId(node))
+
+            -- modify last node
+            -- find in nodes
+            for _, n in ipairs(nodes) do
+                if NodeId(n) == NodeId(lastCursor) then
+                    table.insert(n.to, NodeId(node))
+                    break
+                end
+            end
+
+            table.insert(nodes, node)
+        end
+    end
+
+
+    -- check that last node is a port
+    do
+        local lastNode = nodes[#nodes]
+        if lastNode.id ~= route.id.destination then
+            log:warn("Route '%s' is invalid", route.id:ToString())
+            return {}
+        end
+    end
+
+    -- prune dead branches
+    for i = #nodes - 1, 1, -1 do
+        local node = nodes[i]
+        if #node.to == 0 then
+            -- dead end
+            log:debug("Dead end: '%s'", NodeId(node))
+            table.remove(nodes, i)
+
+            -- update all nodes to variable
+            for _, n in ipairs(nodes) do
+                if n.to then
+                    for j = #n.to, 1, -1 do
+                        if n.to[j] == NodeId(node) then
+                            table.remove(n.to, j)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return nodes
+end
+
 ---@param service ServiceData
 ---@return table<string, SRoute>
 local function loadRoutes(service)
-    local map = {} ---@type table<string, SRoute>
+    local routes = {} ---@type table<string, SRoute>
 
     local portPath = string.format("%s\\data\\%s\\routes", lib.fullmodpath, service.class)
     for file in lfs.dir(portPath) do
@@ -99,16 +248,40 @@ local function loadRoutes(service)
             local result = toml.loadFile(filePath) ---@type SRoute?
             if result then
                 local route = SRoute:new(result)
-                map[route.id:ToString()] = route
-
-                log:debug("\t\tAdding route %s", result.id)
+                routes[route.id:ToString()] = route
             else
-                log:warn("\t\tFailed to load route %s", file)
+                log:warn("\t\tFailed to load route '%s'", file)
             end
         end
     end
 
-    return map
+    -- build a graph
+    for id, route in pairs(routes) do
+        local nodes = BuildGraph(service, route)
+
+        if #nodes > 0 then
+            log:debug("\t\tAdding route '%s'", route.id:ToString())
+            routes[id].nodes = nodes
+
+            -- debug print graph
+            if lib.IsLogLevelAtLeast("DEBUG") then
+                local header = string.format("digraph \"%s\" {", route.id:ToString())
+                print(header)
+                for _, node in ipairs(nodes) do
+                    for _, to in ipairs(node.to) do
+                        local msg = string.format("\t\"%s\" -> \"%s\"", NodeId(node), to)
+                        print(msg)
+                    end
+                end
+                print("}")
+            end
+        else
+            log:warn("Route '%s' is invalid", route.id:ToString())
+            routes[id] = nil
+        end
+    end
+
+    return routes
 end
 
 -- TODO price
@@ -133,131 +306,6 @@ local function GetPrice(spline)
     return price
 end
 
----@class Node
----@field id string
----@field route number
----@field from string?
----@field to string?
----@field position tes3vector3?
-
----@param node Node
----@return string
-local function NodeId(node)
-    return string.format("%s%d", node.id, node.route)
-end
-
-function RoutesManager:BuildGraph()
-    local nodes = {} ---@type Node[]
-
-    local cursor = {} ---@type Node[]
-
-    -- build a graph
-    for _, service in pairs(self.services) do
-        for _, route in pairs(service.routes) do
-            log:debug("Route '%s'", route.id:ToString())
-            -- start and end port
-            local startPort = service.ports[route.id.start]
-            local startPos = startPort:StartPos()
-            ---@type Node
-            local startNode = {
-                id = route.id.start,
-                route = 1,
-                position = startPos
-            }
-            table.insert(nodes, startNode)
-
-
-            -- start with port
-            cursor = {}
-            table.insert(cursor, startNode)
-
-            for _, segmentId in ipairs(route.segments) do
-                local segment = service:GetSegment(segmentId)
-                assert(segment)
-
-                -- check if we have a connection
-                local newCursor = {} ---@type Node[]
-
-                local conections = segment:GetConnections()
-                log:trace("Segment '%s', conections %d", segmentId, #conections)
-                for _, lastCursor in ipairs(cursor) do
-                    log:trace(" - Last cursor: %s - %s", NodeId(lastCursor), lastCursor.position)
-                    for i, connection in ipairs(conections) do
-                        log:trace(" - Connection %d - %s", i, connection.pos)
-                        if connection.pos == lastCursor.position then
-                            -- add node
-                            -- get end position of route
-                            local croute = segment:GetRoute(connection.route)
-                            assert(croute)
-                            local routeEndPos = croute[#croute]
-                            local routeStartPos = croute[1]
-                            local routePos = nil
-                            if connection.pos == routeEndPos then
-                                routePos = routeStartPos
-                            else
-                                routePos = routeEndPos
-                            end
-
-                            ---@type Node
-                            local node = {
-                                id = segmentId,
-                                route = connection.route,
-                                position = routePos,
-                                from = NodeId(lastCursor),
-
-                            }
-
-                            log:debug(" + Adding connection: %s -> %s", NodeId(lastCursor), NodeId(node))
-
-                            -- modify last node
-                            -- find in nodes
-                            for _, n in ipairs(nodes) do
-                                if NodeId(n) == NodeId(lastCursor) then
-                                    n.to = NodeId(node)
-                                    break
-                                end
-                            end
-
-                            table.insert(nodes, node)
-                            table.insert(newCursor, node)
-                        end
-                    end
-                end
-
-                cursor = newCursor
-            end
-
-            -- add end node
-            local endPort = service.ports[route.id.destination]
-            local endPos = endPort:EndPos()
-
-            for _, lastCursor in ipairs(cursor) do
-                if endPos == lastCursor.position then
-                    local node = {
-                        id = route.id.destination,
-                        route = 1,
-                        position = endPos,
-                        from = NodeId(lastCursor),
-                    }
-
-                    log:debug(" + Adding connection: %s -> %s", NodeId(lastCursor), NodeId(node))
-
-                    -- modify last node
-                    -- find in nodes
-                    for _, n in ipairs(nodes) do
-                        if NodeId(n) == NodeId(lastCursor) then
-                            n.to = NodeId(node)
-                            break
-                        end
-                    end
-
-                    table.insert(nodes, node)
-                end
-            end
-        end
-    end
-end
-
 -- init manager
 --- @return boolean
 function RoutesManager:Init()
@@ -277,12 +325,10 @@ function RoutesManager:Init()
     for _, service in pairs(self.services) do
         log:info("\tAdding %s service", service.class)
 
+        service.segments = loadSegments(service)
         service.ports = loadPorts(service)
         service.routes = loadRoutes(service)
-        service.segments = loadSegments(service)
     end
-
-    self:BuildGraph()
 
     return true
 end

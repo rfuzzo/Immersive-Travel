@@ -1,32 +1,87 @@
 id = "Inner Sea Ebonheart"
 
 
-[[segments]]
-[[segments.route1]]
+[[route1]]
 x = 31500
 y = -113243
 z = 0
-[[segments.route1]]
+
+[[route1]]
 x = 32470
 y = -118240
 z = 0
 
-[[segments]]
-[[segments.route1]]
-x = 32470
-y = -118240
-z = 0
-[[segments.route1]]
+[[route1]]
 x = 27730
 y = -120019
 z = 0
 
-[[segments]]
-[[segments.route1]]
-x = 27730
-y = -120019
-z = 0
-[[segments.route1]]
+[[route1]]
 x = 20280
 y = -119672
+z = 0
+
+[[route1]]
+y = -118791
+x = 13645
+z = 0
+
+[[route1]]
+y = -114242
+x = 10935
+z = 0
+
+[[route1]]
+y = -108986
+x = 8198
+z = 0
+
+[[route1]]
+y = -100828
+x = 263
+z = 0
+
+[[route1]]
+y = -88092
+x = -14547
+z = 0
+
+[[route1]]
+y = -82758
+x = -24162
+z = 0
+
+[[route1]]
+y = -82534
+x = -26705
+z = 0
+
+[[route1]]
+y = -80765
+x = -32975
+z = 0
+
+[[route1]]
+y = -78052
+x = -41329
+z = 0
+
+[[route1]]
+y = -74666
+x = -44063
+z = 0
+
+[[route1]]
+y = -66270
+x = -48697
+z = 0
+
+[[route1]]
+y = -57406
+x = -55169
+z = 0
+
+[[route1]]
+x = -57874
+y = -51333
 z = 0
