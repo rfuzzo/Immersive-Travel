@@ -22,5 +22,4 @@
 ---@class Node
 ---@field id string
 ---@field route number
----@field to string[]
 ---@field position tes3vector3? RUNTIME

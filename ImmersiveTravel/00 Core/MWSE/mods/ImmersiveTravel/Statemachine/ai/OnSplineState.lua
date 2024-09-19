@@ -67,10 +67,6 @@ function OnSplineState:OnDestinationReached(scriptedObject)
 
             log:trace("[%s] OnSplineState OnDestinationReached port: %s", vehicle:Id(), vehicle.currentPort)
             -- TODO port end
-            -- if port.positionEnd then
-            --     -- get route into port
-            --     vehicle.virtualDestination = port.positionEnd
-            -- end
         end
     end
 
@@ -80,12 +76,6 @@ end
 
 function OnSplineState:update(dt, scriptedObject)
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-
-    -- TODO new route system
-    local spline = GRoutesManager.getInstance():GetRoute(vehicle.routeId)
-    if spline == nil then
-        return
-    end
 
     -- handle player leaving and entering the vehicle
     local manager = GPlayerVehicleManager.getInstance()
@@ -118,8 +108,12 @@ function OnSplineState:update(dt, scriptedObject)
     end
 
     -- reached destination
-    if vehicle.splineIndex > #spline then
-        self:OnDestinationReached(scriptedObject)
+    local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
+    if service and vehicle.routeId then
+        local route = service:GetRoute(vehicle.routeId)
+        if route and vehicle.segmentIndex > #route.segments then
+            self:OnDestinationReached(scriptedObject)
+        end
     end
 end
 

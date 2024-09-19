@@ -588,46 +588,41 @@ local function calculatePositionsNew(mountData)
     assert(route, "Route not found")
 
     -- reset indeces
-    local segmentIdx = 1
-    local currentSegment = editorData.service:GetSegment(route.segments[segmentIdx])
-    assert(currentSegment, "Segment not found")
-    debug.log(currentSegment.id)
+    local segmentIndex = 1
+    local currentSpline = route:GetSegmentRoute(editorData.service, route.segments[segmentIndex])
+    assert(currentSpline, "Route not found")
 
-    local routeIdx = route:GetSegmentRouteIdx(segmentIdx)
-    local currentSegmentRoute = currentSegment:GetRoute(routeIdx)
-    assert(currentSegmentRoute, "Route not found")
-    local segmentRouteIdx = 1
+    local splineIndex = 1
 
     for idx = 1, config.tracemax * 1000, 1 do
         -- check if we are at the end of all segments
-        if segmentIdx > #route.segments then
+        if segmentIndex > #route.segments then
             break
         end
 
         -- check if we need to move to the next segment
-        if segmentRouteIdx > #currentSegmentRoute then
-            segmentIdx = segmentIdx + 1
-            currentSegment = editorData.service:GetSegment(route.segments[segmentIdx])
+        if splineIndex > #currentSpline then
+            segmentIndex = segmentIndex + 1
+
+            local nextSegment = editorData.service:GetSegment(route.segments[segmentIndex])
             -- check if we are at the end of all segments
-            if not currentSegment then
+            if not nextSegment then
                 log:trace("No more segments")
                 break
             end
-            log:trace("Moving to the next segment: '%s'", currentSegment.id)
+            log:trace("Moving to the next segment: '%s'", nextSegment.id)
 
             -- new route in the new segment
-            routeIdx = route:GetSegmentRouteIdx(segmentIdx)
-            currentSegmentRoute = currentSegment:GetRoute(routeIdx)
-            assert(currentSegmentRoute, "Route not found")
-            log:trace("New route in segment: %d", routeIdx)
+            currentSpline = route:GetSegmentRoute(editorData.service, route.segments[segmentIndex])
+            assert(currentSpline, "Route not found")
 
-            segmentRouteIdx = 2 -- NOTE it needs to be 2 because we are already at the first position
+            splineIndex = 2 -- NOTE it needs to be 2 because we are already at the first position
         else
             -- move
-            local nextPos = currentSegmentRoute[segmentRouteIdx]
+            local nextPos = currentSpline[splineIndex]
             local isBehind = calculatePosition(mountData, nextPos)
             if isBehind then
-                segmentRouteIdx = segmentRouteIdx + 1
+                splineIndex = splineIndex + 1
             end
         end
     end

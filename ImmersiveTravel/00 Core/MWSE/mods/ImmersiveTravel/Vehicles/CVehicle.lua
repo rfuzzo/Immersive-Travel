@@ -71,9 +71,10 @@ local log                   = lib.log
 ---@field last_facing number
 ---@field last_sway number
 ---@field swayTime number
----@field routeId RouteId? -- the id of the route
+---@field routeId RouteId? The id of the current route
+---@field segmentIndex number? The index of the current segment in the route
+---@field splineIndex number? The index of the current spline in the segment
 ---@field currentPort string? -- the id of the route
----@field splineIndex number
 ---@field virtualDestination tes3vector3?
 ---@field current_speed number
 ---@field current_turnspeed number
@@ -103,7 +104,6 @@ function CVehicle:new()
     newObj.slots = {}
     newObj.changeSpeed = 0
     newObj.swayTime = 0
-    newObj.splineIndex = 1
     newObj.current_speed = 0
     newObj.playerRegistered = false
     newObj.scale = 1
@@ -191,8 +191,13 @@ function CVehicle:EndPlayerSteer()
 end
 
 ---@param routeId RouteId
-function CVehicle:StartRoute(routeId)
+---@param segmentIndex number?
+---@param splineIndex number?
+function CVehicle:StartRoute(routeId, segmentIndex, splineIndex)
     self.routeId = routeId
+    -- TOOD new route system
+    self.segmentIndex = segmentIndex or 1
+    self.splineIndex = splineIndex or 1
 end
 
 --- Starts the vehicle on a route

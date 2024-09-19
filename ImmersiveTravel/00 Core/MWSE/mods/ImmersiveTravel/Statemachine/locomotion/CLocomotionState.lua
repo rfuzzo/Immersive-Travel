@@ -5,6 +5,8 @@ local GRoutesManager   = require("ImmersiveTravel.GRoutesManager")
 local CAiState         = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local worldConfig      = require("ImmersiveTravelAddonWorld.config")
 
+local log              = lib.log
+
 -- Abstract locomotion state machine class
 ---@class CLocomotionState : CAbstractState
 local CLocomotionState = {
@@ -339,25 +341,40 @@ local function getNextPositionHeading(vehicle)
     end
 
     -- move on spline
-    if vehicle.routeId == nil then
-        return nil
-    end
+    if not vehicle.routeId then return nil end
 
     local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
-    if not service then
+    if not service then return nil end
+
+    local route = service:GetRoute(vehicle.routeId)
+    if not route then return nil end
+
+    local spline = route:GetSegmentRoute(service, route.segments[vehicle.segmentIndex])
+    if not spline then return nil end
+
+    -- check if we are at the end of all segments
+    if vehicle.segmentIndex > #route.segments then
         return nil
     end
 
-    local currentRoute = service:GetRoute(vehicle.routeId)
-    if not currentRoute then
-        return nil
-    end
-
-    if spline == nil then
-        return nil
-    end
+    -- check if we need to move to the next segment
     if vehicle.splineIndex > #spline then
-        return nil
+        -- TODO move to method
+        vehicle.segmentIndex = vehicle.segmentIndex + 1
+
+        local nextSegment = service:GetSegment(route.segments[vehicle.segmentIndex])
+        -- check if we are at the end of all segments again
+        if not nextSegment then
+            log:trace("No more segments")
+            return nil
+        end
+        log:trace("Moving to the next segment: '%s'", nextSegment.id)
+
+        -- new route in the new segment
+        spline = route:GetSegmentRoute(service, route.segments[vehicle.segmentIndex])
+        assert(spline, "Route not found")
+
+        vehicle.splineIndex = 2 -- NOTE it needs to be 2 because we are already at the first position
     end
 
     -- move to next marker
@@ -365,13 +382,8 @@ local function getNextPositionHeading(vehicle)
     local isBehind = lib.isPointBehindObject(nextPos, vehicle.last_position, vehicle.last_forwardDirection)
     if isBehind then
         vehicle.splineIndex = vehicle.splineIndex + 1
-        lib.log:warn("Move %s: nextPos is behind", vehicle:Id())
+        log:warn("Move %s: nextPos is behind", vehicle:Id())
     end
-    if vehicle.splineIndex > #spline then
-        return nil
-    end
-
-    nextPos = spline[vehicle.splineIndex]
 
     return nextPos
 end
@@ -380,13 +392,13 @@ end
 ---@param vehicle CVehicle
 local function Move(vehicle, dt)
     if not vehicle.referenceHandle:valid() then
-        lib.log:warn("Move %s: referenceHandle is invalid", vehicle:Id())
+        log:warn("Move %s: referenceHandle is invalid", vehicle:Id())
         return
     end
 
     local nextPos = getNextPositionHeading(vehicle)
     if nextPos == nil then
-        -- lib.log:warn("Move %s: nextPos is nil", vehicle:Id())
+        -- log:warn("Move %s: nextPos is nil", vehicle:Id())
         return
     end
 

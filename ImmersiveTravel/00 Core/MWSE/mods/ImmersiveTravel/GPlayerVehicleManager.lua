@@ -197,17 +197,21 @@ local function uiShowRestMenuCallback(e)
                         callback = (function()
                             -- teleport to last marker
                             local vehicle = PlayerVehicleManager.getInstance().trackedVehicle
-                            if vehicle then
-                                -- TODO new route system
-                                local spline = GRoutesManager.getInstance():GetRoute(vehicle.routeId)
-                                if spline ~= nil then
-                                    tes3.positionCell({
-                                        reference = tes3.mobilePlayer,
-                                        position = spline[#spline]
-                                    })
+                            if vehicle and vehicle.routeId then
+                                local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
+                                if not service then
+                                    return
                                 end
 
-                                -- then to destination
+                                local destinationPort = service:GetPort(vehicle.routeId.destination)
+                                if not destinationPort then
+                                    return
+                                end
+                                tes3.positionCell({
+                                    reference = tes3.mobilePlayer,
+                                    position = destinationPort:EndPos()
+                                })
+
                                 -- this pushes the AI statemachine
                                 vehicle.routeId = nil
 

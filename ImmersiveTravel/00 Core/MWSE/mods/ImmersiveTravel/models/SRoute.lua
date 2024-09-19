@@ -3,7 +3,9 @@ local RouteId = require("ImmersiveTravel.models.RouteId")
 ---@class SRoute
 ---@field id RouteId The route id
 ---@field segments string[] The route segments
----@field nodes Node[] The route nodes TODO MAKE THIS A MAP
+---@field nodes table<string,Node> NodeId -> Node (A#1 -> Node)
+---@field graph table<string, string[]> Adjacency graph (A#1, { B#1, B#2 })
+---@field lut table<string,number[]> Segment to route number lookup (A -> { 1, 2 }
 local SRoute = {}
 
 ---@return SRoute
@@ -45,20 +47,35 @@ function SRoute:GetSegmentsResolved(service)
     return segments
 end
 
----@param idx number
----@return number?
-function SRoute:GetSegmentRouteIdx(idx)
-    local segment = self.segments[idx]
+---@param service ServiceData
+---@param segmentName string
+---@return tes3vector3[]?
+function SRoute:GetSegmentRoute(service, segmentName)
+    local segment = service:GetSegment(segmentName)
+
     if segment then
-        -- check nodes
-        for _, node in ipairs(self.nodes) do
-            if node.id == segment then
-                return node.route
-            end
-        end
+        local nodes = self.lut[segmentName]
+        return segment:GetRoute(table.choice(nodes))
     end
 
     return nil
+end
+
+-- Function to get all nodes with a given name
+---@param name string
+---@return Node[]
+function SRoute:getNodesByName(name)
+    local nodes = {} ---@type Node[]
+    if self.lut[name] then
+        for _, number in ipairs(self.lut[name]) do
+            local id = string.format("%s#%d", name, number)
+            local node = self.nodes[id]
+            if node then
+                table.insert(nodes, node)
+            end
+        end
+    end
+    return nodes
 end
 
 return SRoute

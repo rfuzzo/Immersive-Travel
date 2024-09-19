@@ -5,9 +5,8 @@ local interop             = require("ImmersiveTravel.interop")
 
 ---@class SPointDto
 ---@field point tes3vector3  the actual point
----@field splineIndex number    the index of the point in the spline
 ---@field routeId RouteId        the route id
----@field service string        the service id
+---@field segmentIndex number    the index of the segment in the route
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
@@ -56,21 +55,31 @@ local function doSpawn(point)
     end
 
     -- get service and route
-    local service = GRoutesManager.getInstance():GetService(point.service)
-    if not service then
+    local service = GRoutesManager.getInstance():GetService(point.routeId.service)
+    if not service then return end
+
+    local route = service:GetRoute(point.routeId)
+    if not route then return end
+
+    local spline = route:GetSegmentRoute(service, route.segments[point.segmentIndex])
+    if not spline then return end
+
+    local pp = point.point
+    -- check if pp is the start of the spline or the end
+    local isStart = nil
+    if spline[0] == pp then
+        isStart = true
+    end
+    if spline[#spline] == pp then
+        isStart = false
+    end
+    if isStart == nil then
         return
     end
 
-    -- TODO new route system
-    local spline = GRoutesManager.getInstance():GetRoute(point.routeId)
-    if not spline then
-        return
-    end
-
-    -- get orientation and facing
-    local idx = point.splineIndex
-    local startPoint = spline[idx]
-    local nr = spline[idx + 1]
+    -- TODO get orientation and facing
+    local startPoint = spline[0]
+    local nr = spline[1]
     if not nr then
         return
     end
@@ -90,7 +99,8 @@ local function doSpawn(point)
         })
         if cell then
             local cell_key = tostring(cell.gridX) .. "," .. tostring(cell.gridY)
-            log:debug("Spawning %s at: %s (#%s) on route %s", mountId, cell_key, idx, point.routeId)
+            log:debug("Spawning %s at: %s (segment %s) on route %s", mountId, cell_key,
+                route.segments[point.segmentIndex], point.routeId)
         end
     end
 

@@ -86,20 +86,42 @@ local function loadSegments(service)
     return map
 end
 
+local function Prune(graph)
+    local to_remove = {}
+    for node_id, adj_list in pairs(graph) do
+        if #adj_list == 0 then
+            table.insert(to_remove, node_id)
+        end
+    end
+    return to_remove
+end
+
 ---@param node Node
 ---@return string
 local function NodeId(node)
-    return string.format("%s%d", node.id, node.route)
+    return string.format("%s#%d", node.id, node.route)
 end
 
 ---@param service ServiceData
 ---@param route SRoute
----@return Node[]
+---@return table<string,Node>, table<string,string[]>, table<string,number[]>
 local function BuildGraph(service, route)
     local cursor = {} ---@type Node[]
-    local nodes = {} ---@type Node[]
+
+    local nodesMap = {} ---@type table<string,Node>
+    local graph = {} ---@type table<string,string[]>
+
+    ---@param node Node
+    local function AddNode(node)
+        local id = NodeId(node)
+        -- add node
+        graph[id] = {}
+        -- storage
+        nodesMap[id] = node
+    end
 
     log:debug("Route '%s'", route.id:ToString())
+
     -- start and end port
     local startPort = service.ports[route.id.start]
     local startPos = startPort:StartPos()
@@ -108,9 +130,8 @@ local function BuildGraph(service, route)
         id = route.id.start,
         route = 1,
         position = startPos,
-        to = {}
     }
-    table.insert(nodes, startNode)
+    AddNode(startNode)
 
     -- start with port
     cursor = {}
@@ -127,10 +148,8 @@ local function BuildGraph(service, route)
         log:trace("Segment '%s', conections %d", segmentId, #conections)
         for _, lastCursor in ipairs(cursor) do
             log:trace(" - Last cursor: %s - %s", NodeId(lastCursor), lastCursor.position)
-            for i, connection in ipairs(conections) do
-                -- log:trace(" - Connection %d - %s", i, connection.pos)
+            for _, connection in ipairs(conections) do
                 if connection.pos == lastCursor.position then
-                    -- add node
                     -- get end position of route
                     local croute = segment:GetRoute(connection.route)
                     assert(croute)
@@ -148,23 +167,16 @@ local function BuildGraph(service, route)
                         id = segmentId,
                         route = connection.route,
                         position = routePos,
-                        --from = NodeId(lastCursor),
-                        to = {}
                     }
+
+                    AddNode(node)
+                    -- add edge
+                    table.insert(graph[NodeId(lastCursor)], NodeId(node))
+
+                    table.insert(newCursor, node)
 
                     log:debug(" + Adding connection: '%s' (%s) -> '%s' (%s)", NodeId(lastCursor), lastCursor.position,
                         NodeId(node), routePos)
-
-                    -- modify last node
-                    for _, n in ipairs(nodes) do
-                        if NodeId(n) == NodeId(lastCursor) then
-                            table.insert(n.to, NodeId(node))
-                            break
-                        end
-                    end
-
-                    table.insert(nodes, node)
-                    table.insert(newCursor, node)
                 end
             end
         end
@@ -182,57 +194,59 @@ local function BuildGraph(service, route)
                 id = route.id.destination,
                 route = 1,
                 position = endPos,
-                to = {}
-                --from = NodeId(lastCursor),
             }
 
+            AddNode(node)
+            -- add edge
+            table.insert(graph[NodeId(lastCursor)], NodeId(node))
+
             log:debug(" + Adding connection: %s -> %s", NodeId(lastCursor), NodeId(node))
-
-            -- modify last node
-            -- find in nodes
-            for _, n in ipairs(nodes) do
-                if NodeId(n) == NodeId(lastCursor) then
-                    table.insert(n.to, NodeId(node))
-                    break
-                end
-            end
-
-            table.insert(nodes, node)
         end
     end
 
-
-    -- check that last node is a port
-    do
-        local lastNode = nodes[#nodes]
-        if lastNode.id ~= route.id.destination then
-            log:warn("Route '%s' is invalid", route.id:ToString())
-            return {}
-        end
-    end
+    -- TODO some verification
 
     -- prune dead branches
-    for i = #nodes - 1, 1, -1 do
-        local node = nodes[i]
-        if #node.to == 0 then
-            -- dead end
-            log:debug("Dead end: '%s'", NodeId(node))
-            table.remove(nodes, i)
+    local to_remove = Prune(graph)
+    local found = #to_remove
+    while found > 0 do
+        for _, node_id in ipairs(to_remove) do
+            -- Remove from graph
+            graph[node_id] = nil
+        end
 
-            -- update all nodes to variable
-            for _, n in ipairs(nodes) do
-                if n.to then
-                    for j = #n.to, 1, -1 do
-                        if n.to[j] == NodeId(node) then
-                            table.remove(n.to, j)
-                        end
-                    end
-                end
-            end
+        to_remove = Prune(graph)
+        found = #to_remove
+    end
+
+    -- generate name lookup
+    local name_lookup = {} ---@type table<string,number[]>
+    for node_id, adj_list in pairs(graph) do
+        local node = nodesMap[node_id]
+        if name_lookup[node.id] == nil then
+            name_lookup[node.id] = {}
+        end
+        table.insert(name_lookup[node.id], node.route)
+    end
+
+    return nodesMap, graph, name_lookup
+end
+
+---@param graph table<string,string[]>
+---@param title string
+local function PrintGraph(graph, title)
+    -- debug print graph
+    local header = string.format("digraph \"%s\" {", title)
+    print(header)
+
+    for node, to in pairs(graph) do
+        for _, t in ipairs(to) do
+            local msg = string.format("\t\"%s\" -> \"%s\"", node, to)
+            print(msg)
         end
     end
 
-    return nodes
+    print("}")
 end
 
 ---@param service ServiceData
@@ -257,23 +271,16 @@ local function loadRoutes(service)
 
     -- build a graph
     for id, route in pairs(routes) do
-        local nodes = BuildGraph(service, route)
+        local nodes, graph, lut = BuildGraph(service, route)
 
-        if #nodes > 0 then
-            log:debug("\t\tAdding route '%s'", route.id:ToString())
+        if table.size(nodes) > 0 then
             routes[id].nodes = nodes
+            routes[id].graph = graph
+            routes[id].lut = lut
 
-            -- debug print graph
+            log:debug("\t\tAdding route '%s'", route.id:ToString())
             if lib.IsLogLevelAtLeast("DEBUG") then
-                local header = string.format("digraph \"%s\" {", route.id:ToString())
-                print(header)
-                for _, node in ipairs(nodes) do
-                    for _, to in ipairs(node.to) do
-                        local msg = string.format("\t\"%s\" -> \"%s\"", NodeId(node), to)
-                        print(msg)
-                    end
-                end
-                print("}")
+                PrintGraph(graph, route.id:ToString())
             end
         else
             log:warn("Route '%s' is invalid", route.id:ToString())
