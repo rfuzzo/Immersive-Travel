@@ -86,12 +86,24 @@ local function loadSegments(service)
     return map
 end
 
-local function Prune(graph)
+---@param graph table<string,string[]>
+---@param start string
+---@param destination string
+---@return string[]
+local function Prune(graph, start, destination)
+    ---@type string[]
     local to_remove = {}
     for node_id, adj_list in pairs(graph) do
+        -- ignore start and end nodes
+        if node_id == start or node_id == destination then
+            goto continue
+        end
+
         if #adj_list == 0 then
             table.insert(to_remove, node_id)
         end
+
+        ::continue::
     end
     return to_remove
 end
@@ -130,6 +142,7 @@ local function BuildGraph(service, route)
         id = route.id.start,
         route = 1,
         position = startPos,
+        reverse = false,
     }
     AddNode(startNode)
 
@@ -156,8 +169,10 @@ local function BuildGraph(service, route)
                     local routeEndPos = croute[#croute]
                     local routeStartPos = croute[1]
                     local routePos = nil
+                    local reverse = false
                     if connection.pos == routeEndPos then
                         routePos = routeStartPos
+                        reverse = true
                     else
                         routePos = routeEndPos
                     end
@@ -167,6 +182,7 @@ local function BuildGraph(service, route)
                         id = segmentId,
                         route = connection.route,
                         position = routePos,
+                        reverse = reverse,
                     }
 
                     AddNode(node)
@@ -185,37 +201,50 @@ local function BuildGraph(service, route)
     end
 
     -- add end node
+    local endNode = nil
     local endPort = service.ports[route.id.destination]
     local endPos = endPort:EndPos()
     for _, lastCursor in ipairs(cursor) do
         log:trace(" - Last cursor: %s - %s", NodeId(lastCursor), lastCursor.position)
         if endPos == lastCursor.position then
-            local node = {
+            endNode = {
                 id = route.id.destination,
                 route = 1,
                 position = endPos,
+                reverse = false,
             }
 
-            AddNode(node)
+            AddNode(endNode)
             -- add edge
-            table.insert(graph[NodeId(lastCursor)], NodeId(node))
+            table.insert(graph[NodeId(lastCursor)], NodeId(endNode))
 
-            log:debug(" + Adding connection: %s -> %s", NodeId(lastCursor), NodeId(node))
+            log:debug(" + Adding connection: %s -> %s", NodeId(lastCursor), NodeId(endNode))
         end
     end
 
-    -- TODO some verification
+    -- TODO verification
 
-    -- prune dead branches
-    local to_remove = Prune(graph)
+    -- todo prune dead branches
+    local to_remove = Prune(graph, NodeId(startNode), NodeId(endNode))
     local found = #to_remove
     while found > 0 do
         for _, node_id in ipairs(to_remove) do
             -- Remove from graph
             graph[node_id] = nil
+            log:debug(" - Removing node %s", node_id)
+
+            -- Remove from to lists
+            for _, adj_list in pairs(graph) do
+                for i, adj in ipairs(adj_list) do
+                    if adj == node_id then
+                        table.remove(adj_list, i)
+                        break
+                    end
+                end
+            end
         end
 
-        to_remove = Prune(graph)
+        to_remove = Prune(graph, NodeId(startNode), NodeId(endNode))
         found = #to_remove
     end
 
@@ -241,7 +270,7 @@ local function PrintGraph(graph, title)
 
     for node, to in pairs(graph) do
         for _, t in ipairs(to) do
-            local msg = string.format("\t\"%s\" -> \"%s\"", node, to)
+            local msg = string.format("\t\"%s\" -> \"%s\"", node, t)
             print(msg)
         end
     end

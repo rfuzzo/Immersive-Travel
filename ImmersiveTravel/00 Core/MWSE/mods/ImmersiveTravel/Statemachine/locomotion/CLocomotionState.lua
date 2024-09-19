@@ -3,7 +3,6 @@ local lib              = require("ImmersiveTravel.lib")
 local GTrackingManager = require("ImmersiveTravel.GTrackingManager")
 local GRoutesManager   = require("ImmersiveTravel.GRoutesManager")
 local CAiState         = require("ImmersiveTravel.Statemachine.ai.CAiState")
-local worldConfig      = require("ImmersiveTravelAddonWorld.config")
 
 local log              = lib.log
 

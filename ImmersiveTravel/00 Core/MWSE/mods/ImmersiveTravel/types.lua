@@ -23,3 +23,4 @@
 ---@field id string
 ---@field route number
 ---@field position tes3vector3? RUNTIME
+---@field reverse boolean

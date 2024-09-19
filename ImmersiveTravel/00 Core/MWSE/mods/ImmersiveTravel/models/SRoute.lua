@@ -6,7 +6,7 @@ local RouteId = require("ImmersiveTravel.models.RouteId")
 ---@field nodes table<string,Node> NodeId -> Node (A#1 -> Node)
 ---@field graph table<string, string[]> Adjacency graph (A#1, { B#1, B#2 })
 ---@field lut table<string,number[]> Segment to route number lookup (A -> { 1, 2 }
-local SRoute = {}
+local SRoute  = {}
 
 ---@return SRoute
 function SRoute:new(o)
@@ -52,13 +52,22 @@ end
 ---@return tes3vector3[]?
 function SRoute:GetSegmentRoute(service, segmentName)
     local segment = service:GetSegment(segmentName)
+    if not segment then return nil end
+    local routes = self.lut[segmentName]
+    if not routes then return nil end
 
-    if segment then
-        local nodes = self.lut[segmentName]
-        return segment:GetRoute(table.choice(nodes))
+    local routeNo = table.choice(routes)
+    local spline = segment:GetRoute(routeNo)
+    if not spline then return nil end
+
+    -- reverse the spline if the route is backwards
+    local node = self.nodes[string.format("%s#%d", segmentName, routeNo)]
+    if node and node.reverse then
+        -- TODO reverse the spline
+        spline = spline
     end
 
-    return nil
+    return spline
 end
 
 -- Function to get all nodes with a given name

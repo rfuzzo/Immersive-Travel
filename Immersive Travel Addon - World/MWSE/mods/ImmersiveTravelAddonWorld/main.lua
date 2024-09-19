@@ -64,20 +64,6 @@ local function doSpawn(point)
     local spline = route:GetSegmentRoute(service, route.segments[point.segmentIndex])
     if not spline then return end
 
-    local pp = point.point
-    -- check if pp is the start of the spline or the end
-    local isStart = nil
-    if spline[0] == pp then
-        isStart = true
-    end
-    if spline[#spline] == pp then
-        isStart = false
-    end
-    if isStart == nil then
-        return
-    end
-
-    -- TODO get orientation and facing
     local startPoint = spline[0]
     local nr = spline[1]
     if not nr then
