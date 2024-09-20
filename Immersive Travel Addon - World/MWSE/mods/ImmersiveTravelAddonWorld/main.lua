@@ -6,7 +6,7 @@ local interop             = require("ImmersiveTravel.interop")
 ---@class SPointDto
 ---@field point tes3vector3  the actual point
 ---@field routeId RouteId        the route id
----@field segmentIndex number    the index of the segment in the route
+---@field segmentName string    the segment in the route
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
@@ -61,11 +61,11 @@ local function doSpawn(point)
     local route = service:GetRoute(point.routeId)
     if not route then return end
 
-    local spline = route:GetSegmentRoute(service, route.segments[point.segmentIndex])
+    local spline = route:GetSegmentRoute(service, point.segmentName)
     if not spline then return end
 
-    local startPoint = spline[0]
-    local nr = spline[1]
+    local startPoint = spline[1]
+    local nr = spline[2]
     if not nr then
         return
     end
@@ -78,7 +78,6 @@ local function doSpawn(point)
     -- create and register the vehicle
     local mountId = lib.ResolveMountId(service, point.routeId.start, point.routeId.destination)
 
-
     if lib.IsLogLevelAtLeast("DEBUG") then
         local cell = tes3.getCell({
             position = tes3vector3.new(point.point.x, point.point.y, 0)
@@ -86,7 +85,7 @@ local function doSpawn(point)
         if cell then
             local cell_key = tostring(cell.gridX) .. "," .. tostring(cell.gridY)
             log:debug("Spawning %s at: %s (segment %s) on route %s", mountId, cell_key,
-                route.segments[point.segmentIndex], point.routeId)
+                point.segmentName, point.routeId)
         end
     end
 
@@ -96,7 +95,7 @@ local function doSpawn(point)
     end
 
     -- start the vehicle
-    vehicle:StartOnSpline(point.routeId, service)
+    vehicle:StartOnSpline(point.routeId, point.segmentName)
 end
 
 --- get possible cells where objects can spawn

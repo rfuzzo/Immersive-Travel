@@ -341,6 +341,7 @@ local function getNextPositionHeading(vehicle)
 
     -- move on spline
     if not vehicle.routeId then return nil end
+    if not vehicle.spline then return nil end
 
     local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
     if not service then return nil end
@@ -348,16 +349,13 @@ local function getNextPositionHeading(vehicle)
     local route = service:GetRoute(vehicle.routeId)
     if not route then return nil end
 
-    local spline = route:GetSegmentRoute(service, route.segments[vehicle.segmentIndex])
-    if not spline then return nil end
-
     -- check if we are at the end of all segments
     if vehicle.segmentIndex > #route.segments then
         return nil
     end
 
     -- check if we need to move to the next segment
-    if vehicle.splineIndex > #spline then
+    if vehicle.splineIndex > #vehicle.spline then
         -- TODO move to method
         vehicle.segmentIndex = vehicle.segmentIndex + 1
 
@@ -370,14 +368,12 @@ local function getNextPositionHeading(vehicle)
         log:trace("Moving to the next segment: '%s'", nextSegment.id)
 
         -- new route in the new segment
-        spline = route:GetSegmentRoute(service, route.segments[vehicle.segmentIndex])
-        assert(spline, "Route not found")
-
+        vehicle.spline = route:GetSegmentRoute(service, route.segments[vehicle.segmentIndex])
         vehicle.splineIndex = 2 -- NOTE it needs to be 2 because we are already at the first position
     end
 
     -- move to next marker
-    local nextPos = spline[vehicle.splineIndex]
+    local nextPos = vehicle.spline[vehicle.splineIndex]
     local isBehind = lib.isPointBehindObject(nextPos, vehicle.last_position, vehicle.last_forwardDirection)
     if isBehind then
         vehicle.splineIndex = vehicle.splineIndex + 1

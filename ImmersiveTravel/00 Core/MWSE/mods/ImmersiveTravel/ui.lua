@@ -25,7 +25,9 @@ local function StartTravel(start, destination, service, guide)
     m:destroy()
 
     local routeId = RouteId:new(service.class, start, destination)
-    local currentSpline = GRoutesManager.getInstance():GetRoute(routeId)
+    local route = service:GetRoute(routeId)
+    if not route then return end
+    local currentSpline = route:GetSegmentRoute(service, route.segments[1])
     if currentSpline == nil then return end
 
     -- fade out
@@ -53,7 +55,7 @@ local function StartTravel(start, destination, service, guide)
                 return
             end
 
-            vehicle:StartPlayerTravel(routeId, service)
+            vehicle:StartPlayerTravel(routeId)
         end)
     })
 end

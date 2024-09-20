@@ -1105,35 +1105,6 @@ local function Reload()
                     splines[routeId:ToString()] = spline
 
                     log:debug("\t\tAdding route '%s'", routeId)
-
-                    -- -- save points in memory
-                    -- for idx, pos in ipairs(spline) do
-                    --     -- ignore first and last points
-                    --     if idx < 4 or idx > #spline - 3 then
-                    --         goto continue
-                    --     end
-
-                    --     local cell = tes3.getCell({
-                    --         position = tes3vector3.new(pos.x, pos.y, 0)
-                    --     })
-                    --     if cell then
-                    --         local cell_key = tostring(cell.gridX) .. "," .. tostring(cell.gridY)
-                    --         if not self.spawnPoints[cell_key] then
-                    --             self.spawnPoints[cell_key] = {}
-                    --         end
-
-                    --         ---@type SPointDto
-                    --         local point = {
-                    --             point = pos,
-                    --             routeId = routeId,
-                    --             service = service.class
-                    --         }
-                    --         table.insert(self.spawnPoints[cell_key], point)
-                    --     end
-
-
-                    --     ::continue::
-                    -- end
                 else
                     log:warn("No spline found for %s -> %s", start, destination)
                 end

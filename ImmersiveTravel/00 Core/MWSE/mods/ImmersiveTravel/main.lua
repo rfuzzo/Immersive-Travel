@@ -12,24 +12,29 @@ local log                   = lib.log
 - travel
 
     High
-    -[ ] refactor routes with segments
-        -[ ] !!! check the segment route spline reverse
-        -[ ] fix prices
+    -[x] refactor routes with segments
+        -[x] !!! check the segment route spline reverse
+        -[x] fix prices
     -[x] fix locomotion in reverse
     -[x] add NPCs
     -[x] add payment
-    -[ ] slow down in port
-    -[ ] fix passengers for all services
+    -[x] spawnpoints
     -[ ] fix all todos
 
     Medium
     -[ ] proper class and name randomization for passengers
     -[ ] add new animated boat
     -[ ] refactor ports for different vehicles
+    -[ ] slow down in port
 
     Stretch
     -[ ] start player travel from the port start
     -[ ] add a deck interior cell
+
+- CS
+    -[ ] fix passengers for all services
+    -[ ] add all ports
+    -[ ] add all segments
 
 - editor
     -[x] add port mode

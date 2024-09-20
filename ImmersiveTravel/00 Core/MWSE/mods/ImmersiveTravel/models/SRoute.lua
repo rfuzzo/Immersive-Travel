@@ -47,6 +47,15 @@ function SRoute:GetSegmentsResolved(service)
     return segments
 end
 
+---@param array any[]
+local function reverse(array)
+    local reversed = {}
+    for i = #array, 1, -1 do
+        table.insert(reversed, array[i])
+    end
+    return reversed
+end
+
 ---@param service ServiceData
 ---@param segmentName string
 ---@return tes3vector3[]?
@@ -63,11 +72,32 @@ function SRoute:GetSegmentRoute(service, segmentName)
     -- reverse the spline if the route is backwards
     local node = self.nodes[string.format("%s#%d", segmentName, routeNo)]
     if node and node.reverse then
-        -- TODO reverse the spline
-        spline = spline
+        spline = reverse(spline)
     end
 
     return spline
+end
+
+---@param service ServiceData
+---@param segmentName string
+---@param routeIdx number
+---@return tes3vector3?
+function SRoute:GetStartingPoint(service, segmentName, routeIdx)
+    local segment = service:GetSegment(segmentName)
+    if not segment then return nil end
+    local routes = self.lut[segmentName]
+    if not routes then return nil end
+
+    local spline = segment:GetRoute(routeIdx)
+    if not spline then return nil end
+
+    -- reverse the spline if the route is backwards
+    local node = self.nodes[string.format("%s#%d", segmentName, routeIdx)]
+    if node and node.reverse then
+        spline = reverse(spline)
+    end
+
+    return spline[1]
 end
 
 -- Function to get all nodes with a given name

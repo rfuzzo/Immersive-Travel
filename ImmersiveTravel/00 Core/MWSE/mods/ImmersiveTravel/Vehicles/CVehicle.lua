@@ -74,6 +74,7 @@ local log                   = lib.log
 ---@field routeId RouteId? The id of the current route
 ---@field segmentIndex number? The index of the current segment in the route
 ---@field splineIndex number? The index of the current spline in the segment
+---@field spline tes3vector3[]? The spline points
 ---@field currentPort string? -- the id of the route
 ---@field virtualDestination tes3vector3?
 ---@field current_speed number
@@ -191,24 +192,33 @@ function CVehicle:EndPlayerSteer()
 end
 
 ---@param routeId RouteId
+---@param spline tes3vector3[]
 ---@param segmentIndex number?
 ---@param splineIndex number?
-function CVehicle:StartRoute(routeId, segmentIndex, splineIndex)
+function CVehicle:StartRoute(routeId, spline, segmentIndex, splineIndex)
     self.routeId = routeId
-    -- TOOD new route system
+    self.spline = spline
+
+    -- override segment and spline index
     self.segmentIndex = segmentIndex or 1
     self.splineIndex = splineIndex or 1
 end
 
 --- Starts the vehicle on a route
 ---@param routeId RouteId
----@param service ServiceData
-function CVehicle:StartOnSpline(routeId, service)
+---@param segmentName string
+function CVehicle:StartOnSpline(routeId, segmentName)
     self:Attach()
 
     log:trace("StartOnSpline %s", self:Id())
 
-    self:StartRoute(routeId)
+    local service = GRoutesManager.getInstance():GetService(self.serviceId)
+    if not service then return end
+    local route = service:GetRoute(routeId)
+    if not route then return end
+    local spline = route:GetSegmentRoute(service, segmentName)
+
+    self:StartRoute(routeId, spline)
 
     -- register guide
     local mount = self.referenceHandle:getObject()
@@ -235,17 +245,20 @@ function CVehicle:StartOnSpline(routeId, service)
     self:RegisterPassengers()
 end
 
---- StartPlayerTravel is called when the player starts traveling
 ---@param routeId RouteId
----@param service ServiceData
-function CVehicle:StartPlayerTravel(routeId, service)
+function CVehicle:StartPlayerTravel(routeId)
     log:trace("StartPlayerTravel %s", self.id)
 
     self:Attach()
 
     -- these push the AI statemachine
+    local service = GRoutesManager.getInstance():GetService(self.serviceId)
+    if not service then return end
+    local route = service:GetRoute(routeId)
+    if not route then return end
+    local spline = route:GetSegmentRoute(service, route.segments[1])
+    self:StartRoute(routeId, spline)
     self.playerRegistered = true
-    self:StartRoute(routeId)
 
     local mount = self.referenceHandle:getObject()
     GPlayerVehicleManager.getInstance():StartTraveling(self)

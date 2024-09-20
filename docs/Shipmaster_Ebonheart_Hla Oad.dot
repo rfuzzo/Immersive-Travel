@@ -1,0 +1,7 @@
+digraph "Shipmaster_Ebonheart_Hla Oad" {
+	"Vivec#1" -> "Inner Sea Ebonheart#1"
+	"Inner Sea Ebonheart#1" -> "Hla Oad Port#1"
+	"Ebonheart Port#1" -> "Vivec#1"
+	"Hla Oad Port#1" -> "Hla Oad#1"
+	"Ebonheart#1" -> "Ebonheart Port#1"
+}

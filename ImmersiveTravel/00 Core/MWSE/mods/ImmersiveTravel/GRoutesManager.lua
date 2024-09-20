@@ -11,8 +11,8 @@ local log           = lib.log
 -- Define a class to manage the splines
 ---@class GRoutesManager
 ---@field private services table<string, ServiceData>? service name -> ServiceData
----@field spawnPoints table<string, SPointDto[]> TODO
----@field routesPrice table<string, number> TODO
+---@field spawnPoints table<string, SPointDto[]> spawn point data
+---@field routesPrice table<string, number> route price
 local RoutesManager = {
     services    = {},
     spawnPoints = {},
@@ -224,7 +224,7 @@ local function BuildGraph(service, route)
 
     -- TODO verification
 
-    -- todo prune dead branches
+    -- prune dead branches
     local to_remove = Prune(graph, NodeId(startNode), NodeId(endNode))
     local found = #to_remove
     while found > 0 do
@@ -265,17 +265,24 @@ end
 ---@param title string
 local function PrintGraph(graph, title)
     -- debug print graph
-    local header = string.format("digraph \"%s\" {", title)
-    print(header)
-
+    local header = string.format("digraph \"%s\" {\n", title)
     for node, to in pairs(graph) do
         for _, t in ipairs(to) do
             local msg = string.format("\t\"%s\" -> \"%s\"", node, t)
-            print(msg)
+            header = header .. msg .. "\n"
         end
     end
 
-    print("}")
+    header = header .. "}\n"
+
+    -- write to file
+    local path = string.format("%s\\%s.dot", lib.fullmodpath, title)
+    local file = io.open(path, "w")
+    if not file then
+        log:warn("Failed to open file %s", path)
+        return
+    end
+    file:write(header)
 end
 
 ---@param service ServiceData
@@ -320,21 +327,25 @@ local function loadRoutes(service)
     return routes
 end
 
--- TODO price
----@param spline tes3vector3[]
+---@param routeId RouteId
 ---@return number
-local function GetPrice(spline)
-    local price = 0
-    for i = 1, #spline - 1 do
-        local p1 = spline[i]
-        local p2 = spline[i + 1]
+local function GetPrice(routeId)
+    -- get start port
+    local service = RoutesManager.getInstance():GetService(routeId.service)
+    assert(service)
+    local startPort = service.ports[routeId.start]
+    assert(startPort)
+    local p1 = startPort:StartPos()
 
-        local distance = p1:distance(p2)
-        price = price + distance
-    end
+    -- get end port
+    local endPort = service.ports[routeId.destination]
+    assert(endPort)
+    local p2 = endPort:EndPos()
+
+    local distance = p1:distance(p2)
 
     -- divide by cell size
-    price = price / 8192
+    local price = distance / 8192
 
     -- multiply by set number
     price = price * config.priceMult
@@ -364,6 +375,43 @@ function RoutesManager:Init()
         service.segments = loadSegments(service)
         service.ports = loadPorts(service)
         service.routes = loadRoutes(service)
+
+        -- get prices
+        for _, route in pairs(service.routes) do
+            local price = GetPrice(route.id)
+            self.routesPrice[route.id:ToString()] = price
+            log:debug("\t\tRoute '%s' price: %d", route.id:ToString(), price)
+        end
+
+        -- spawn points
+        for _, route in pairs(service.routes) do
+            for _, segmentName in ipairs(route.segments) do
+                local routes = route.lut[segmentName]
+                for _, routeIdx in ipairs(routes) do
+                    local pos = route:GetStartingPoint(service, segmentName, routeIdx)
+                    if pos then
+                        local cell = tes3.getCell({
+                            position = tes3vector3.new(pos.x, pos.y, 0)
+                        })
+                        if cell then
+                            local cell_key = tostring(cell.gridX) .. "," .. tostring(cell.gridY)
+                            if not self.spawnPoints[cell_key] then
+                                self.spawnPoints[cell_key] = {}
+                            end
+
+                            ---@type SPointDto
+                            local point = {
+                                point = pos,
+                                routeId = route.id,
+                                segmentName = segmentName
+                            }
+                            table.insert(self.spawnPoints[cell_key], point)
+                            log:debug("[%s] Spawn point %s, route %d ", route.id:ToString(), segmentName, routeIdx)
+                        end
+                    end
+                end
+            end
+        end
     end
 
     return true
