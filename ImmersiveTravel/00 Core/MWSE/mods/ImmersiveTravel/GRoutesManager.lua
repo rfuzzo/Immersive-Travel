@@ -1,7 +1,7 @@
 local lib      = require("ImmersiveTravel.lib")
 local interop  = require("ImmersiveTravel.interop")
 local SRoute   = require("ImmersiveTravel.models.SRoute")
-local PortData = require("ImmersiveTravel.models.PortData")
+local SPort    = require("ImmersiveTravel.models.SPort")
 local SSegment = require("ImmersiveTravel.models.SSegment")
 local config   = require("ImmersiveTravel.config")
 if not config then return end
@@ -38,9 +38,9 @@ function RoutesManager.getInstance()
 end
 
 ---@param service ServiceData
----@return table<string, PortData>
+---@return table<string, SPort>
 local function loadPorts(service)
-    local map = {} ---@type table<string, PortData>
+    local map = {} ---@type table<string, SPort>
 
     local portPath = string.format("%s\\data\\%s\\ports", lib.fullmodpath, service.class)
     for file in lfs.dir(portPath) do
@@ -48,9 +48,9 @@ local function loadPorts(service)
             local filePath = string.format("%s\\%s", portPath, file)
 
             local portName = file:sub(0, -6)
-            local result = toml.loadFile(filePath) ---@type PortDataDto?
+            local result = toml.loadFile(filePath) ---@type SPortDto?
             if result then
-                map[portName] = PortData.fromDto(result)
+                map[portName] = SPort.fromDto(result)
 
                 log:debug("\t\tAdding port %s", portName)
             else
@@ -135,7 +135,9 @@ local function BuildGraph(service, route)
     log:debug("Route '%s'", route.id:ToString())
 
     -- start and end port
-    local startPort = service.ports[route.id.start]
+    local mountId = service:ResolveMountId(route.id)
+    local startPort = service:GetPort(route.id.start, mountId)
+    assert(startPort)
     local startPos = startPort:StartPos()
     ---@type Node
     local startNode = {
@@ -202,7 +204,8 @@ local function BuildGraph(service, route)
 
     -- add end node
     local endNode = nil
-    local endPort = service.ports[route.id.destination]
+    local endPort = service:GetPort(route.id.destination, mountId)
+    assert(endPort)
     local endPos = endPort:EndPos()
     for _, lastCursor in ipairs(cursor) do
         log:trace(" - Last cursor: %s - %s", NodeId(lastCursor), lastCursor.position)
@@ -333,12 +336,13 @@ local function GetPrice(routeId)
     -- get start port
     local service = RoutesManager.getInstance():GetService(routeId.service)
     assert(service)
-    local startPort = service.ports[routeId.start]
+    local mountId = service:ResolveMountId(routeId)
+    local startPort = service:GetPort(routeId.start, mountId)
     assert(startPort)
     local p1 = startPort:StartPos()
 
     -- get end port
-    local endPort = service.ports[routeId.destination]
+    local endPort = service:GetPort(routeId.destination, mountId)
     assert(endPort)
     local p2 = endPort:EndPos()
 

@@ -76,7 +76,7 @@ local function doSpawn(point)
     local facing = math.atan2(orientation.x, orientation.y)
 
     -- create and register the vehicle
-    local mountId = lib.ResolveMountId(service, point.routeId.start, point.routeId.destination)
+    local mountId = service:ResolveMountId(point.routeId)
 
     if lib.IsLogLevelAtLeast("DEBUG") then
         local cell = tes3.getCell({
@@ -124,7 +124,7 @@ local function getSpawnCandidates()
         end
     end
 
-    lib.shuffle(spawnCandidates)
+    table.shuffle(spawnCandidates)
     return spawnCandidates
 end
 

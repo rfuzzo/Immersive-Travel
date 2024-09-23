@@ -89,10 +89,10 @@ function DockedState:enter(scriptedObject)
                 -- start timer for new route
                 local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
                 if service then
-                    local port = service:GetPort(vehicle.currentPort)
+                    local port = service:GetPort(vehicle.currentPort, vehicle.id)
                     if port then
-                        if port.positionStart then
-                            vehicle.virtualDestination = port.positionStart
+                        if port:HasStart() then
+                            vehicle.virtualDestination = port:StartPos()
                             vehicle.routeId = nil
                         else
                             -- get random destination

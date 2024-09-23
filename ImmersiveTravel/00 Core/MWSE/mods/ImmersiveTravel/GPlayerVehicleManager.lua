@@ -203,7 +203,7 @@ local function uiShowRestMenuCallback(e)
                                     return
                                 end
 
-                                local destinationPort = service:GetPort(vehicle.routeId.destination)
+                                local destinationPort = service:GetPort(vehicle.routeId.destination, vehicle.id)
                                 if not destinationPort then
                                     return
                                 end

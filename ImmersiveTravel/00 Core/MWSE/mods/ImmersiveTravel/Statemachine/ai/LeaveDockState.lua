@@ -120,9 +120,9 @@ function LeaveDockState:enter(scriptedObject)
     vehicle.changeSpeed = 0.5
     local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
     if service then
-        local port = service:GetPort(vehicle.currentPort)
+        local port = service:GetPort(vehicle.currentPort, vehicle.id)
         if port then
-            if port.reverseStart then
+            if port:IsReverse() then
                 vehicle.changeSpeed = -0.5
                 vehicle.current_speed = vehicle.minSpeed
                 debug.log(vehicle.current_speed)

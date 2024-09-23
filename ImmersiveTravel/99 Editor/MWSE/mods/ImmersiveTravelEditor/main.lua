@@ -129,14 +129,11 @@ local last_facing = nil ---@type number|nil
 ---@param offset number
 ---@return tes3reference
 local function createMount(port, mountId, offset)
-    local orientation = lib.radvec(port.rotation)
-    if port.rotationStart then
-        orientation = lib.radvec(port.rotationStart)
-    end
+    local orientation = lib.radvec(port:StartRot())
 
     local mount = tes3.createReference {
         object = mountId,
-        position = port.position,
+        position = port:StartPos(),
         orientation = orientation
     }
 
@@ -215,8 +212,11 @@ local function loadRoutes(service)
                     end
                 end
 
-                local startPort = service:GetPort(start)
-                local destinationPort = service:GetPort(destination)
+                -- we don't need to resolve the ports properly, just the names
+                local routeId = RouteId:new(service.class, start, destination)
+                local mountId = service:ResolveMountId(routeId)
+                local startPort = service:GetPort(start, mountId)
+                local destinationPort = service:GetPort(destination, mountId)
 
                 if not startPort then
                     log:warn("\t\t! Start port %s not found", start)
@@ -275,22 +275,15 @@ local function loadSpline(start, destination, service)
             end
 
             -- get ports
-            local startPort = service:GetPort(start)
-            local destinationPort = service:GetPort(destination)
+            local routeId = RouteId:new(service.class, start, destination)
+            local mountId = service:ResolveMountId(routeId)
+            local startPort = service:GetPort(start, mountId)
+            local destinationPort = service:GetPort(destination, mountId)
 
             if startPort and destinationPort then
                 -- add start and end ports
-                if startPort.positionStart then
-                    table.insert(result, 1, startPort.positionStart)
-                else
-                    table.insert(result, 1, startPort.position)
-                end
-
-                -- if destinationPort.positionEnd then
-                --     table.insert(result, destinationPort.positionEnd)
-                -- else
-                table.insert(result, destinationPort.position)
-                --end
+                table.insert(result, 1, startPort:StartPos())
+                table.insert(result, destinationPort:EndPos())
 
                 return result
             else
@@ -635,13 +628,13 @@ local function calculateLeavePort(mountData, startPort)
     if not editorData.mount then return end
 
     -- position the vehicle in port
-    editorData.mount.position = startPort.position
-    editorData.mount.orientation = lib.radvec(startPort.rotation)
+    editorData.mount.position = startPort:EndPos()
+    editorData.mount.orientation = lib.radvec(startPort:EndRot())
 
     last_position = editorData.mount.position
     last_forwardDirection = editorData.mount.forwardDirection
     last_facing = editorData.mount.facing
-    local nextPos = startPort.positionStart
+    local nextPos = startPort:StartPos()
 
     for idx = 1, config.tracemax * 1000, 1 do
         local arrived = calculatePosition(mountData, nextPos)
@@ -661,13 +654,14 @@ local function traceRoute(service)
     for _, value in ipairs(arrows) do vfxRoot:detachChild(value) end
     arrows = {}
 
-    local mountId = lib.ResolveMountId(service, editorData.start, editorData.destination)
+    local routeId = RouteId:new(service.class, editorData.start, editorData.destination)
+    local mountId = service:ResolveMountId(routeId)
     log:debug("[%s] Tracing %s > %s", mountId, editorData.start, editorData.destination)
     local mountData = interop.getVehicleStaticData(mountId)
     if not mountData then return end
-    local startPort = service:GetPort(editorData.start)
+    local startPort = service:GetPort(editorData.start, mountId)
     if not startPort then return end
-    local destinationPort = service:GetPort(editorData.destination)
+    local destinationPort = service:GetPort(editorData.destination, mountId)
     if not destinationPort then return end
 
     -- create mount
@@ -696,9 +690,8 @@ local function traceRoute(service)
     end
 
     -- check if the last orientation does not have a big difference
-
     local lastOrientation = editorData.mount.orientation
-    local destinationPortOrientation = lib.radvec(destinationPort.rotation)
+    local destinationPortOrientation = lib.radvec(destinationPort:EndRot())
     local diff = lastOrientation.z - destinationPortOrientation.z
     log:debug("Last orientation is %d from the last marker", diff)
     if diff > 0.1 then
@@ -708,9 +701,9 @@ local function traceRoute(service)
 
     -- check if the start and destination ports are in the correct cells
     local startCell = tes3.getCell({ id = editorData.start }) ---@type tes3cell
-    local isPointInCell = startCell:isPointInCell(startPort.position.x, startPort.position.y)
+    local isPointInCell = startCell:isPointInCell(startPort:StartPos().x, startPort:StartPos().y)
     if not isPointInCell then
-        local portCell = tes3.getCell({ position = startPort.position })
+        local portCell = tes3.getCell({ position = startPort:StartPos() })
         if portCell then
             log:warn("!!! Start port '%s' cell mismatch: '%s'", editorData.start, portCell.id)
             tes3.messageBox("!!! Start port '%s' cell mismatch: '%s'", editorData.start, portCell.id)
@@ -721,9 +714,9 @@ local function traceRoute(service)
 
 
     local destinationCell = tes3.getCell({ id = editorData.destination }) ---@type tes3cell
-    isPointInCell = destinationCell:isPointInCell(destinationPort.position.x, destinationPort.position.y)
+    isPointInCell = destinationCell:isPointInCell(destinationPort:EndPos().x, destinationPort:EndPos().y)
     if not isPointInCell then
-        local portCell = tes3.getCell({ position = destinationPort.position })
+        local portCell = tes3.getCell({ position = destinationPort:EndPos() })
         if portCell then
             log:warn("!!! Destination port '%s' cell mismatch: '%s'", editorData.destination, portCell.id)
             tes3.messageBox("!!! Destination port '%s' cell mismatch: '%s'", editorData.destination,
@@ -754,19 +747,17 @@ local function renderAdditionalMarkers(startPort, destinationPort)
     -- -- render start maneuvre
     if startPort then
         local child = portMarkerMesh:clone()
-        child.translation = startPort.position
+        child.translation = startPort:StartPos()
         local m = tes3matrix33.new()
-        local x = math.rad(startPort.rotation.x)
-        local y = math.rad(startPort.rotation.y)
-        local z = math.rad(startPort.rotation.z)
+        local x = math.rad(startPort:StartRot().x)
+        local y = math.rad(startPort:StartRot().y)
+        local z = math.rad(startPort:StartRot().z)
         m:fromEulerXYZ(x, y, z)
         child.rotation = m
         child.appCulled = false
         vfxRoot:attachChild(child)
         tes3.worldController.vfxManager.worldVFXRoot:update()
     end
-
-    -- TODO port end
 end
 
 local function traceRouteNew()
@@ -778,13 +769,14 @@ local function traceRouteNew()
     for _, value in ipairs(arrows) do vfxRoot:detachChild(value) end
     arrows = {}
 
-    local mountId = lib.ResolveMountId(service, editorData.start, editorData.destination)
+    local routeId = RouteId:new(editorData.service.class, editorData.start, editorData.destination)
+    local mountId = service:ResolveMountId(routeId)
     log:debug("[%s] Tracing %s > %s", mountId, editorData.start, editorData.destination)
     local mountData = interop.getVehicleStaticData(mountId)
     if not mountData then return end
-    local startPort = service:GetPort(editorData.start)
+    local startPort = service:GetPort(editorData.start, mountId)
     if not startPort then return end
-    local destinationPort = service:GetPort(editorData.destination)
+    local destinationPort = service:GetPort(editorData.destination, mountId)
     if not destinationPort then return end
 
     -- create mount
@@ -819,9 +811,10 @@ local function renderMarkers()
 
     editorData.editorNodes = {}
 
-    local startPort = editorData.service:GetPort(editorData.start)
-    local destinationPort = editorData.service:GetPort(editorData.destination)
     local routeId = RouteId:new(editorData.service.class, editorData.start, editorData.destination)
+    local mountId = editorData.service:ResolveMountId(routeId)
+    local startPort = editorData.service:GetPort(editorData.start, mountId)
+    local destinationPort = editorData.service:GetPort(editorData.destination, mountId)
 
     -- add markers
     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
@@ -838,16 +831,12 @@ local function renderMarkers()
                 type = EMarkerType.Port
                 local m = tes3matrix33.new()
 
-                local x = math.rad(startPort.rotation.x)
-                local y = math.rad(startPort.rotation.y)
-                local z = math.rad(startPort.rotation.z)
+                local x = math.rad(startPort:StartRot().x)
+                local y = math.rad(startPort:StartRot().y)
+                local z = math.rad(startPort:StartRot().z)
 
                 -- start from override instead
-                if startPort.rotationStart then
-                    x = math.rad(startPort.rotationStart.x)
-                    y = math.rad(startPort.rotationStart.y)
-                    z = math.rad(startPort.rotationStart.z)
-
+                if startPort:HasStartRot() then
                     type = EMarkerType.PortStart
                 end
 
@@ -860,17 +849,9 @@ local function renderMarkers()
                 type = EMarkerType.Port
                 local m = tes3matrix33.new()
 
-                local x = math.rad(destinationPort.rotation.x)
-                local y = math.rad(destinationPort.rotation.y)
-                local z = math.rad(destinationPort.rotation.z)
-                if destinationPort.rotationEnd then
-                    -- TODO port end
-                    -- x = math.rad(destinationPort.rotationEnd.x)
-                    -- y = math.rad(destinationPort.rotationEnd.y)
-                    -- z = math.rad(destinationPort.rotationEnd.z)
-
-                    type = EMarkerType.PortEnd
-                end
+                local x = math.rad(destinationPort:EndRot().x)
+                local y = math.rad(destinationPort:EndRot().y)
+                local z = math.rad(destinationPort:EndRot().z)
 
                 m:fromEulerXYZ(x, y, z)
                 child.rotation = m
@@ -1002,14 +983,17 @@ local function traceAllSegments(service)
     end
 
     -- get ports
-    for key, port in pairs(service.ports) do
+    for key, ports in pairs(service.ports) do
+        -- TODO just get the default port
+        local port = ports[1]
+
         do
             local child = portMarkerMesh:clone()
-            child.translation = port.position
+            child.translation = port:GetPosition()
             local m = tes3matrix33.new()
-            local x = math.rad(port.rotation.x)
-            local y = math.rad(port.rotation.y)
-            local z = math.rad(port.rotation.z)
+            local x = math.rad(port:GetRot().x)
+            local y = math.rad(port:GetRot().y)
+            local z = math.rad(port:GetRot().z)
             m:fromEulerXYZ(x, y, z)
             child.rotation = m
             child.appCulled = false
@@ -1023,13 +1007,13 @@ local function traceAllSegments(service)
         end
 
 
-        if port.positionStart then
+        if port:HasStart() then
             local child = portMarkerMesh:clone()
-            child.translation = port.positionStart
+            child.translation = port:StartPos()
             local m = tes3matrix33.new()
-            local x = math.rad(port.rotationStart.x)
-            local y = math.rad(port.rotationStart.y)
-            local z = math.rad(port.rotationStart.z)
+            local x = math.rad(port:StartRot().x)
+            local y = math.rad(port:StartRot().y)
+            local z = math.rad(port:StartRot().z)
             m:fromEulerXYZ(x, y, z)
             child.rotation = m
             child.appCulled = false
@@ -1041,8 +1025,6 @@ local function traceAllSegments(service)
             }
             editorData.editorMarkers[#editorData.editorMarkers + 1] = marker
         end
-
-        -- TODO port end
     end
 
     -- render nodes
@@ -1214,11 +1196,11 @@ local function createEditWindow()
             }
             button:register(tes3.uiEvent.mouseClick, function()
                 -- teleport to port
-                local portData = service:GetPort(portName)
+                local portData = service:GetPort(portName, service.mount)
                 if portData then
                     tes3.positionCell({
                         reference = tes3.mobilePlayer,
-                        position  = portData.position,
+                        position  = portData:EndPos()
                     })
                 else
                     teleportToCell(portName)

@@ -21,20 +21,20 @@ local log                   = lib.log
     -[x] spawnpoints
     -[ ] fix all todos
 
+- CS
+    -[ ] fix passengers for all services
+    -[ ] add all ports
+    -[ ] add all segments
+
     Medium
     -[ ] proper class and name randomization for passengers
     -[ ] add new animated boat
-    -[ ] refactor ports for different vehicles
+    -[x] refactor ports for different vehicles
     -[ ] slow down in port
 
     Stretch
     -[ ] start player travel from the port start
     -[ ] add a deck interior cell
-
-- CS
-    -[ ] fix passengers for all services
-    -[ ] add all ports
-    -[ ] add all segments
 
 - editor
     -[x] add port mode

@@ -61,12 +61,11 @@ function OnSplineState:OnDestinationReached(scriptedObject)
 
     local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
     if service then
-        local port = service:GetPort(vehicle.routeId.destination)
+        local port = service:GetPort(vehicle.routeId.destination, vehicle.id)
         if port then
             vehicle.currentPort = vehicle.routeId.destination
 
             log:trace("[%s] OnSplineState OnDestinationReached port: %s", vehicle:Id(), vehicle.currentPort)
-            -- TODO port end
         end
     end
 

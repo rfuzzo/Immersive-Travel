@@ -1,3 +1,5 @@
+local lib = require("ImmersiveTravel.lib")
+
 ---@class ServiceData
 ---@field class string The npc class name
 ---@field mount string The mountid
@@ -7,7 +9,7 @@
 ---@field guide string[]? guide npcs
 -- RUNTIME DATA
 ---@field segments table<string, SSegment>? segment name -> SSegment
----@field ports table<string, PortData>? cell name -> PortData
+---@field ports table<string, SPort>? cell name -> SPort
 ---@field routes table<string, SRoute>? routeId -> SRoute
 local ServiceData = {}
 
@@ -46,10 +48,16 @@ function ServiceData:GetSegments()
     return table.keys(self.segments)
 end
 
----@param cell string
+---@param name string
+---@param mountId string
 ---@return PortData?
-function ServiceData:GetPort(cell)
-    return self.ports[cell]
+function ServiceData:GetPort(name, mountId)
+    local port = self.ports[name]
+    if port then
+        return port.data[mountId]
+    end
+
+    return nil
 end
 
 ---@param segment string
@@ -62,6 +70,23 @@ end
 ---@return SRoute?
 function ServiceData:GetRoute(id)
     return self.routes[id:ToString()]
+end
+
+---@param id RouteId
+---@return string
+function ServiceData:ResolveMountId(id)
+    -- create mount
+    local mountId = self.mount
+    -- override mounts
+    if self.override_mount then
+        for _, o in ipairs(self.override_mount) do
+            if lib.is_in(o.points, id.start) and lib.is_in(o.points, id.destination) then
+                mountId = o.id
+                break
+            end
+        end
+    end
+    return mountId
 end
 
 return ServiceData

@@ -1,5 +1,8 @@
 ---@meta
 
+---@class SPortDto
+---@field data table<string, PortDataDto> The port data
+
 ---@class PortDataDto
 ---@field position PositionRecord The port position
 ---@field rotation PositionRecord The port orientation

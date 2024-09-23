@@ -1,13 +1,13 @@
 local PositionRecord = require("ImmersiveTravel.models.PositionRecord")
 
 ---@class PortData
----@field position tes3vector3 The port position
----@field rotation tes3vector3 The port orientation
----@field positionEnd tes3vector3? The docked orientation
----@field rotationEnd tes3vector3? The docked orientation
----@field positionStart tes3vector3? The start orientation
----@field rotationStart tes3vector3? The start orientation
----@field reverseStart boolean? reverse out of dock?
+---@field private position tes3vector3 The port position
+---@field private rotation tes3vector3 The port orientation
+---@field private positionEnd tes3vector3? The docked orientation
+---@field private rotationEnd tes3vector3? The docked orientation
+---@field private positionStart tes3vector3? The start orientation
+---@field private rotationStart tes3vector3? The start orientation
+---@field private reverseStart boolean? reverse out of dock?
 local PortData = {}
 
 ---@return PortData
@@ -32,12 +32,49 @@ function PortData.fromDto(o)
     return newObj
 end
 
+---@return boolean
+function PortData:HasStart()
+    return self.positionStart ~= nil
+end
+
+---@return boolean
+function PortData:IsReverse()
+    return self.reverseStart
+end
+
+---@return tes3vector3?
+function PortData:GetPosition()
+    return self.position
+end
+
+---@return tes3vector3
 function PortData:StartPos()
     return self.positionStart or self.position
 end
 
+---@return tes3vector3
 function PortData:EndPos()
     return self.positionEnd or self.position
+end
+
+---@return boolean
+function PortData:HasStartRot()
+    return self.rotationStart ~= nil
+end
+
+---@return tes3vector3
+function PortData:GetRot()
+    return self.rotation
+end
+
+---@return tes3vector3
+function PortData:StartRot()
+    return self.rotationStart or self.rotation
+end
+
+---@return tes3vector3
+function PortData:EndRot()
+    return self.rotationEnd or self.rotation
 end
 
 return PortData

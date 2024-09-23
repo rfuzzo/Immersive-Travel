@@ -49,10 +49,6 @@ function EnterDockState:update(dt, scriptedObject)
     CAiState.update(self, dt, scriptedObject)
 
     local vehicle = scriptedObject ---@cast vehicle CVehicle
-    local spline = GRoutesManager.getInstance():GetRoute(vehicle.routeId)
-    if spline == nil then
-        return
-    end
 
     -- handle player leaving and entering the vehicle
     local manager = GPlayerVehicleManager.getInstance()

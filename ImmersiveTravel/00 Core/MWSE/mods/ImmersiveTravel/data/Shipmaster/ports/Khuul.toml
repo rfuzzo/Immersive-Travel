@@ -1,9 +1,10 @@
-[position]
+# Longboat
+[data.a_longboat.position]
 x = -69141
 y = 143233
 z = 0
 
-[rotation]
+[data.a_longboat.rotation]
 x = 0
 y = 0
 z = 108

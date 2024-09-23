@@ -489,31 +489,4 @@ this.fullmodpath = "Data Files\\MWSE\\" .. this.localmodpath
 
 --#endregion
 
---- shuffle a table
-function this.shuffle(tbl)
-    for i = #tbl, 2, -1 do
-        local j = math.random(i)
-        tbl[i], tbl[j] = tbl[j], tbl[i]
-    end
-end
-
----@param service ServiceData
----@param start string
----@param destination string
----@return string
-function this.ResolveMountId(service, start, destination)
-    -- create mount
-    local mountId = service.mount
-    -- override mounts
-    if service.override_mount then
-        for _, o in ipairs(service.override_mount) do
-            if this.is_in(o.points, start) and this.is_in(o.points, destination) then
-                mountId = o.id
-                break
-            end
-        end
-    end
-    return mountId
-end
-
 return this

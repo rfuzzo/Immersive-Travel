@@ -49,7 +49,7 @@ local function StartTravel(start, destination, service, guide)
             local facing = math.atan2(orientation.x, orientation.y)
 
             -- create reference
-            local mountId = lib.ResolveMountId(service, start, destination)
+            local mountId = service:ResolveMountId(routeId)
             local vehicle = interop.createVehicle(mountId, startPos, orientation, facing)
             if not vehicle then
                 return
