@@ -40,6 +40,8 @@ end
 ---@param service ServiceData
 ---@return table<string, SPort>
 local function loadPorts(service)
+    log:debug("\t  Adding ports:")
+
     local map = {} ---@type table<string, SPort>
 
     local portPath = string.format("%s\\data\\%s\\ports", lib.fullmodpath, service.class)
@@ -65,6 +67,8 @@ end
 ---@param service ServiceData
 ---@return table<string, SSegment>
 local function loadSegments(service)
+    log:debug("\t  Adding segments:")
+
     local map = {} ---@type table<string, SSegment>
 
     local segmentsPath = string.format("%s\\data\\%s\\segments", lib.fullmodpath, service.class)
@@ -151,6 +155,7 @@ local function BuildGraph(service, route)
     -- start with port
     cursor = {}
     table.insert(cursor, startNode)
+    log:trace("Start node '%s', position: %s", startNode.id, startNode.position)
 
     for _, segmentId in ipairs(route.segments) do
         local segment = service:GetSegment(segmentId)
@@ -160,9 +165,9 @@ local function BuildGraph(service, route)
         local newCursor = {} ---@type Node[]
 
         local conections = segment:GetConnections()
-        log:trace("Segment '%s', conections %d", segmentId, #conections)
+        log:trace("Segment '%s', conections: %d", segmentId, #conections)
         for _, lastCursor in ipairs(cursor) do
-            log:trace(" - Last cursor: %s - %s", NodeId(lastCursor), lastCursor.position)
+            log:trace(" - From: %s %s", NodeId(lastCursor), lastCursor.position)
             for _, connection in ipairs(conections) do
                 if connection.pos == lastCursor.position then
                     -- get end position of route
@@ -200,6 +205,12 @@ local function BuildGraph(service, route)
         end
 
         cursor = newCursor
+
+         -- break if no connections
+         if #cursor == 0 then
+            log:error("No connections found for segment '%s'", segmentId)
+            return {}, {}, {}
+        end
     end
 
     -- add end node
@@ -208,7 +219,7 @@ local function BuildGraph(service, route)
     assert(endPort)
     local endPos = endPort:EndPos()
     for _, lastCursor in ipairs(cursor) do
-        log:trace(" - Last cursor: %s - %s", NodeId(lastCursor), lastCursor.position)
+        log:trace(" ( Last cursor: %s - %s )", NodeId(lastCursor), lastCursor.position)
         if endPos == lastCursor.position then
             endNode = {
                 id = route.id.destination,

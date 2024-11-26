@@ -36,9 +36,9 @@ local EEditorMode = {
 ---@param val EEditorMode
 ---@return string
 local function ToString(val)
-    if val == EEditorMode.Routes then return "Routes" end
+    if val == EEditorMode.Routes then return "Splines" end
     if val == EEditorMode.Ports then return "Ports" end
-    if val == EEditorMode.Segments then return "Segments" end
+    if val == EEditorMode.Segments then return "New Routes" end
     return "Unknown"
 end
 
@@ -760,8 +760,15 @@ local function renderAdditionalMarkers(startPort, destinationPort)
     end
 end
 
-local function traceRouteNew()
+---@param start string
+---@param destination string
+local function traceRouteNew(start, destination)
     if not editorData then return nil end
+
+    editorData.start = start
+    editorData.destination = destination
+    editorData.mount = nil
+    editorData.editorNodes = nil
 
     local service = editorData.service
 
@@ -935,7 +942,7 @@ local function traceAllSegments(service)
     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
     vfxRoot:detachAllChildren()
 
-    -- get all segment connectsions and internal nodes
+    -- get all segment connections and internal nodes
     for _, route in pairs(service.routes) do
         log:trace("Tracing route '%s'", route.id)
         -- for each route get the segments
@@ -983,9 +990,9 @@ local function traceAllSegments(service)
     end
 
     -- get ports
-    for key, ports in pairs(service.ports) do
-        -- TODO just get the default port
-        local port = ports[1]
+    for key, sport in pairs(service.ports) do
+        -- TODO just get the first one
+        local port = sport.data[table.keys(sport.data)[1]]
 
         do
             local child = portMarkerMesh:clone()
@@ -1086,7 +1093,7 @@ local function Reload()
                     local routeId = RouteId:new(service.class, start, destination)
                     splines[routeId:ToString()] = spline
 
-                    log:debug("\t\tAdding route '%s'", routeId)
+                    log:debug("\t\tAdding spline '%s'", routeId)
                 else
                     log:warn("No spline found for %s -> %s", start, destination)
                 end
@@ -1190,9 +1197,11 @@ local function createEditWindow()
                 end
             end
 
+            local portCount = table.size(service.ports[portName].data)
+
             local button = pane:createButton {
                 id = "button_port" .. portName,
-                text = portName
+                text = portName .. " (" .. portCount .. ")"
             }
             button:register(tes3.uiEvent.mouseClick, function()
                 -- teleport to port
@@ -1216,6 +1225,14 @@ local function createEditWindow()
         local serviceDestinations = destinations[currentServiceName]
         for start, routeDestinations in pairs(serviceDestinations) do
             for _, destination in ipairs(routeDestinations) do
+
+                -- check if route exists
+                local routeId = RouteId:new(service.class, start, destination)
+                local route = service:GetRoute(routeId)
+                if not route then
+                    goto continue
+                end
+
                 -- filter
                 local filter = filter_text:lower()
                 if filter_text ~= "" then
@@ -1234,12 +1251,7 @@ local function createEditWindow()
                         traceAllSegments(service)
                     end
 
-                    editorData.start = start
-                    editorData.destination = destination
-                    editorData.mount = nil
-                    editorData.editorNodes = nil
-
-                    traceRouteNew()
+                    traceRouteNew(start, destination)
                 end)
 
                 ::continue::
@@ -1579,6 +1591,9 @@ local function insertMarker()
 
             -- render again
             traceAllSegments(editorData.service)
+            traceRouteNew(editorData.start, editorData.destination)
+
+            editmode = true
         end
     elseif IsRouteMode() then
         if not editorData.editorNodes then return end
@@ -1620,7 +1635,9 @@ local function editMarker()
 
     if IsSegmentsMode() then
         if not editmode then
-            local idx = getClosestMarkerIdx(false)
+            -- start editing
+            -- TODO get adjacent segments
+            local idx = getClosestMarkerIdx(true)
             if not idx then
                 return
             end
@@ -1630,7 +1647,7 @@ local function editMarker()
             editorData.currentMarker = editorData.editorMarkers[idx]
             tes3.messageBox("Marker index: " .. idx)
         else
-            -- get segment
+            -- stop editing
             local currentMarker = editorData.currentMarker
             if not currentMarker then return end
 
@@ -1646,6 +1663,7 @@ local function editMarker()
 
             -- render all again
             traceAllSegments(editorData.service)
+            traceRouteNew(editorData.start, editorData.destination)
         end
     elseif IsRouteMode() then
         if not editmode then
@@ -1726,6 +1744,7 @@ local function deleteMarker()
 
         -- render again
         traceAllSegments(editorData.service)
+        traceRouteNew(editorData.start, editorData.destination)
 
         editorData.currentMarker = nil
     elseif IsRouteMode() then

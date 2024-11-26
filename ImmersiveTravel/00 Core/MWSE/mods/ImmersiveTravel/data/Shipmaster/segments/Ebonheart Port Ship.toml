@@ -1,5 +1,6 @@
-id = "Ebonheart Port"
+id = "Ebonheart Port Ship"
 
+# out of port a_DE_ship
 route1 = [
     { x = 22186, y = -103603, z = 0 },
     { x = 24043, y = -99398, z = 0 },
@@ -7,6 +8,7 @@ route1 = [
     { x = 28355, y = -109485, z = 0 },
 ]
 
+# into port a_DE_ship
 route2 = [
     { x = 21557, y = -101913, z = 0 },
     { x = 23249, y = -102885, z = 0 },
