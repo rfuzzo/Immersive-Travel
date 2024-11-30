@@ -103,6 +103,17 @@ function this.createEditWindow()
         end
     end
 
+    -- main panel
+    -- add panels here
+    if IsRoutesMode() then
+        routesui.routesPanel(menu, this.createEditWindow)
+    elseif IsPortMode() then
+        portsui.portsPanel(menu, this.createEditWindow)
+    elseif IsSplineMode() then
+        splinesui.splinesPanel(menu, this.createEditWindow)
+    end
+
+    -- bottom panel
     -- buttons
     local button_block = menu:createBlock {}
     button_block.widthProportional = 1.0 -- width is 100% parent width
@@ -153,15 +164,6 @@ function this.createEditWindow()
         end
     end)
 
-    -- add panels here
-    if IsRoutesMode() then
-        routesui.routesPanel(menu, this.createEditWindow)
-    elseif IsPortMode() then
-        portsui.portsPanel(menu, this.createEditWindow)
-    elseif IsSplineMode() then
-        splinesui.splinesPanel(menu, this.createEditWindow)
-    end
-
     -- Leave Menu
     local button_exit = button_block:createButton {
         id = editMenuCancelId,
@@ -172,6 +174,7 @@ function this.createEditWindow()
         menu:destroy()
     end)
 
+    -- layout
     menu:updateLayout()
     tes3ui.enterMenuMode(editMenuId)
 end

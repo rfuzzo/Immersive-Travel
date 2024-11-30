@@ -22,7 +22,14 @@ this.log             = logger.new {
 ---@field mount tes3reference?
 
 ---@class SPreviewMarker
----@field node niNode
+---@field node niNode?
+---@field type EMarkerType
+---@field segmentId string?
+---@field routeId number?
+---@field idx number?
+
+---@class SPreviewMarker2
+---@field position tes3vector3
 ---@field type EMarkerType
 ---@field segmentId string?
 ---@field routeId number?
@@ -35,6 +42,7 @@ this.log             = logger.new {
 ---@field mount tes3reference?
 ---@field editorMarkers SPreviewMarker[]?
 ---@field currentMarker SPreviewMarker?
+---@field lastMarker SPreviewMarker2?
 ---@field editorNodes niNode[]?
 ---@field currentNode niNode?
 ---@field pin1 number?

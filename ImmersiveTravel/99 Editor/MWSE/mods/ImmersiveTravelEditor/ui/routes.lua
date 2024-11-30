@@ -381,8 +381,7 @@ local function editMarker()
 
     if not editmode then
         -- start editing
-        -- TODO get adjacent segments
-        local idx = getClosestMarkerIdx(true)
+        local idx = getClosestMarkerIdx(false)
         if not idx then
             return
         end
@@ -390,21 +389,39 @@ local function editMarker()
         debug.log(idx)
 
         GetEditorData().currentMarker = GetEditorData().editorMarkers[idx]
+        GetEditorData().lastMarker = {
+            position = GetEditorData().currentMarker.node.translation:copy(),
+            type = GetEditorData().currentMarker.type,
+            segmentId = GetEditorData().currentMarker.segmentId,
+            routeId = GetEditorData().currentMarker.routeId,
+            idx = GetEditorData().currentMarker.idx
+        }
         tes3.messageBox("Marker index: " .. idx)
     else
         -- stop editing
         local currentMarker = GetEditorData().currentMarker
         if not currentMarker then return end
 
+        local lastMarker = GetEditorData().lastMarker
+        if not lastMarker then return end
+
+        -- update all segments
+        for _, marker in ipairs(GetEditorData().editorMarkers) do
+            if marker.node.translation:distance(lastMarker.position) == 0 then
+                local segment = GetEditorData().service:GetSegment(marker.segmentId)
+                assert(segment)
+                segment:GetRoute(marker.routeId)[marker.idx] = currentMarker.node.translation
+                saveSegment(GetEditorData().service, segment)
+            end
+        end
+
+        -- update current segment
         local segment = GetEditorData().service:GetSegment(currentMarker.segmentId)
-        assert(segment, "Segment not found")
-        local route = segment:GetRoute(currentMarker.routeId)
-        assert(route, "Route not found")
-
-        -- edit in segment
-        route[currentMarker.idx] = currentMarker.node.translation
-
+        assert(segment)
+        segment:GetRoute(currentMarker.routeId)[currentMarker.idx] = currentMarker.node.translation
         saveSegment(GetEditorData().service, segment)
+
+        GetEditorData().lastMarker = nil
 
         -- render all again
         traceAllSegments(GetEditorData().service)
@@ -466,16 +483,6 @@ local function editor_keyDownCallback(e)
     if e.keyCode == config.deletekeybind.keyCode then
         deleteMarker()
     end
-
-    -- -- pin
-    -- if e.keyCode == config.pinkeybind.keyCode then
-    --     pinMarker()
-    -- end
-
-    -- -- trace
-    -- if e.keyCode == config.tracekeybind.keyCode then
-    --     if GetEditorData() then traceRoute(GetEditorData().service) end
-    -- end
 end
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
@@ -510,12 +517,13 @@ function this.routesPanel(menu, reload)
     end)
 
     -- Create layout
-    local label = menu:createLabel { text = "Loaded routes (" .. elib.currentServiceName .. ")" }
+    local label = menu:createLabel { text = "Routes (" .. elib.currentServiceName .. ")" }
     label.borderBottom = 5
+
+    -- local main_panel = menu:createThinBorder({ id = "main_panel" })
 
     -- get destinations
     local pane = menu:createVerticalScrollPane { id = "sortedPane" }
-
     -- list all segments
     local serviceDestinations = elib.destinations[elib.currentServiceName]
     for start, routeDestinations in pairs(serviceDestinations) do
@@ -551,7 +559,6 @@ function this.routesPanel(menu, reload)
             ::continue::
         end
     end
-
     pane:getContentElement():sortChildren(function(a, b)
         return a.text < b.text
     end)
