@@ -1,30 +1,35 @@
-local lib               = require("ImmersiveTravel.lib")
-local interop           = require("ImmersiveTravel.interop")
-local GRoutesManager    = require("ImmersiveTravel.GRoutesManager")
-local PositionRecord    = require("ImmersiveTravel.models.PositionRecord")
-local RouteId           = require("ImmersiveTravel.models.RouteId")
-local elib              = require("ImmersiveTravelEditor.lib")
+local lib                = require("ImmersiveTravel.lib")
+local interop            = require("ImmersiveTravel.interop")
+local GRoutesManager     = require("ImmersiveTravel.GRoutesManager")
+local PositionRecord     = require("ImmersiveTravel.models.PositionRecord")
+local RouteId            = require("ImmersiveTravel.models.RouteId")
+local elib               = require("ImmersiveTravelEditor.lib")
+local routesui           = require("ImmersiveTravelEditor.ui.routes")
+local portsui            = require("ImmersiveTravelEditor.ui.ports")
+local splinesui          = require("ImmersiveTravelEditor.ui.splines")
 
-local EEditorMode       = elib.EEditorMode
-local EMarkerType       = elib.EMarkerType
-local log               = elib.log
+local EEditorMode        = elib.EEditorMode
+local EMarkerType        = elib.EMarkerType
+local log                = elib.log
+local currentServiceName = elib.currentServiceName
+local currentEditorMode  = elib.currentEditorMode
 
-local this              = {}
+local this               = {}
 
-local editMenuId        = tes3ui.registerID("it:MenuEdit")
-
-local currentEditorMode = EEditorMode.Segments ---@type EEditorMode
-
+local editMenuId         = tes3ui.registerID("it:MenuEdit")
+local editMenuModeId     = tes3ui.registerID("it:MenuEdit_Mode")
+local editMenuRoutesId   = tes3ui.registerID("it:MenuEdit_Routes")
+local editMenuCancelId   = tes3ui.registerID("it:MenuEdit_Cancel")
 
 local function IsPortMode()
     return currentEditorMode == EEditorMode.Ports
 end
 
-local function IsRouteMode()
+local function IsSplineMode()
     return currentEditorMode == EEditorMode.Routes
 end
 
-local function IsSegmentsMode()
+local function IsRoutesMode()
     return currentEditorMode == EEditorMode.Segments
 end
 
@@ -73,6 +78,8 @@ function this.createEditWindow()
     if not currentServiceName then
         currentServiceName = table.keys(services)[1]
     end
+
+    local editorData = elib.editorData
     if editorData then currentServiceName = editorData.service.class end
     local service = services[currentServiceName]
     if not service then return end
@@ -90,25 +97,9 @@ function this.createEditWindow()
     menu.height = 500
     menu.text = "Editor"
     if editorData then
-        if IsRouteMode() then
+        if IsSplineMode() then
             menu.text = "Editor " .. editorData.start .. "_" ..
                 editorData.destination
-        end
-    end
-
-    -- additional
-    if IsRouteMode() and editorData then
-        -- display pins
-        local block = menu:createBlock {}
-        block.widthProportional = 1.0 -- width is 100% parent width
-        block.autoHeight = true
-
-        if editorData.pin1 then
-            block:createLabel { text = string.format("Pin 1: %s", editorData.pin1) }
-        end
-
-        if editorData.pin2 then
-            block:createLabel { text = string.format("Pin 2: %s", editorData.pin2) }
         end
     end
 
@@ -126,17 +117,19 @@ function this.createEditWindow()
     button_mode:register(tes3.uiEvent.mouseClick, function()
         local m = tes3ui.findMenu(editMenuId)
         if (m) then
-            if IsRouteMode() then
+            if IsSplineMode() then
                 currentEditorMode = EEditorMode.Segments
             elseif IsPortMode() then
                 currentEditorMode = EEditorMode.Routes
-            elseif IsSegmentsMode() then
+            elseif IsRoutesMode() then
                 currentEditorMode = EEditorMode.Ports
             end
 
-            cleanup()
+            elib.cleanup()
             m:destroy()
-            createEditWindow()
+            this.createEditWindow()
+
+            -- unregister all keydown events
         end
     end)
 
@@ -154,153 +147,20 @@ function this.createEditWindow()
             if nextIdx > #table.keys(services) then nextIdx = 1 end
             currentServiceName = table.keys(services)[nextIdx]
 
-            cleanup()
+            elib.cleanup()
             m:destroy()
-            createEditWindow()
+            this.createEditWindow()
         end
     end)
 
-    if IsRouteMode() or IsSegmentsMode() then
-        -- Teleport Start
-        local button_teleport = button_block:createButton {
-            id = editMenuTeleportId,
-            text = "Start"
-        }
-        button_teleport:register(tes3.uiEvent.mouseClick, function()
-            if not editorData then return end
-            if not editorData.editorNodes then return end
-
-            local m = tes3ui.findMenu(editMenuId)
-            if (m) then
-                if #editorData.editorNodes > 1 then
-                    tes3.positionCell({
-                        reference = tes3.mobilePlayer,
-                        position = editorData.editorNodes[1].translation
-                    })
-
-                    tes3ui.leaveMenuMode()
-                    m:destroy()
-                end
-            end
-        end)
-
-        -- Teleport End
-        local button_teleportEnd = button_block:createButton {
-            id = editMenuTeleportEndId,
-            text = "End"
-        }
-        button_teleportEnd:register(tes3.uiEvent.mouseClick, function()
-            if not editorData then return end
-            if not editorData.editorNodes then return end
-
-            local m = tes3ui.findMenu(editMenuId)
-            if (m) then
-                if #editorData.editorNodes > 1 then
-                    tes3.positionCell({
-                        reference = tes3.mobilePlayer,
-                        position = editorData.editorNodes[#editorData.editorNodes].translation
-                    })
-
-                    tes3ui.leaveMenuMode()
-                    m:destroy()
-                end
-            end
-        end)
+    -- add panels here
+    if IsRoutesMode() then
+        routesui.routesPanel(menu, this.createEditWindow)
+    elseif IsPortMode() then
+        portsui.portsPanel(menu, this.createEditWindow)
+    elseif IsSplineMode() then
+        splinesui.splinesPanel(menu, this.createEditWindow)
     end
-
-    if IsRouteMode() and editorData then
-        --- save to file
-        local button_save = button_block:createButton {
-            id = editMenuSaveId,
-            text = "Save"
-        }
-        button_save:register(tes3.uiEvent.mouseClick, function()
-            local tempSpline = GetSplineDto()
-
-            local current_editor_route = editorData.start .. "_" .. editorData.destination
-            local localmodpath = "mods\\ImmersiveTravelEditor"
-            local filename = string.format("%s\\%s\\%s", localmodpath, service.class, current_editor_route)
-            json.savefile(filename, tempSpline)
-
-            tes3.messageBox("saved spline: " .. current_editor_route)
-        end)
-
-        --- save to toml
-        local button_dump = button_block:createButton {
-            id = editMenuDumpId,
-            text = "Dump Segment"
-        }
-        button_dump:register(tes3.uiEvent.mouseClick, function()
-            -- pins
-            local minPin = nil
-            local maxPin = nil
-            if editorData.pin1 and editorData.pin2 then
-                minPin = math.min(editorData.pin1, editorData.pin2)
-                maxPin = math.max(editorData.pin1, editorData.pin2)
-            end
-
-
-            local tempSpline = GetSplineDto()
-            if tempSpline then
-                -- construct segments
-                local points = {} ---@type PositionRecord[]
-                for index, point in ipairs(tempSpline) do
-                    if minPin then
-                        if index < minPin then
-                            goto continue
-                        end
-                    end
-
-                    if maxPin then
-                        if index > maxPin then
-                            goto continue
-                        end
-                    end
-
-                    table.insert(points, point)
-
-                    ::continue::
-                end
-
-                local current_editor_route = editorData.start .. "_" .. editorData.destination
-                local localmodpath = "mods\\ImmersiveTravelEditor"
-                local filename = string.format("%s\\%s\\%s", localmodpath, service.class, current_editor_route)
-                local tfilename = "Data Files\\MWSE\\" .. filename .. ".toml"
-                ---@type SSegmentDto
-                local t = {
-                    id = current_editor_route,
-                    route1 = points
-                }
-                toml.saveFile(tfilename, t)
-
-                tes3.messageBox("saved spline: " .. current_editor_route)
-            end
-        end)
-
-        -- Display all splines and ports
-        local button_all = button_block:createButton {
-            id = editMenuAllId,
-            text = "All"
-        }
-        button_all:register(tes3.uiEvent.mouseClick, function()
-            local m = tes3ui.findMenu(editMenuId)
-            if (m) then
-                traceAll(service)
-            end
-        end)
-    end
-
-    -- Display all segments
-    local button_segments = button_block:createButton {
-        id = editMenuAllId,
-        text = "Show"
-    }
-    button_segments:register(tes3.uiEvent.mouseClick, function()
-        local m = tes3ui.findMenu(editMenuId)
-        if (m) then
-            traceAllSegments(service)
-        end
-    end)
 
     -- Leave Menu
     local button_exit = button_block:createButton {
@@ -308,14 +168,10 @@ function this.createEditWindow()
         text = "Exit"
     }
     button_exit:register(tes3.uiEvent.mouseClick, function()
-        local m = tes3ui.findMenu(editMenuId)
-        if (m) then
-            tes3ui.leaveMenuMode()
-            m:destroy()
-        end
+        tes3ui.leaveMenuMode()
+        menu:destroy()
     end)
 
-    tes3ui.acquireTextInput(input)
     menu:updateLayout()
     tes3ui.enterMenuMode(editMenuId)
 end
