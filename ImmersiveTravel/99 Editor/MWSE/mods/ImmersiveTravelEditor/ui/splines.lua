@@ -130,7 +130,6 @@ local function calculatePositions(mountData)
     end
 end
 
-
 ---@param service ServiceData
 local function traceRoute(service)
     if not GetEditorData() then return end
@@ -143,7 +142,9 @@ local function traceRoute(service)
 
     local routeId = RouteId:new(service.class, GetEditorData().start, GetEditorData().destination)
     local mountId = service:ResolveMountId(routeId)
-    log:debug("[%s] Tracing %s > %s", mountId, GetEditorData().start, GetEditorData().destination)
+
+    log:debug("[%s] Tracing %s", mountId, routeId)
+
     local mountData = interop.getVehicleStaticData(mountId)
     if not mountData then return end
     local startPort = service:GetPort(GetEditorData().start, mountId)
@@ -268,7 +269,7 @@ local function renderMarkers()
 
             -- start port
             if idx == 1 and startPort then
-                type = EMarkerType.Port
+                -- type = EMarkerType.Port
                 local m = tes3matrix33.new()
 
                 local x = math.rad(startPort:StartRot().x)
@@ -276,9 +277,9 @@ local function renderMarkers()
                 local z = math.rad(startPort:StartRot().z)
 
                 -- start from override instead
-                if startPort:HasStartRot() then
-                    type = EMarkerType.PortStart
-                end
+                -- if startPort:HasStartRot() then
+                --     type = EMarkerType.PortStart
+                -- end
 
                 m:fromEulerXYZ(x, y, z)
                 child.rotation = m
@@ -286,7 +287,7 @@ local function renderMarkers()
 
             -- destination port
             if idx == #spline and destinationPort then
-                type = EMarkerType.Port
+                -- type = EMarkerType.Port
                 local m = tes3matrix33.new()
 
                 local x = math.rad(destinationPort:EndRot().x)
@@ -500,9 +501,6 @@ local function deleteMarker()
     GetEditorData().currentMarker = nil
 end
 
---#endregion
-
-
 ---@return PositionRecord[]|nil
 local function GetSplineDto()
     if not GetEditorData() then return nil end
@@ -526,29 +524,31 @@ local function GetSplineDto()
 
     return tempSpline
 end
--- /////////////////////////////////////////////////////////////////////////////////////////
--- ////////////// EVENTS
 
 --- @param e keyDownEventData
 local function editor_keyDownCallback(e)
     -- pin
-    if e.keyCode == config.pinkeybind.keyCode then
+    if GetEditorData() and e.keyCode == config.pinkeybind.keyCode then
         pinMarker()
     end
 
     -- trace
-    if e.keyCode == config.tracekeybind.keyCode then
-        if GetEditorData() then traceRoute(GetEditorData().service) end
+    if GetEditorData() and e.keyCode == config.tracekeybind.keyCode then
+        traceRoute(GetEditorData().service)
     end
 end
+
+--#endregion
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// UI
 
-function this.splinesPanel(menu, reload)
+function this.unregisterEvents()
     event.unregister(tes3.event.keyDown, editor_keyDownCallback)
     event.unregister(tes3.event.simulated, simulatedCallback)
+end
 
+function this.splinesPanel(menu, reload)
     -- load services
     local services = GRoutesManager.GetServices()
     if not services then return end
@@ -591,9 +591,9 @@ function this.splinesPanel(menu, reload)
                 end
             end
 
-            local text = start .. " - " .. destination
+            local text = start .. "-" .. destination
             local button = pane:createButton {
-                id = "button_spline" .. text,
+                id = "button_spline_" .. text,
                 text = text
             }
             button:register(tes3.uiEvent.mouseClick, function()
@@ -623,7 +623,6 @@ function this.splinesPanel(menu, reload)
         return a.text < b.text
     end)
 
-    -- additional
     -- display pins
     local block = menu:createBlock {}
     block.widthProportional = 1.0 -- width is 100% parent width
@@ -637,14 +636,11 @@ function this.splinesPanel(menu, reload)
         block:createLabel { text = string.format("Pin 2: %s", GetEditorData().pin2) }
     end
 
-
     -- buttons
     local button_block = menu:createBlock {}
     button_block.widthProportional = 1.0 -- width is 100% parent width
     button_block.autoHeight = true
     button_block.childAlignX = 1.0       -- right content alignment
-
-
 
     -- Teleport Start
     local button_teleport = button_block:createButton {

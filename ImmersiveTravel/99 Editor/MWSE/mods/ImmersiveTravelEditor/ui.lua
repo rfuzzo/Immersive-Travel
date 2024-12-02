@@ -64,10 +64,21 @@ local function Reload()
     end
 end
 
+local function unregisterEvents()
+    if IsSplineMode() then
+        splinesui.unregisterEvents()
+    elseif IsPortMode() then
+        portsui.unregisterEvents()
+    elseif IsRoutesMode() then
+        routesui.unregisterEvents()
+    end
+end
+
 function this.createEditWindow()
     -- Return if window is already open
     if (tes3ui.findMenu(editMenuId) ~= nil) then return end
 
+    unregisterEvents()
     Reload()
 
     -- load services
@@ -104,7 +115,6 @@ function this.createEditWindow()
     end
 
     -- main panel
-    -- add panels here
     if IsRoutesMode() then
         routesui.routesPanel(menu, this.createEditWindow)
     elseif IsPortMode() then
@@ -128,6 +138,8 @@ function this.createEditWindow()
     button_mode:register(tes3.uiEvent.mouseClick, function()
         local m = tes3ui.findMenu(editMenuId)
         if (m) then
+            unregisterEvents()
+
             if IsSplineMode() then
                 currentEditorMode = EEditorMode.Segments
             elseif IsPortMode() then
@@ -170,6 +182,7 @@ function this.createEditWindow()
         text = "Exit"
     }
     button_exit:register(tes3.uiEvent.mouseClick, function()
+        unregisterEvents()
         tes3ui.leaveMenuMode()
         menu:destroy()
     end)

@@ -27,6 +27,10 @@ local log              = elib.log
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// UI
 
+function this.unregisterEvents()
+
+end
+
 function this.portsPanel(menu, reload)
     -- load services
     local services = GRoutesManager.GetServices()

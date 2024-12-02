@@ -488,10 +488,12 @@ end
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// UI
 
-function this.routesPanel(menu, reload)
+function this.unregisterEvents()
     event.unregister(tes3.event.keyDown, editor_keyDownCallback)
     event.unregister(tes3.event.simulated, simulatedCallback)
+end
 
+function this.routesPanel(menu, reload)
     -- load services
     local services = GRoutesManager.GetServices()
     if not services then return end
@@ -543,9 +545,9 @@ function this.routesPanel(menu, reload)
                 end
             end
 
-            local text = start .. " - " .. destination
+            local text = start .. "-" .. destination
             local button = pane:createButton {
-                id = "button_sspline" .. text,
+                id = "button_route_" .. text,
                 text = text
             }
             button:register(tes3.uiEvent.mouseClick, function()
