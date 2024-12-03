@@ -12,9 +12,6 @@ local this             = {}
 
 local portMenuSearchId = tes3ui.registerID("it:MenuPort_Search")
 
--- preview
-local preview          = nil ---@type SPreviewData | nil
-
 -- editor
 local editmode         = false
 local filter_text      = ""
@@ -57,7 +54,7 @@ function this.portsPanel(menu, reload)
     end)
 
     -- Create layout
-    local label = menu:createLabel { text = "Loaded routes (" .. elib.currentServiceName .. ")" }
+    local label = menu:createLabel { text = "Ports (" .. elib.currentServiceName .. ")" }
     label.borderBottom = 5
 
     -- get destinations
@@ -104,7 +101,6 @@ function this.portsPanel(menu, reload)
     local button_block = menu:createBlock {}
     button_block.widthProportional = 1.0 -- width is 100% parent width
     button_block.autoHeight = true
-    button_block.childAlignX = 1.0       -- right content alignment
 
     tes3ui.acquireTextInput(input)
 end

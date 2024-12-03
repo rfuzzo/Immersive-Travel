@@ -6,18 +6,6 @@ local ui     = require("ImmersiveTravelEditor.ui")
 local config = require("ImmersiveTravelEditor.config")
 if not config then return end
 
---[[
-Current Usage (Debug)
-- Open route editor 						... R-Ctrl
-- move a marker 							... L-Ctrl
-- delete a marker 							... Del
-- exit edit mode 							... L-Ctrl
-- add a marker								... >
-- start traveling            		        ... <
-
---]]
-
-
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// EVENTS
 

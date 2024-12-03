@@ -519,47 +519,41 @@ function this.routesPanel(menu, reload)
     end)
 
     -- Create layout
-    local label = menu:createLabel { text = "Routes (" .. elib.currentServiceName .. ")" }
+    local label        = menu:createLabel { text = "Routes (" .. elib.currentServiceName .. ")" }
     label.borderBottom = 5
 
     -- local main_panel = menu:createThinBorder({ id = "main_panel" })
 
     -- get destinations
-    local pane = menu:createVerticalScrollPane { id = "sortedPane" }
+    local pane         = menu:createVerticalScrollPane { id = "sortedPane" }
     -- list all segments
-    local serviceDestinations = elib.destinations[elib.currentServiceName]
-    for start, routeDestinations in pairs(serviceDestinations) do
-        for _, destination in ipairs(routeDestinations) do
-            -- check if route exists
-            local routeId = RouteId:new(service.class, start, destination)
-            local route = service:GetRoute(routeId)
-            if not route then
+
+    for _, route in pairs(service.routes) do
+        local start = route.id.start
+        local destination = route.id.destination
+
+        -- filter
+        local filter = filter_text:lower()
+        if filter_text ~= "" then
+            if (not string.find(start:lower(), filter) and not string.find(destination:lower(), filter)) then
                 goto continue
             end
+        end
 
-            -- filter
-            local filter = filter_text:lower()
-            if filter_text ~= "" then
-                if (not string.find(start:lower(), filter) and not string.find(destination:lower(), filter)) then
-                    goto continue
-                end
+        local text = start .. "-" .. destination
+        local button = pane:createButton {
+            id = "button_route_" .. text,
+            text = text
+        }
+        button:register(tes3.uiEvent.mouseClick, function()
+            if not GetEditorData() then
+                traceAllSegments(service)
             end
 
-            local text = start .. "-" .. destination
-            local button = pane:createButton {
-                id = "button_route_" .. text,
-                text = text
-            }
-            button:register(tes3.uiEvent.mouseClick, function()
-                if not GetEditorData() then
-                    traceAllSegments(service)
-                end
+            traceRouteNew(start, destination)
+        end)
 
-                traceRouteNew(start, destination)
-            end)
-
-            ::continue::
-        end
+        ::continue::
     end
     pane:getContentElement():sortChildren(function(a, b)
         return a.text < b.text
@@ -569,7 +563,6 @@ function this.routesPanel(menu, reload)
     local button_block = menu:createBlock {}
     button_block.widthProportional = 1.0 -- width is 100% parent width
     button_block.autoHeight = true
-    button_block.childAlignX = 1.0       -- right content alignment
 
     -- Teleport Start
     local button_teleport = button_block:createButton {

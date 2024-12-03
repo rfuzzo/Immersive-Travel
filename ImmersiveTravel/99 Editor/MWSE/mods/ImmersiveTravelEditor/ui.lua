@@ -17,8 +17,10 @@ local currentEditorMode  = elib.currentEditorMode
 local this               = {}
 
 local editMenuId         = tes3ui.registerID("it:MenuEdit")
-local editMenuModeId     = tes3ui.registerID("it:MenuEdit_Mode")
 local editMenuRoutesId   = tes3ui.registerID("it:MenuEdit_Routes")
+local editMenuSplinesId  = tes3ui.registerID("it:MenuEdit_Splines")
+local editMenuPortsId    = tes3ui.registerID("it:MenuEdit_Ports")
+local editMenuServicesId = tes3ui.registerID("it:MenuEdit_Services")
 local editMenuCancelId   = tes3ui.registerID("it:MenuEdit_Cancel")
 
 local function IsPortMode()
@@ -26,42 +28,15 @@ local function IsPortMode()
 end
 
 local function IsSplineMode()
-    return currentEditorMode == EEditorMode.Routes
+    return currentEditorMode == EEditorMode.Splines
 end
 
 local function IsRoutesMode()
-    return currentEditorMode == EEditorMode.Segments
+    return currentEditorMode == EEditorMode.Routes
 end
 
 local function Reload()
     GRoutesManager.getInstance():Init()
-
-    log:debug("Reloading debug splines")
-    local services = GRoutesManager.GetServices()
-    if not services then return end
-
-    elib.splines = {}
-    elib.destinations = {}
-
-    for serviceName, service in pairs(services) do
-        local serviceDestinations = elib.loadRoutes(service)
-        elib.destinations[serviceName] = serviceDestinations
-
-        for start, currentDestinations in pairs(serviceDestinations) do
-            for _, destination in ipairs(currentDestinations) do
-                local spline = elib.loadSpline(start, destination, service)
-                if spline then
-                    -- save route in memory
-                    local routeId = RouteId:new(service.class, start, destination)
-                    elib.splines[routeId:ToString()] = spline
-
-                    log:debug("\t\tAdding spline '%s'", routeId)
-                else
-                    log:warn("No spline found for %s -> %s", start, destination)
-                end
-            end
-        end
-    end
 end
 
 local function unregisterEvents()
@@ -114,6 +89,52 @@ function this.createEditWindow()
         end
     end
 
+    -- tabsBlock
+    local tab_block = menu:createBlock {}
+    tab_block.widthProportional = 1.0 -- width is 100% parent width
+    tab_block.autoHeight = true
+
+    -- Switch mode
+    local button_routes = tab_block:createButton {
+        id = editMenuRoutesId,
+        text = "Routes"
+    }
+    local button_splines = tab_block:createButton {
+        id = editMenuSplinesId,
+        text = "Splines"
+    }
+    local button_ports = tab_block:createButton {
+        id = editMenuPortsId,
+        text = "Ports"
+    }
+    button_routes:register(tes3.uiEvent.mouseClick, function()
+        if not IsRoutesMode() then
+            currentEditorMode = EEditorMode.Routes
+
+            elib.cleanup()
+            menu:destroy()
+            this.createEditWindow()
+        end
+    end)
+    button_splines:register(tes3.uiEvent.mouseClick, function()
+        if not IsSplineMode() then
+            currentEditorMode = EEditorMode.Splines
+
+            elib.cleanup()
+            menu:destroy()
+            this.createEditWindow()
+        end
+    end)
+    button_ports:register(tes3.uiEvent.mouseClick, function()
+        if not IsPortMode() then
+            currentEditorMode = EEditorMode.Ports
+
+            elib.cleanup()
+            menu:destroy()
+            this.createEditWindow()
+        end
+    end)
+
     -- main panel
     if IsRoutesMode() then
         routesui.routesPanel(menu, this.createEditWindow)
@@ -130,35 +151,9 @@ function this.createEditWindow()
     button_block.autoHeight = true
     button_block.childAlignX = 1.0       -- right content alignment
 
-    -- Switch mode
-    local button_mode = button_block:createButton {
-        id = editMenuModeId,
-        text = "Mode: " .. elib.ToString(currentEditorMode)
-    }
-    button_mode:register(tes3.uiEvent.mouseClick, function()
-        local m = tes3ui.findMenu(editMenuId)
-        if (m) then
-            unregisterEvents()
-
-            if IsSplineMode() then
-                currentEditorMode = EEditorMode.Segments
-            elseif IsPortMode() then
-                currentEditorMode = EEditorMode.Routes
-            elseif IsRoutesMode() then
-                currentEditorMode = EEditorMode.Ports
-            end
-
-            elib.cleanup()
-            m:destroy()
-            this.createEditWindow()
-
-            -- unregister all keydown events
-        end
-    end)
-
     -- Switch service
     local button_service = button_block:createButton {
-        id = editMenuRoutesId,
+        id = editMenuServicesId,
         text = currentServiceName
     }
     button_service:register(tes3.uiEvent.mouseClick, function()
@@ -182,7 +177,6 @@ function this.createEditWindow()
         text = "Exit"
     }
     button_exit:register(tes3.uiEvent.mouseClick, function()
-        unregisterEvents()
         tes3ui.leaveMenuMode()
         menu:destroy()
     end)

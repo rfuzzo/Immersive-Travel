@@ -18,7 +18,8 @@ local editMenuSaveId        = tes3ui.registerID("it:MenuSplines_Save")
 local editMenuDumpId        = tes3ui.registerID("it:MenuSplines_Dump")
 
 -- preview
-local preview               = nil ---@type SPreviewData | nil
+local destinations          = {} ---@type table<string,table<string, string[]>> -- start -> destination[] per service
+local splines               = {} ---@type table<string, tes3vector3[]> -- routeId -> spline
 
 -- editor
 local editmode              = false
@@ -253,54 +254,17 @@ local function renderMarkers()
     GetEditorData().editorNodes = {}
 
     local routeId = RouteId:new(GetEditorData().service.class, GetEditorData().start, GetEditorData().destination)
-    local mountId = GetEditorData().service:ResolveMountId(routeId)
-    local startPort = GetEditorData().service:GetPort(GetEditorData().start, mountId)
-    local destinationPort = GetEditorData().service:GetPort(GetEditorData().destination, mountId)
+    --local mountId = GetEditorData().service:ResolveMountId(routeId)
 
     -- add markers
     local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-    local spline = elib.splines[routeId:ToString()]
+    local spline = splines[routeId:ToString()]
     for idx, v in ipairs(spline) do
         local child = elib.editorMarkerMesh:clone()
 
-        -- first and last marker are ports with fixed markers
-        if idx == 1 or idx == #spline then
-            child = elib.portMarkerMesh:clone()
-
-            -- start port
-            if idx == 1 and startPort then
-                -- type = EMarkerType.Port
-                local m = tes3matrix33.new()
-
-                local x = math.rad(startPort:StartRot().x)
-                local y = math.rad(startPort:StartRot().y)
-                local z = math.rad(startPort:StartRot().z)
-
-                -- start from override instead
-                -- if startPort:HasStartRot() then
-                --     type = EMarkerType.PortStart
-                -- end
-
-                m:fromEulerXYZ(x, y, z)
-                child.rotation = m
-            end
-
-            -- destination port
-            if idx == #spline and destinationPort then
-                -- type = EMarkerType.Port
-                local m = tes3matrix33.new()
-
-                local x = math.rad(destinationPort:EndRot().x)
-                local y = math.rad(destinationPort:EndRot().y)
-                local z = math.rad(destinationPort:EndRot().z)
-
-                m:fromEulerXYZ(x, y, z)
-                child.rotation = m
-            end
-        end
-
         child.translation = tes3vector3.new(v.x, v.y, v.z)
         child.appCulled = false
+        child.name = string.format("rf_marker_%d", idx)
 
         vfxRoot:attachChild(child)
 
@@ -309,11 +273,11 @@ local function renderMarkers()
 
     updateMarkers()
 
-    renderAdditionalMarkers(startPort, destinationPort)
+    -- renderAdditionalMarkers(startPort, destinationPort)
 
-    if config.traceOnSave then
-        traceRoute(GetEditorData().service)
-    end
+    -- if config.traceOnSave then
+    --     traceRoute(GetEditorData().service)
+    -- end
 end
 
 ---@param service ServiceData
@@ -324,7 +288,7 @@ local function traceAll(service)
     vfxRoot:detachAllChildren()
 
     for routeIdString, route in pairs(service.routes) do
-        local spline = elib.splines[routeIdString]
+        local spline = splines[routeIdString]
         if spline then
             -- render points
             elib.editorData = {
@@ -348,6 +312,115 @@ local function traceAll(service)
     elib.editorData = nil
 
     vfxRoot:update()
+end
+
+--- load json spline from file
+---@param start string
+---@param destination string
+---@param service ServiceData
+---@return tes3vector3[]|nil
+local function loadSpline(start, destination, service)
+    local fileName = start .. "_" .. destination
+
+    local localmodpath = "mods\\ImmersiveTravelEditor"
+    local filePath = string.format("%s\\%s\\%s", localmodpath, service.class, fileName)
+
+    if tes3.getFileExists("MWSE\\" .. filePath .. ".json") then
+        local dto = json.loadfile(filePath) ---@type PositionRecord[]?
+        if dto ~= nil then
+            -- convert to tes3vector3[]
+            local result = {} ---@type tes3vector3[]
+            for i, pos in ipairs(dto) do
+                result[i] = PositionRecord.ToVec(pos)
+            end
+
+            return result
+        else
+            log:error("!!! failed to find file: %s", filePath)
+            return nil
+        end
+    else
+        log:error("!!! failed to find any file: " .. fileName)
+    end
+end
+
+
+--- Load all route splines for a given service
+---@param service ServiceData
+---@return table<string, string[]>
+local function loadRoutes(service)
+    local map = {} ---@type table<string, table>
+
+    local fullmodpath = "Data Files\\MWSE\\mods\\ImmersiveTravelEditor"
+    for file in lfs.dir(fullmodpath .. "\\" .. service.class) do
+        if (string.endswith(file, ".json")) then
+            local split = string.split(file:sub(0, -6), "_")
+            if #split == 2 then
+                local start = ""
+                local destination = ""
+
+                for i, id in ipairs(split) do
+                    if i == 1 then
+                        start = id
+                    else
+                        destination = id
+                    end
+                end
+
+                local result = table.get(map, start, nil)
+                if not result then
+                    local v = {}
+                    v[destination] = 1
+                    map[start] = v
+                else
+                    result[destination] = 1
+                    map[start] = result
+                end
+            end
+        end
+    end
+
+    local r = {} ---@type table<string, string[]>
+    for key, value in pairs(map) do
+        local v = {} ---@type string[]
+        for d, _ in pairs(value) do
+            table.insert(v, d)
+        end
+        r[key] = v
+    end
+
+    return r
+end
+
+
+local function ReloadSplines()
+    log:debug("Reloading debug splines")
+
+    local services = GRoutesManager.GetServices()
+    if not services then return end
+
+    splines = {}
+    destinations = {}
+
+    for serviceName, service in pairs(services) do
+        local serviceDestinations = loadRoutes(service)
+        destinations[serviceName] = serviceDestinations
+
+        for start, currentDestinations in pairs(serviceDestinations) do
+            for _, destination in ipairs(currentDestinations) do
+                local spline = loadSpline(start, destination, service)
+                if spline then
+                    -- save route in memory
+                    local routeId = RouteId:new(service.class, start, destination)
+                    splines[routeId:ToString()] = spline
+
+                    log:debug("\t\tAdding spline '%s'", routeId)
+                else
+                    log:warn("No spline found for %s -> %s", start, destination)
+                end
+            end
+        end
+    end
 end
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
@@ -428,9 +501,9 @@ local function editMarker()
     else
         updateMarkers()
 
-        if config.traceOnSave then
-            traceRoute(GetEditorData().service)
-        end
+        -- if config.traceOnSave then
+        --     traceRoute(GetEditorData().service)
+        -- end
     end
 
     tes3.worldController.vfxManager.worldVFXRoot:update()
@@ -494,9 +567,9 @@ local function deleteMarker()
 
     table.remove(GetEditorData().editorNodes, idx)
 
-    if GetEditorData() and config.traceOnSave then
-        traceRoute(GetEditorData().service)
-    end
+    -- if GetEditorData() and config.traceOnSave then
+    --     traceRoute(GetEditorData().service)
+    -- end
 
     GetEditorData().currentMarker = nil
 end
@@ -533,8 +606,40 @@ local function editor_keyDownCallback(e)
     end
 
     -- trace
-    if GetEditorData() and e.keyCode == config.tracekeybind.keyCode then
-        traceRoute(GetEditorData().service)
+    -- if GetEditorData() and e.keyCode == config.tracekeybind.keyCode then
+    --     traceRoute(GetEditorData().service)
+    -- end
+end
+
+--- @param e mouseButtonDownEventData
+local function mouseButtonDownCallback(e)
+    if e.button ~= 0 then
+        return
+    end
+
+    if not GetEditorData() then return end
+    if not GetEditorData().editorNodes then return end
+
+    -- find the marker under the mouse cursor
+    local ray = tes3.rayTest({
+        position = tes3.getPlayerEyePosition(),
+        direction = tes3.getPlayerEyeVector(),
+        root = tes3.worldController.vfxManager.worldVFXRoot
+    })
+
+    if ray then
+        debug.log(ray.object)
+        debug.log(ray.object.name)
+
+        tes3.messageBox("obj")
+
+        for idx, marker in ipairs(GetEditorData().editorNodes) do
+            if marker == ray.object then
+                GetEditorData().currentNode = marker
+                tes3.messageBox("Marker index: " .. idx)
+                return
+            end
+        end
     end
 end
 
@@ -546,6 +651,7 @@ end
 function this.unregisterEvents()
     event.unregister(tes3.event.keyDown, editor_keyDownCallback)
     event.unregister(tes3.event.simulated, simulatedCallback)
+    event.unregister(tes3.event.mouseButtonDown, mouseButtonDownCallback)
 end
 
 function this.splinesPanel(menu, reload)
@@ -561,6 +667,8 @@ function this.splinesPanel(menu, reload)
     local service = services[elib.currentServiceName]
     if not service then return end
 
+    ReloadSplines()
+
     local input = menu:createTextInput { text = filter_text, id = editMenuSearchId }
     input.widget.lengthLimit = 31
     input.widget.eraseOnFirstKey = true
@@ -573,14 +681,14 @@ function this.splinesPanel(menu, reload)
     end)
 
     -- Create layout
-    local label = menu:createLabel { text = "Loaded routes (" .. elib.currentServiceName .. ")" }
+    local label = menu:createLabel { text = "Splines (" .. elib.currentServiceName .. ")" }
     label.borderBottom = 5
 
     -- get destinations
     local pane = menu:createVerticalScrollPane { id = "sortedPane" }
 
     -- list all routes
-    local serviceDestinations = elib.destinations[elib.currentServiceName]
+    local serviceDestinations = destinations[elib.currentServiceName]
     for start, routeDestinations in pairs(serviceDestinations) do
         for _, destination in ipairs(routeDestinations) do
             -- filter
@@ -640,7 +748,6 @@ function this.splinesPanel(menu, reload)
     local button_block = menu:createBlock {}
     button_block.widthProportional = 1.0 -- width is 100% parent width
     button_block.autoHeight = true
-    button_block.childAlignX = 1.0       -- right content alignment
 
     -- Teleport Start
     local button_teleport = button_block:createButton {
@@ -764,6 +871,7 @@ function this.splinesPanel(menu, reload)
 
     event.register(tes3.event.keyDown, editor_keyDownCallback)
     event.register(tes3.event.simulated, simulatedCallback)
+    event.register(tes3.event.mouseButtonDown, mouseButtonDownCallback)
 end
 
 return this
