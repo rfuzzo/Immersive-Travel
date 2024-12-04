@@ -32,6 +32,10 @@ local function editloadCallback(e)
 
     elib.arrowz = tes3.loadMesh("mwse\\widget_arrow_z.nif"):clone()
 
+    local node = niNode.new()
+    tes3.game.worldRoot:attachChild(node)
+    elib.debugRoot = node
+
     elib.cleanup()
 end
 event.register(tes3.event.load, editloadCallback)

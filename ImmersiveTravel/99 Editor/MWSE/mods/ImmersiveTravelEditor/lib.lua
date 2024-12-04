@@ -98,6 +98,8 @@ this.arrows           = {} ---@type niNode[]
 this.arrow            = nil ---@type niNode?
 this.arrowz           = nil ---@type niNode?
 
+this.debugRoot        = nil ---@type niNode?
+
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// FUNCTIONS

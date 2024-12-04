@@ -69,24 +69,22 @@ local function getClosestNodeIdx(ignoreConnections)
         return nil
     end
 
-    -- if the first then get the second
-    if final_idx == 1 then
-        final_idx = 2
-    end
-    -- if the last then get the second last
-    if final_idx == #GetEditorData().editorNodes then
-        final_idx = #GetEditorData().editorNodes - 1
-    end
+    -- -- if the first then get the second
+    -- if final_idx == 1 then
+    --     final_idx = 2
+    -- end
+    -- -- if the last then get the second last
+    -- if final_idx == #GetEditorData().editorNodes then
+    --     final_idx = #GetEditorData().editorNodes - 1
+    -- end
 
-
-    return nil
+    return final_idx
 end
 
 
 ---@param startPort PortData?
 ---@param destinationPort PortData?
 local function renderAdditionalMarkers(startPort, destinationPort)
-    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
     if not elib.portMarkerMesh then return nil end
 
     -- -- render start maneuvre
@@ -100,8 +98,8 @@ local function renderAdditionalMarkers(startPort, destinationPort)
         m:fromEulerXYZ(x, y, z)
         child.rotation = m
         child.appCulled = false
-        vfxRoot:attachChild(child)
-        tes3.worldController.vfxManager.worldVFXRoot:update()
+        elib.debugRoot:attachChild(child)
+        elib.debugRoot:update()
     end
 end
 
@@ -137,8 +135,7 @@ local function traceRoute(service)
     if not GetEditorData().editorNodes then return end
     if #GetEditorData().editorNodes < 2 then return end
 
-    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-    for _, value in ipairs(elib.arrows) do vfxRoot:detachChild(value) end
+    for _, value in ipairs(elib.arrows) do elib.debugRoot:detachChild(value) end
     elib.arrows = {}
 
     local routeId = RouteId:new(service.class, GetEditorData().start, GetEditorData().destination)
@@ -221,10 +218,10 @@ local function traceRoute(service)
 
     -- vfx
     for _, child in ipairs(elib.arrows) do
-        vfxRoot:attachChild(child)
+        elib.debugRoot:attachChild(child)
     end
 
-    vfxRoot:update()
+    elib.debugRoot:update()
 end
 
 local function updateMarkers()
@@ -243,7 +240,7 @@ local function updateMarkers()
         end
     end
 
-    tes3.worldController.vfxManager.worldVFXRoot:update()
+    elib.debugRoot:update()
 end
 
 local function renderMarkers()
@@ -257,7 +254,6 @@ local function renderMarkers()
     --local mountId = GetEditorData().service:ResolveMountId(routeId)
 
     -- add markers
-    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
     local spline = splines[routeId:ToString()]
     for idx, v in ipairs(spline) do
         local child = elib.editorMarkerMesh:clone()
@@ -266,7 +262,7 @@ local function renderMarkers()
         child.appCulled = false
         child.name = string.format("rf_marker_%d", idx)
 
-        vfxRoot:attachChild(child)
+        elib.debugRoot:attachChild(child)
 
         GetEditorData().editorNodes[idx] = child
     end
@@ -284,8 +280,7 @@ end
 local function traceAll(service)
     elib.arrows = {}
 
-    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-    vfxRoot:detachAllChildren()
+    elib.debugRoot:detachAllChildren()
 
     for routeIdString, route in pairs(service.routes) do
         local spline = splines[routeIdString]
@@ -311,7 +306,7 @@ local function traceAll(service)
 
     elib.editorData = nil
 
-    vfxRoot:update()
+    elib.debugRoot:update()
 end
 
 --- load json spline from file
@@ -468,9 +463,8 @@ local function insertMarker()
     local child = elib.editorMarkerMesh:clone()
     child.translation = from
     child.appCulled = false
-    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-    vfxRoot:attachChild(child)
-    vfxRoot:update()
+    elib.debugRoot:attachChild(child)
+    elib.debugRoot:update()
 
     -- new index is +1 if not last idx, else last idx - 1
     local newIdx = idx
@@ -506,8 +500,34 @@ local function editMarker()
         -- end
     end
 
-    tes3.worldController.vfxManager.worldVFXRoot:update()
+    elib.debugRoot:update()
     editmode = not editmode
+end
+
+---@param i number
+local function unpin(i)
+    if not GetEditorData() then return end
+    if not GetEditorData().editorNodes then return end
+
+    if i == 1 then
+        if GetEditorData().pin1 then
+            -- unpin
+            local marker = GetEditorData().editorNodes[GetEditorData().pin1]
+            marker.scale = 1
+            marker:update()
+            GetEditorData().pin1 = nil
+        end
+    end
+
+    if i == 2 then
+        if GetEditorData().pin2 then
+            -- unpin
+            local marker = GetEditorData().editorNodes[GetEditorData().pin2]
+            marker.scale = 1
+            marker:update()
+            GetEditorData().pin2 = nil
+        end
+    end
 end
 
 local function pinMarker()
@@ -517,23 +537,32 @@ local function pinMarker()
     local idx = getClosestNodeIdx()
     local marker = GetEditorData().editorNodes[idx]
     if marker then
+        log:debug("On Pin marker")
+
         if marker == GetEditorData().pin1 then
-            marker.scale = 1
-            marker:update()
-            GetEditorData().pin1 = nil
+            unpin(1)
         elseif marker == GetEditorData().pin2 then
-            marker.scale = 1
-            marker:update()
-            GetEditorData().pin2 = nil
+            unpin(2)
         else
             if not GetEditorData().pin1 then
                 GetEditorData().pin1 = idx
                 marker.scale = 1.5
                 marker:update()
+
+                -- draw line pointing up
+                local id = "rf_pin1"
+                local from = marker.translation
+                local to = from + tes3vector3.new(0, 0, 1024 * 8)
+                elib.createLine(id, from, to)
             elseif not GetEditorData().pin2 then
                 GetEditorData().pin2 = idx
                 marker.scale = 1.5
                 marker:update()
+
+                local id = "rf_pin1"
+                local from = marker.translation
+                local to = from + tes3vector3.new(0, 0, 1024 * 8)
+                elib.createLine(id, from, to)
             end
         end
     end
@@ -561,9 +590,8 @@ local function deleteMarker()
     updateMarkers()
 
     local instance = GetEditorData().editorNodes[idx]
-    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-    vfxRoot:detachChild(instance)
-    vfxRoot:update()
+    elib.debugRoot:detachChild(instance)
+    elib.debugRoot:update()
 
     table.remove(GetEditorData().editorNodes, idx)
 
@@ -624,14 +652,15 @@ local function mouseButtonDownCallback(e)
     local ray = tes3.rayTest({
         position = tes3.getPlayerEyePosition(),
         direction = tes3.getPlayerEyeVector(),
-        root = tes3.worldController.vfxManager.worldVFXRoot
+        root = elib.debugRoot,
+        ignore = {}
     })
 
     if ray then
         debug.log(ray.object)
         debug.log(ray.object.name)
 
-        tes3.messageBox("obj")
+        tes3.messageBox(ray.object.name)
 
         for idx, marker in ipairs(GetEditorData().editorNodes) do
             if marker == ray.object then
@@ -717,8 +746,7 @@ function this.splinesPanel(menu, reload)
                     currentMarker = nil
                 }
 
-                local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-                vfxRoot:detachAllChildren()
+                elib.debugRoot:detachAllChildren()
 
                 renderMarkers()
             end)
@@ -737,11 +765,21 @@ function this.splinesPanel(menu, reload)
     block.autoHeight = true
 
     if GetEditorData() and GetEditorData().pin1 then
-        block:createLabel { text = string.format("Pin 1: %s", GetEditorData().pin1) }
+        local pin1button = block:createButton {
+            text = string.format("Pin 1: %s", GetEditorData().pin1)
+        }
+        pin1button:register(tes3.uiEvent.mouseClick, function()
+            unpin(1)
+        end)
     end
 
     if GetEditorData() and GetEditorData().pin2 then
-        block:createLabel { text = string.format("Pin 2: %s", GetEditorData().pin2) }
+        local pin2button = block:createButton {
+            text = string.format("Pin 2: %s", GetEditorData().pin2)
+        }
+        pin2button:register(tes3.uiEvent.mouseClick, function()
+            unpin(2)
+        end)
     end
 
     -- buttons
