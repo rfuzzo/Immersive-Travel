@@ -37,6 +37,8 @@ end
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// EDITOR
 
+--#region editor
+
 ---@param ignoreConnections boolean?
 ---@return number?
 local function getClosestNodeIdx(ignoreConnections)
@@ -339,7 +341,6 @@ local function loadSpline(start, destination, service)
     end
 end
 
-
 --- Load all route splines for a given service
 ---@param service ServiceData
 ---@return table<string, string[]>
@@ -409,7 +410,7 @@ local function ReloadSplines()
                     local routeId = RouteId:new(service.class, start, destination)
                     splines[routeId:ToString()] = spline
 
-                    log:debug("\t\tAdding spline '%s'", routeId)
+                    -- log:debug("\t\tAdding spline '%s'", routeId)
                 else
                     log:warn("No spline found for %s -> %s", start, destination)
                 end
@@ -417,6 +418,109 @@ local function ReloadSplines()
         end
     end
 end
+
+---@return PositionRecord[]|nil
+local function GetSplineDto()
+    if not GetEditorData() then return nil end
+    if not GetEditorData().editorNodes then return nil end
+
+    local tempSpline = {} ---@type PositionRecord[]
+    for i, value in ipairs(GetEditorData().editorNodes) do
+        local t = value.translation
+
+        -- save currently edited markers back to spline
+        table.insert(tempSpline, i, {
+            x = math.round(t.x),
+            y = math.round(t.y),
+            z = math.round(t.z)
+        })
+    end
+
+    -- remove first and last marker (these are the ports)
+    table.remove(tempSpline, 1)
+    table.remove(tempSpline, #tempSpline)
+
+    return tempSpline
+end
+
+---@param service ServiceData?
+local function dumpSegment(service)
+    if not service then
+        return
+    end
+
+    -- pins
+    local minPin = nil
+    local maxPin = nil
+    if GetEditorData().pin1 and GetEditorData().pin2 then
+        minPin = math.min(GetEditorData().pin1, GetEditorData().pin2)
+        maxPin = math.max(GetEditorData().pin1, GetEditorData().pin2)
+    end
+
+    local startName = GetEditorData().start
+    if minPin then
+        local pin = GetEditorData().editorNodes[minPin]
+        local cell = tes3.getCell({ position = pin.translation })
+        startName = cell.id
+    end
+    local endName = GetEditorData().destination
+    if maxPin then
+        local pin = GetEditorData().editorNodes[maxPin]
+        local cell = tes3.getCell({ position = pin.translation })
+        endName = cell.id
+    end
+
+    local tempSpline = GetSplineDto()
+    if tempSpline then
+        -- construct segments
+        local points = {} ---@type PositionRecord[]
+        for index, point in ipairs(tempSpline) do
+            if minPin then
+                if index < minPin then
+                    goto continue
+                end
+            end
+
+            if maxPin then
+                if index > maxPin then
+                    goto continue
+                end
+            end
+
+            table.insert(points, point)
+
+            ::continue::
+        end
+
+        local current_editor_route = GetEditorData().start .. "_" .. GetEditorData().destination
+        local localmodpath = "mods\\ImmersiveTravelEditor"
+        local filename = string.format("%s\\%s\\%s-%s", localmodpath, service.class, startName, endName)
+
+        tes3ui.showMessageMenu {
+            message = startName .. " - " .. endName,
+            buttons = {
+                {
+                    text = "Save",
+                    callback = function(e)
+                        -- save
+                        local tfilename = "Data Files\\MWSE\\" .. filename .. ".toml"
+                        ---@type SSegmentDto
+                        local t = {
+                            id = current_editor_route,
+                            route1 = points
+                        }
+                        toml.saveFile(tfilename, t)
+
+                        tes3.messageBox("saved spline: " .. current_editor_route)
+                    end,
+                },
+            },
+            cancels = true
+        }
+    end
+end
+
+--#endregion
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// EVENTS
@@ -516,6 +620,12 @@ local function unpin(i)
             marker.scale = 1
             marker:update()
             GetEditorData().pin1 = nil
+
+            local root = tes3.worldController.vfxManager.worldVFXRoot
+            local line = root:getObjectByName("rf_pin1")
+            if line then
+                root:detachChild(line)
+            end
         end
     end
 
@@ -526,22 +636,27 @@ local function unpin(i)
             marker.scale = 1
             marker:update()
             GetEditorData().pin2 = nil
+
+            local root = tes3.worldController.vfxManager.worldVFXRoot
+            local line = root:getObjectByName("rf_pin2")
+            if line then
+                root:detachChild(line)
+            end
         end
     end
 end
 
-local function pinMarker()
+---@param idx number?
+local function togglePinMarker(idx)
+    if not idx then return end
     if not GetEditorData() then return end
     if not GetEditorData().editorNodes then return end
 
-    local idx = getClosestNodeIdx()
     local marker = GetEditorData().editorNodes[idx]
     if marker then
-        log:debug("On Pin marker")
-
-        if marker == GetEditorData().pin1 then
+        if idx == GetEditorData().pin1 then
             unpin(1)
-        elseif marker == GetEditorData().pin2 then
+        elseif idx == GetEditorData().pin2 then
             unpin(2)
         else
             if not GetEditorData().pin1 then
@@ -559,10 +674,13 @@ local function pinMarker()
                 marker.scale = 1.5
                 marker:update()
 
-                local id = "rf_pin1"
+                local id = "rf_pin2"
                 local from = marker.translation
                 local to = from + tes3vector3.new(0, 0, 1024 * 8)
                 elib.createLine(id, from, to)
+            else
+                -- already pinned, unpin first
+                unpin(1)
             end
         end
     end
@@ -602,35 +720,12 @@ local function deleteMarker()
     GetEditorData().currentMarker = nil
 end
 
----@return PositionRecord[]|nil
-local function GetSplineDto()
-    if not GetEditorData() then return nil end
-    if not GetEditorData().editorNodes then return nil end
-
-    local tempSpline = {} ---@type PositionRecord[]
-    for i, value in ipairs(GetEditorData().editorNodes) do
-        local t = value.translation
-
-        -- save currently edited markers back to spline
-        table.insert(tempSpline, i, {
-            x = math.round(t.x),
-            y = math.round(t.y),
-            z = math.round(t.z)
-        })
-    end
-
-    -- remove first and last marker (these are the ports)
-    table.remove(tempSpline, 1)
-    table.remove(tempSpline, #tempSpline)
-
-    return tempSpline
-end
-
 --- @param e keyDownEventData
 local function editor_keyDownCallback(e)
     -- pin
     if GetEditorData() and e.keyCode == config.pinkeybind.keyCode then
-        pinMarker()
+        local idx = getClosestNodeIdx()
+        togglePinMarker(idx)
     end
 
     -- trace
@@ -639,8 +734,37 @@ local function editor_keyDownCallback(e)
     -- end
 end
 
+local function OnMarkerClick(idx)
+    if not GetEditorData() then return end
+
+    -- menu
+    tes3ui.showMessageMenu {
+        message = "marker",
+        buttons = {
+            {
+                text = "Pin",
+                callback = function()
+                    togglePinMarker(idx)
+                end
+            },
+            {
+                text = "Dump Segment",
+                callback = function()
+                    local service = GetEditorData().service
+                    dumpSegment(service)
+                end
+            },
+        },
+        cancels = true
+    }
+end
+
 --- @param e mouseButtonDownEventData
-local function mouseButtonDownCallback(e)
+local function mouseButtonUpCallback(e)
+    if tes3.menuMode() then
+        return
+    end
+
     if e.button ~= 0 then
         return
     end
@@ -656,16 +780,11 @@ local function mouseButtonDownCallback(e)
         ignore = {}
     })
 
-    if ray then
-        debug.log(ray.object)
-        debug.log(ray.object.name)
-
-        tes3.messageBox(ray.object.name)
-
+    if ray and ray.object then
         for idx, marker in ipairs(GetEditorData().editorNodes) do
-            if marker == ray.object then
-                GetEditorData().currentNode = marker
-                tes3.messageBox("Marker index: " .. idx)
+            local d = marker.translation:distance(ray.intersection)
+            if d < 100 then
+                OnMarkerClick(idx)
                 return
             end
         end
@@ -676,12 +795,6 @@ end
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// UI
-
-function this.unregisterEvents()
-    event.unregister(tes3.event.keyDown, editor_keyDownCallback)
-    event.unregister(tes3.event.simulated, simulatedCallback)
-    event.unregister(tes3.event.mouseButtonDown, mouseButtonDownCallback)
-end
 
 function this.splinesPanel(menu, reload)
     -- load services
@@ -849,56 +962,13 @@ function this.splinesPanel(menu, reload)
         text = "Dump Segment"
     }
     button_dump:register(tes3.uiEvent.mouseClick, function()
-        -- pins
-        local minPin = nil
-        local maxPin = nil
-        if GetEditorData().pin1 and GetEditorData().pin2 then
-            minPin = math.min(GetEditorData().pin1, GetEditorData().pin2)
-            maxPin = math.max(GetEditorData().pin1, GetEditorData().pin2)
-        end
-
-
-        local tempSpline = GetSplineDto()
-        if tempSpline then
-            -- construct segments
-            local points = {} ---@type PositionRecord[]
-            for index, point in ipairs(tempSpline) do
-                if minPin then
-                    if index < minPin then
-                        goto continue
-                    end
-                end
-
-                if maxPin then
-                    if index > maxPin then
-                        goto continue
-                    end
-                end
-
-                table.insert(points, point)
-
-                ::continue::
-            end
-
-            local current_editor_route = GetEditorData().start .. "_" .. GetEditorData().destination
-            local localmodpath = "mods\\ImmersiveTravelEditor"
-            local filename = string.format("%s\\%s\\%s", localmodpath, service.class, current_editor_route)
-            local tfilename = "Data Files\\MWSE\\" .. filename .. ".toml"
-            ---@type SSegmentDto
-            local t = {
-                id = current_editor_route,
-                route1 = points
-            }
-            toml.saveFile(tfilename, t)
-
-            tes3.messageBox("saved spline: " .. current_editor_route)
-        end
+        dumpSegment(service)
     end)
 
     -- Display all splines and ports
     local button_all = button_block:createButton {
         id = editMenuAllId,
-        text = "All"
+        text = "Show all segments"
     }
     button_all:register(tes3.uiEvent.mouseClick, function()
         traceAll(service)
@@ -909,7 +979,13 @@ function this.splinesPanel(menu, reload)
 
     event.register(tes3.event.keyDown, editor_keyDownCallback)
     event.register(tes3.event.simulated, simulatedCallback)
-    event.register(tes3.event.mouseButtonDown, mouseButtonDownCallback)
+    event.register(tes3.event.mouseButtonUp, mouseButtonUpCallback)
+end
+
+function this.unregisterEvents()
+    event.unregister(tes3.event.keyDown, editor_keyDownCallback)
+    event.unregister(tes3.event.simulated, simulatedCallback)
+    event.unregister(tes3.event.mouseButtonUp, mouseButtonUpCallback)
 end
 
 return this
