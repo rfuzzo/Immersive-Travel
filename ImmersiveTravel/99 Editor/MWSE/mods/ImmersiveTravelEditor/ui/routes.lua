@@ -137,12 +137,10 @@ local function traceRouteNew(start, destination)
     GetEditorData().start = start
     GetEditorData().destination = destination
     GetEditorData().mount = nil
-    GetEditorData().editorNodes = nil
 
     local service = GetEditorData().service
 
-    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-    for _, value in ipairs(elib.arrows) do vfxRoot:detachChild(value) end
+    for _, value in ipairs(elib.arrows) do elib.editorRoot:detachChild(value) end
     elib.arrows = {}
 
     local routeId = RouteId:new(GetEditorData().service.class, GetEditorData().start, GetEditorData().destination)
@@ -172,16 +170,15 @@ local function traceRouteNew(start, destination)
     GetEditorData().mount:delete()
     GetEditorData().mount = nil
 
-    -- vfx
     for _, child in ipairs(elib.arrows) do
-        vfxRoot:attachChild(child)
+        elib.editorRoot:attachChild(child)
     end
 
-    vfxRoot:update()
+    elib.editorRoot:update()
 end
 
 ---@param service ServiceData
-local function traceAllSegments(service)
+function this.traceAllSegments(service)
     -- reset all
     elib.arrows = {}
     elib.editorData = {
@@ -189,8 +186,7 @@ local function traceAllSegments(service)
         editorMarkers = {},
         currentMarker = nil
     }
-    local vfxRoot = tes3.worldController.vfxManager.worldVFXRoot
-    vfxRoot:detachAllChildren()
+    elib.editorRoot:detachAllChildren()
 
     -- get all segment connections and internal nodes
     for _, route in pairs(service.routes) do
@@ -228,7 +224,12 @@ local function traceAllSegments(service)
                             local to = spline[i + 1]
                             elib.createLine(string.format("rf_line_%s_%d_%d", segment.id, routeIdx, i), from, to)
 
-                            node.scale = 0.5
+                            local sphere = elib.sphereMarkerMesh:clone()
+                            sphere.translation = from
+                            sphere.appCulled = false
+                            sphere.scale = 0.5
+                            marker.node = sphere
+
                             marker.type = EMarkerType.Route
                         end
 
@@ -286,10 +287,10 @@ local function traceAllSegments(service)
 
     -- render nodes
     for _, node in ipairs(GetEditorData().editorMarkers) do
-        vfxRoot:attachChild(node.node)
+        elib.editorRoot:attachChild(node.node)
     end
 
-    vfxRoot:update()
+    elib.editorRoot:update()
 end
 
 ---@param segment SSegment
@@ -369,7 +370,7 @@ local function insertMarker()
         saveSegment(GetEditorData().service, segment)
 
         -- render again
-        traceAllSegments(GetEditorData().service)
+        this.traceAllSegments(GetEditorData().service)
         traceRouteNew(GetEditorData().start, GetEditorData().destination)
 
         editmode = true
@@ -424,11 +425,11 @@ local function editMarker()
         GetEditorData().lastMarker = nil
 
         -- render all again
-        traceAllSegments(GetEditorData().service)
+        this.traceAllSegments(GetEditorData().service)
         traceRouteNew(GetEditorData().start, GetEditorData().destination)
     end
 
-    tes3.worldController.vfxManager.worldVFXRoot:update()
+    elib.editorRoot:update()
     editmode = not editmode
 end
 
@@ -456,7 +457,7 @@ local function deleteMarker()
     saveSegment(GetEditorData().service, segment)
 
     -- render again
-    traceAllSegments(GetEditorData().service)
+    this.traceAllSegments(GetEditorData().service)
     traceRouteNew(GetEditorData().start, GetEditorData().destination)
 
     GetEditorData().currentMarker = nil
@@ -547,7 +548,7 @@ function this.routesPanel(menu, reload)
         }
         button:register(tes3.uiEvent.mouseClick, function()
             if not GetEditorData() then
-                traceAllSegments(service)
+                this.traceAllSegments(service)
             end
 
             traceRouteNew(start, destination)
@@ -571,12 +572,12 @@ function this.routesPanel(menu, reload)
     }
     button_teleport:register(tes3.uiEvent.mouseClick, function()
         if not GetEditorData() then return end
-        if not GetEditorData().editorNodes then return end
+        if not GetEditorData().editorMarkers then return end
 
-        if #GetEditorData().editorNodes > 1 then
+        if #GetEditorData().editorMarkers > 1 then
             tes3.positionCell({
                 reference = tes3.mobilePlayer,
-                position = GetEditorData().editorNodes[1].translation
+                position = GetEditorData().editorMarkers[1].node.translation
             })
 
             tes3ui.leaveMenuMode()
@@ -591,12 +592,12 @@ function this.routesPanel(menu, reload)
     }
     button_teleportEnd:register(tes3.uiEvent.mouseClick, function()
         if not GetEditorData() then return end
-        if not GetEditorData().editorNodes then return end
+        if not GetEditorData().editorMarkers then return end
 
-        if #GetEditorData().editorNodes > 1 then
+        if #GetEditorData().editorMarkers > 1 then
             tes3.positionCell({
                 reference = tes3.mobilePlayer,
-                position = GetEditorData().editorNodes[#GetEditorData().editorNodes].translation
+                position = GetEditorData().editorMarkers[#GetEditorData().editorMarkers].node.translation
             })
 
             tes3ui.leaveMenuMode()
@@ -610,7 +611,7 @@ function this.routesPanel(menu, reload)
         text = "Show"
     }
     button_segments:register(tes3.uiEvent.mouseClick, function()
-        traceAllSegments(service)
+        this.traceAllSegments(service)
     end)
 
     tes3ui.acquireTextInput(input)

@@ -31,7 +31,7 @@ local EMarkerType           = elib.EMarkerType
 local log                   = elib.log
 
 local function GetEditorData()
-    return elib.editorData
+    return elib.editorSplineData
 end
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
@@ -105,126 +105,125 @@ local function renderAdditionalMarkers(startPort, destinationPort)
     end
 end
 
----@param mountData CVehicle
-local function calculatePositions(mountData)
-    if not GetEditorData() then return end
-    if not GetEditorData().mount then return end
-    if not GetEditorData().editorNodes then return end
+-- ---@param mountData CVehicle
+-- local function calculatePositions(mountData)
+--     if not GetEditorData() then return end
+--     if not GetEditorData().mount then return end
+--     if not GetEditorData().editorNodes then return end
 
-    GetEditorData().last_position = GetEditorData().mount.position
-    GetEditorData().last_forwardDirection = GetEditorData().mount.forwardDirection
-    GetEditorData().last_facing = GetEditorData().mount.facing
+--     GetEditorData().last_position = GetEditorData().mount.position
+--     GetEditorData().last_forwardDirection = GetEditorData().mount.forwardDirection
+--     GetEditorData().last_facing = GetEditorData().mount.facing
 
-    local splineIndex = 2
+--     local splineIndex = 2
 
-    for idx = 1, config.tracemax * 1000, 1 do
-        if splineIndex <= #GetEditorData().editorNodes then
-            local nextPos = GetEditorData().editorNodes[splineIndex].translation
+--     for idx = 1, config.tracemax * 1000, 1 do
+--         if splineIndex <= #GetEditorData().editorNodes then
+--             local nextPos = GetEditorData().editorNodes[splineIndex].translation
 
-            local isBehind = elib.calculatePosition(mountData, nextPos)
-            if isBehind then
-                splineIndex = splineIndex + 1
-            end
-        else
-            break
-        end
-    end
-end
+--             local isBehind = elib.calculatePosition(mountData, nextPos)
+--             if isBehind then
+--                 splineIndex = splineIndex + 1
+--             end
+--         else
+--             break
+--         end
+--     end
+-- end
 
----@param service ServiceData
-local function traceRoute(service)
-    if not GetEditorData() then return end
-    if not GetEditorData().editorNodes then return end
-    if #GetEditorData().editorNodes < 2 then return end
+-- ---@param service ServiceData
+-- local function traceRoute(service)
+--     if not GetEditorData() then return end
+--     if not GetEditorData().editorNodes then return end
+--     if #GetEditorData().editorNodes < 2 then return end
 
-    for _, value in ipairs(elib.arrows) do elib.debugRoot:detachChild(value) end
-    elib.arrows = {}
+--     for _, value in ipairs(elib.arrows) do elib.debugRoot:detachChild(value) end
+--     elib.arrows = {}
 
-    local routeId = RouteId:new(service.class, GetEditorData().start, GetEditorData().destination)
-    local mountId = service:ResolveMountId(routeId)
+--     local routeId = RouteId:new(service.class, GetEditorData().start, GetEditorData().destination)
+--     local mountId = service:ResolveMountId(routeId)
 
-    log:debug("[%s] Tracing %s", mountId, routeId)
+--     log:debug("[%s] Tracing %s", mountId, routeId)
 
-    local mountData = interop.getVehicleStaticData(mountId)
-    if not mountData then return end
-    local startPort = service:GetPort(GetEditorData().start, mountId)
-    if not startPort then return end
-    local destinationPort = service:GetPort(GetEditorData().destination, mountId)
-    if not destinationPort then return end
+--     local mountData = interop.getVehicleStaticData(mountId)
+--     if not mountData then return end
+--     local startPort = service:GetPort(GetEditorData().start, mountId)
+--     if not startPort then return end
+--     local destinationPort = service:GetPort(GetEditorData().destination, mountId)
+--     if not destinationPort then return end
 
-    -- create mount
-    GetEditorData().mount = elib.createMount(startPort, mountId, mountData.offset)
+--     -- create mount
+--     GetEditorData().mount = elib.createMount(startPort, mountId, mountData.offset)
 
-    -- trace port
-    mountData.current_turnspeed = mountData.turnspeed * 1.5
-    mountData.current_speed = mountData.speed * -1
-    elib.calculateLeavePort(mountData, startPort)
+--     -- trace port
+--     mountData.current_turnspeed = mountData.turnspeed * 1.5
+--     mountData.current_speed = mountData.speed * -1
+--     elib.calculateLeavePort(mountData, startPort)
 
-    -- trace route
-    mountData.current_turnspeed = mountData.turnspeed
-    mountData.current_speed = mountData.speed
-    calculatePositions(mountData)
+--     -- trace route
+--     mountData.current_turnspeed = mountData.turnspeed
+--     mountData.current_speed = mountData.speed
+--     calculatePositions(mountData)
 
-    -- validation
+--     -- validation
 
-    -- check if the last position is near the last marker
-    local lastMarker = GetEditorData().editorNodes[#GetEditorData().editorNodes]
-    local lastPos = GetEditorData().mount.position
-    local distance = lastPos:distance(lastMarker.translation)
-    log:debug("Last position is %d from the last marker", distance)
-    if distance > 200 then
-        log:warn("!!! Last position is too far from the last marker: %d", distance)
-        tes3.messageBox("!!! Last position is too far from the last marker: %d", distance)
-    end
+--     -- check if the last position is near the last marker
+--     local lastMarker = GetEditorData().editorNodes[#GetEditorData().editorNodes]
+--     local lastPos = GetEditorData().mount.position
+--     local distance = lastPos:distance(lastMarker.translation)
+--     log:debug("Last position is %d from the last marker", distance)
+--     if distance > 200 then
+--         log:warn("!!! Last position is too far from the last marker: %d", distance)
+--         tes3.messageBox("!!! Last position is too far from the last marker: %d", distance)
+--     end
 
-    -- check if the last orientation does not have a big difference
-    local lastOrientation = GetEditorData().mount.orientation
-    local destinationPortOrientation = lib.radvec(destinationPort:EndRot())
-    local diff = lastOrientation.z - destinationPortOrientation.z
-    log:debug("Last orientation is %d from the last marker", diff)
-    if diff > 0.1 then
-        log:warn("!!! Last orientation is too far from the last marker: %d", diff)
-        tes3.messageBox("!!! Last orientation is too far from the last marker: %d", diff)
-    end
+--     -- check if the last orientation does not have a big difference
+--     local lastOrientation = GetEditorData().mount.orientation
+--     local destinationPortOrientation = lib.radvec(destinationPort:EndRot())
+--     local diff = lastOrientation.z - destinationPortOrientation.z
+--     log:debug("Last orientation is %d from the last marker", diff)
+--     if diff > 0.1 then
+--         log:warn("!!! Last orientation is too far from the last marker: %d", diff)
+--         tes3.messageBox("!!! Last orientation is too far from the last marker: %d", diff)
+--     end
 
-    -- check if the start and destination ports are in the correct cells
-    local startCell = tes3.getCell({ id = GetEditorData().start }) ---@type tes3cell
-    local isPointInCell = startCell:isPointInCell(startPort:StartPos().x, startPort:StartPos().y)
-    if not isPointInCell then
-        local portCell = tes3.getCell({ position = startPort:StartPos() })
-        if portCell then
-            log:warn("!!! Start port '%s' cell mismatch: '%s'", GetEditorData().start, portCell.id)
-            tes3.messageBox("!!! Start port '%s' cell mismatch: '%s'", GetEditorData().start, portCell.id)
-        else
-            log:warn("!!! Could not find destination port cell")
-        end
-    end
+--     -- check if the start and destination ports are in the correct cells
+--     local startCell = tes3.getCell({ id = GetEditorData().start }) ---@type tes3cell
+--     local isPointInCell = startCell:isPointInCell(startPort:StartPos().x, startPort:StartPos().y)
+--     if not isPointInCell then
+--         local portCell = tes3.getCell({ position = startPort:StartPos() })
+--         if portCell then
+--             log:warn("!!! Start port '%s' cell mismatch: '%s'", GetEditorData().start, portCell.id)
+--             tes3.messageBox("!!! Start port '%s' cell mismatch: '%s'", GetEditorData().start, portCell.id)
+--         else
+--             log:warn("!!! Could not find destination port cell")
+--         end
+--     end
 
 
-    local destinationCell = tes3.getCell({ id = GetEditorData().destination }) ---@type tes3cell
-    isPointInCell = destinationCell:isPointInCell(destinationPort:EndPos().x, destinationPort:EndPos().y)
-    if not isPointInCell then
-        local portCell = tes3.getCell({ position = destinationPort:EndPos() })
-        if portCell then
-            log:warn("!!! Destination port '%s' cell mismatch: '%s'", GetEditorData().destination, portCell.id)
-            tes3.messageBox("!!! Destination port '%s' cell mismatch: '%s'", GetEditorData().destination,
-                portCell.id)
-        else
-            log:warn("!!! Could not find destination port cell")
-        end
-    end
+--     local destinationCell = tes3.getCell({ id = GetEditorData().destination }) ---@type tes3cell
+--     isPointInCell = destinationCell:isPointInCell(destinationPort:EndPos().x, destinationPort:EndPos().y)
+--     if not isPointInCell then
+--         local portCell = tes3.getCell({ position = destinationPort:EndPos() })
+--         if portCell then
+--             log:warn("!!! Destination port '%s' cell mismatch: '%s'", GetEditorData().destination, portCell.id)
+--             tes3.messageBox("!!! Destination port '%s' cell mismatch: '%s'", GetEditorData().destination,
+--                 portCell.id)
+--         else
+--             log:warn("!!! Could not find destination port cell")
+--         end
+--     end
 
-    -- cleanup
-    GetEditorData().mount:delete()
-    GetEditorData().mount = nil
+--     -- cleanup
+--     GetEditorData().mount:delete()
+--     GetEditorData().mount = nil
 
-    -- vfx
-    for _, child in ipairs(elib.arrows) do
-        elib.debugRoot:attachChild(child)
-    end
+--     for _, child in ipairs(elib.arrows) do
+--         elib.debugRoot:attachChild(child)
+--     end
 
-    elib.debugRoot:update()
-end
+--     elib.debugRoot:update()
+-- end
 
 local function updateMarkers()
     if not GetEditorData() then return end
@@ -288,7 +287,7 @@ local function traceAll(service)
         local spline = splines[routeIdString]
         if spline then
             -- render points
-            elib.editorData = {
+            elib.editorSplineData = {
                 service = service,
                 destination = route.id.destination,
                 start = route.id.start,
@@ -306,7 +305,7 @@ local function traceAll(service)
         end
     end
 
-    elib.editorData = nil
+    elib.editorSplineData = nil
 
     elib.debugRoot:update()
 end
@@ -562,7 +561,6 @@ local function insertMarker()
         return
     end
 
-    -- new vfx node
     local from = tes3.getPlayerEyePosition() + tes3.getPlayerEyeVector() * 256
     local child = elib.editorMarkerMesh:clone()
     child.translation = from
@@ -586,10 +584,13 @@ local function insertMarker()
     editmode = true
 end
 
-local function editMarker()
+---@param idx number?
+local function editMarker(idx)
     if not GetEditorData() then return end
     if not editmode then
-        local idx = getClosestNodeIdx()
+        if not idx then
+            idx = getClosestNodeIdx()
+        end
         if not idx then
             return
         end
@@ -597,6 +598,8 @@ local function editMarker()
         GetEditorData().currentNode = GetEditorData().editorNodes[idx]
         tes3.messageBox("Marker index: " .. idx)
     else
+        -- TODO snap to segment
+
         updateMarkers()
 
         -- if config.traceOnSave then
@@ -606,6 +609,42 @@ local function editMarker()
 
     elib.debugRoot:update()
     editmode = not editmode
+end
+
+---@param idx number?
+local function deleteMarker(idx)
+    if not GetEditorData() then return end
+    if not GetEditorData().editorNodes then return end
+
+    if not idx then
+        idx = getClosestNodeIdx()
+    end
+    if not idx then
+        return
+    end
+
+    -- -- if the first then get the second
+    -- if idx == 1 then
+    --     idx = 2
+    -- end
+    -- -- if the last then get the second last
+    -- if idx == #GetEditorData().editorNodes then
+    --     idx = #GetEditorData().editorNodes - 1
+    -- end
+
+
+
+    local instance = GetEditorData().editorNodes[idx]
+    elib.debugRoot:detachChild(instance)
+    elib.debugRoot:update()
+
+    table.remove(GetEditorData().editorNodes, idx)
+
+    -- if GetEditorData() and config.traceOnSave then
+    --     traceRoute(GetEditorData().service)
+    -- end
+    updateMarkers()
+    GetEditorData().currentNode = nil
 end
 
 ---@param i number
@@ -686,40 +725,6 @@ local function togglePinMarker(idx)
     end
 end
 
-local function deleteMarker()
-    if not GetEditorData() then return end
-
-
-    if not GetEditorData().editorNodes then return end
-
-    local idx = getClosestNodeIdx()
-    if not idx then
-        return
-    end
-    -- if the first then get the second
-    if idx == 1 then
-        idx = 2
-    end
-    -- if the last then get the second last
-    if idx == #GetEditorData().editorNodes then
-        idx = #GetEditorData().editorNodes - 1
-    end
-
-    updateMarkers()
-
-    local instance = GetEditorData().editorNodes[idx]
-    elib.debugRoot:detachChild(instance)
-    elib.debugRoot:update()
-
-    table.remove(GetEditorData().editorNodes, idx)
-
-    -- if GetEditorData() and config.traceOnSave then
-    --     traceRoute(GetEditorData().service)
-    -- end
-
-    GetEditorData().currentMarker = nil
-end
-
 --- @param e keyDownEventData
 local function editor_keyDownCallback(e)
     -- pin
@@ -732,8 +737,24 @@ local function editor_keyDownCallback(e)
     -- if GetEditorData() and e.keyCode == config.tracekeybind.keyCode then
     --     traceRoute(GetEditorData().service)
     -- end
+
+    -- insert
+    if e.keyCode == config.placekeybind.keyCode then
+        insertMarker()
+    end
+
+    -- marker edit mode
+    if e.keyCode == config.editkeybind.keyCode then
+        editMarker(nil)
+    end
+
+    -- delete
+    if e.keyCode == config.deletekeybind.keyCode then
+        deleteMarker(nil)
+    end
 end
 
+---@param idx number
 local function OnMarkerClick(idx)
     if not GetEditorData() then return end
 
@@ -741,6 +762,18 @@ local function OnMarkerClick(idx)
     tes3ui.showMessageMenu {
         message = "marker",
         buttons = {
+            {
+                text = "Edit",
+                callback = function()
+                    editMarker(idx)
+                end
+            },
+            {
+                text = "Delete",
+                callback = function()
+                    deleteMarker(idx)
+                end
+            },
             {
                 text = "Pin",
                 callback = function()
@@ -754,6 +787,7 @@ local function OnMarkerClick(idx)
                     dumpSegment(service)
                 end
             },
+
         },
         cancels = true
     }
@@ -849,14 +883,13 @@ function this.splinesPanel(menu, reload)
             button:register(tes3.uiEvent.mouseClick, function()
                 -- start editor
                 ---@type SEditorData
-                elib.editorData = {
+                elib.editorSplineData = {
                     service = service,
                     start = start,
                     destination = destination,
                     mount = nil,
                     editorNodes = nil,
-                    editorMarkers = nil,
-                    currentMarker = nil
+                    currentNode = nil
                 }
 
                 elib.debugRoot:detachAllChildren()
@@ -971,7 +1004,8 @@ function this.splinesPanel(menu, reload)
         text = "Show all segments"
     }
     button_all:register(tes3.uiEvent.mouseClick, function()
-        traceAll(service)
+        local routesui = require("ImmersiveTravelEditor.ui.routes")
+        routesui.traceAllSegments(service)
     end)
 
 

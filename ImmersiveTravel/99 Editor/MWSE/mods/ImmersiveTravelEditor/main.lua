@@ -24,7 +24,7 @@ local function editloadCallback(e)
     elib.editorMarkerMesh = tes3.loadMesh(elib.editorMarkerId)
     elib.portMarkerMesh = tes3.loadMesh(elib.portMarkerId)
     elib.nodeMarkerMesh = tes3.loadMesh(elib.nodeMarkerId)
-    -- arrowMarkerMesh = tes3.loadMesh(arrowMarkerId)
+    elib.sphereMarkerMesh = tes3.loadMesh(elib.sphereMarkerId)
 
     -- widgets.nif
     elib.arrow = tes3.loadMesh("mwse\\widget_arrow_y.nif"):clone()
@@ -36,7 +36,9 @@ local function editloadCallback(e)
     tes3.game.worldRoot:attachChild(debugnode)
     elib.debugRoot = debugnode
 
-    -- elib.editorRoot = node
+    local editornode = niNode.new()
+    tes3.game.worldRoot:attachChild(editornode)
+    elib.editorRoot = editornode
 
     elib.cleanup()
 end

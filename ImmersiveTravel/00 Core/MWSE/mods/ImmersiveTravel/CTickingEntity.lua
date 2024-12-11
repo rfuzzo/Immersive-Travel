@@ -18,7 +18,7 @@ local CTickingEntity          = {}
 ---Constructor for CTickingEntity
 ---@return CTickingEntity
 function CTickingEntity:new()
-    ---@type CTickingEntity
+    -- ---@type CTickingEntity
     local newObj = {
         markForDelete = false,
         referenceHandle = tes3.makeSafeObjectHandle(nil),

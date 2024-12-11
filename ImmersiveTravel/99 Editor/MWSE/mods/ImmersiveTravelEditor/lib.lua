@@ -19,7 +19,7 @@ this.log             = logger.new {
 -- ////////////// CLASSES
 
 ---@class SPreviewMarker
----@field node niNode?
+---@field node niNode|nil
 ---@field type EMarkerType
 ---@field segmentId string?
 ---@field routeId number?
@@ -40,13 +40,22 @@ this.log             = logger.new {
 ---@field editorMarkers SPreviewMarker[]?
 ---@field currentMarker SPreviewMarker?
 ---@field lastMarker SPreviewMarker2?
+---@field last_position tes3vector3|nil
+---@field last_forwardDirection tes3vector3|nil
+---@field last_facing number|nil
+
+---@class SEditorSplineData
+---@field service ServiceData
+---@field start string?
+---@field destination string?
+---@field mount tes3reference?
 ---@field editorNodes niNode[]?
 ---@field currentNode niNode?
 ---@field pin1 number?
 ---@field pin2 number?
----@field last_position tes3vector3|nil
----@field last_forwardDirection tes3vector3|nil
----@field last_facing number|nil
+-- ---@field last_position tes3vector3|nil
+-- ---@field last_forwardDirection tes3vector3|nil
+-- ---@field last_facing number|nil
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// ENUMS
@@ -81,6 +90,8 @@ end
 -- ////////////// VARIABLES
 
 this.editorData         = nil ---@type SEditorData | nil
+this.editorSplineData   = nil ---@type SEditorSplineData | nil
+
 this.currentEditorMode  = this.EEditorMode.Routes ---@type EEditorMode
 this.currentServiceName = nil ---@type string | nil
 
@@ -88,18 +99,20 @@ this.currentServiceName = nil ---@type string | nil
 this.editorMarkerId   = "marker_travel.nif" -- for nodes
 this.portMarkerId     = "marker_arrow.nif"  -- for ports
 this.nodeMarkerId     = "marker_divine.nif" -- for connections
+this.sphereMarkerId   = "sphere.nif"        -- for connections
 -- "marker_north.nif"
 
 this.editorMarkerMesh = nil ---@type niNode?
 this.portMarkerMesh   = nil ---@type niNode?
 this.nodeMarkerMesh   = nil ---@type niNode?
+this.sphereMarkerMesh = nil ---@type niNode?
 
 this.arrows           = {} ---@type niNode[]
 this.arrow            = nil ---@type niNode?
 this.arrowz           = nil ---@type niNode?
 
 this.debugRoot        = nil ---@type niNode?
-
+this.editorRoot       = nil ---@type niNode?
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// FUNCTIONS

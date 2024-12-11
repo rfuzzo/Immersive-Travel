@@ -9,7 +9,6 @@ local RouteId = {}
 ---@param start string
 ---@param destination string
 function RouteId:new(service, start, destination)
-    ---@type RouteId
     local o = {
         service = service,
         start = start,
