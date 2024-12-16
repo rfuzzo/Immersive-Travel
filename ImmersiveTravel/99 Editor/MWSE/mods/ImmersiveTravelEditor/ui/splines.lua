@@ -34,6 +34,9 @@ local function GetEditorData()
     return elib.editorSplineData
 end
 
+local CLICK_RADIUS = 200
+local SNAP_RADIUS = 500
+
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// EDITOR
 
@@ -492,20 +495,25 @@ local function dumpSegment(service)
         end
 
         local current_editor_route = GetEditorData().start .. "_" .. GetEditorData().destination
-        local localmodpath = "mods\\ImmersiveTravelEditor"
+        local localmodpath = "mods\\ImmersiveTravel"
         local filename = string.format("%s\\%s\\%s-%s", localmodpath, service.class, startName, endName)
+
+        -- todo check if file exists
+        local exists = tes3.getFileExists("MWSE\\" .. filename)
+        local msg = "File exists: " .. tostring(exists)
+        tes3.messageBox(msg)
 
         tes3ui.showMessageMenu {
             message = startName .. " - " .. endName,
             buttons = {
                 {
-                    text = "Save",
+                    text = msg, --"Save",
                     callback = function(e)
                         -- save
                         local tfilename = "Data Files\\MWSE\\" .. filename .. ".toml"
                         ---@type SSegmentDto
                         local t = {
-                            id = current_editor_route,
+                            id = startName .. " - " .. endName,
                             route1 = points
                         }
                         toml.saveFile(tfilename, t)
@@ -584,6 +592,30 @@ local function insertMarker()
     editmode = true
 end
 
+local function snapToSegment()
+    if not GetEditorData() then return end
+    if not GetEditorData().currentNode then return end
+    if not elib.editorData then return end
+
+    local idx = elib.getClosestMarkerIdx(false)
+    if not idx then return end
+
+    log:trace("Trying to snap to segment %d", idx)
+
+    -- get distance
+    local nodePos = GetEditorData().currentNode.translation
+    local markerPos = elib.editorData.editorMarkers[idx].node.translation
+    local distance = nodePos:distance(markerPos)
+
+    -- snap if close enough
+    if distance < SNAP_RADIUS then
+        log:trace("Snapping to segment %d", idx)
+
+        GetEditorData().currentNode.translation = markerPos
+        GetEditorData().currentNode:update()
+    end
+end
+
 ---@param idx number?
 local function editMarker(idx)
     if not GetEditorData() then return end
@@ -596,15 +628,9 @@ local function editMarker(idx)
         end
 
         GetEditorData().currentNode = GetEditorData().editorNodes[idx]
-        tes3.messageBox("Marker index: " .. idx)
     else
-        -- TODO snap to segment
-
+        snapToSegment()
         updateMarkers()
-
-        -- if config.traceOnSave then
-        --     traceRoute(GetEditorData().service)
-        -- end
     end
 
     elib.debugRoot:update()
@@ -623,26 +649,12 @@ local function deleteMarker(idx)
         return
     end
 
-    -- -- if the first then get the second
-    -- if idx == 1 then
-    --     idx = 2
-    -- end
-    -- -- if the last then get the second last
-    -- if idx == #GetEditorData().editorNodes then
-    --     idx = #GetEditorData().editorNodes - 1
-    -- end
-
-
-
     local instance = GetEditorData().editorNodes[idx]
     elib.debugRoot:detachChild(instance)
     elib.debugRoot:update()
 
     table.remove(GetEditorData().editorNodes, idx)
 
-    -- if GetEditorData() and config.traceOnSave then
-    --     traceRoute(GetEditorData().service)
-    -- end
     updateMarkers()
     GetEditorData().currentNode = nil
 end
@@ -760,7 +772,7 @@ local function OnMarkerClick(idx)
 
     -- menu
     tes3ui.showMessageMenu {
-        message = "marker",
+        message = "marker " .. idx,
         buttons = {
             {
                 text = "Edit",
@@ -817,7 +829,7 @@ local function mouseButtonUpCallback(e)
     if ray and ray.object then
         for idx, marker in ipairs(GetEditorData().editorNodes) do
             local d = marker.translation:distance(ray.intersection)
-            if d < 100 then
+            if d < CLICK_RADIUS then
                 OnMarkerClick(idx)
                 return
             end
@@ -1005,7 +1017,7 @@ function this.splinesPanel(menu, reload)
     }
     button_all:register(tes3.uiEvent.mouseClick, function()
         local routesui = require("ImmersiveTravelEditor.ui.routes")
-        routesui.traceAllSegments(service)
+        routesui.showAllSegments(service)
     end)
 
 

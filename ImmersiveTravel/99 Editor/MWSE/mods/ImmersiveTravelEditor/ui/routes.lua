@@ -27,52 +27,12 @@ local function GetEditorData()
     return elib.editorData
 end
 
+local CLICK_RADIUS = 200
+
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// EDITOR
 
 --#region editor helpers
-
----@param ignoreConnections boolean?
----@return number?
-local function getClosestMarkerIdx(ignoreConnections)
-    if not GetEditorData() then return nil end
-    if not GetEditorData().editorMarkers then return nil end
-
-    -- get closest marker
-    local final_idx = 0
-    local last_distance = nil
-    for index, marker in ipairs(GetEditorData().editorMarkers) do
-        if ignoreConnections then
-            if marker.type ~= EMarkerType.Route then
-                goto continue
-            end
-        else
-            if marker.type ~= EMarkerType.Route and marker.type ~= EMarkerType.RouteConnection then
-                goto continue
-            end
-        end
-
-        local distance_to_marker = tes3.player.position:distance(marker.node.translation)
-        -- if distance_to_marker > 1024 then
-        --     goto continue
-        -- end
-
-        -- first
-        if last_distance == nil then
-            last_distance = distance_to_marker
-            final_idx = 1
-        end
-        -- last
-        if distance_to_marker < last_distance then
-            final_idx = index
-            last_distance = distance_to_marker
-        end
-
-        ::continue::
-    end
-
-    return final_idx
-end
 
 ---@param mountData CVehicle
 local function calculatePositionsNew(mountData)
@@ -178,7 +138,7 @@ local function traceRouteNew(start, destination)
 end
 
 ---@param service ServiceData
-function this.traceAllSegments(service)
+function this.showAllSegments(service)
     -- reset all
     elib.arrows = {}
     elib.editorData = {
@@ -321,6 +281,8 @@ end
 
 --#region route editor
 
+
+
 --- @param e simulatedEventData
 local function simulatedCallback(e)
     if not GetEditorData() then return end
@@ -351,7 +313,7 @@ local function insertMarker()
     if not GetEditorData().editorMarkers then return end
     if not elib.nodeMarkerMesh then return end
 
-    local idx = getClosestMarkerIdx(true)
+    local idx = elib.getClosestMarkerIdx(true)
     if idx then
         local instance = GetEditorData().editorMarkers[idx]
 
@@ -370,24 +332,24 @@ local function insertMarker()
         saveSegment(GetEditorData().service, segment)
 
         -- render again
-        this.traceAllSegments(GetEditorData().service)
+        this.showAllSegments(GetEditorData().service)
         traceRouteNew(GetEditorData().start, GetEditorData().destination)
 
         editmode = true
     end
 end
 
-local function editMarker()
+---@param idx number?
+local function editMarker(idx)
     if not GetEditorData() then return end
 
     if not editmode then
-        -- start editing
-        local idx = getClosestMarkerIdx(false)
+        if not idx then
+            idx = elib.getClosestMarkerIdx(false)
+        end
         if not idx then
             return
         end
-
-        debug.log(idx)
 
         GetEditorData().currentMarker = GetEditorData().editorMarkers[idx]
         GetEditorData().lastMarker = {
@@ -397,7 +359,6 @@ local function editMarker()
             routeId = GetEditorData().currentMarker.routeId,
             idx = GetEditorData().currentMarker.idx
         }
-        tes3.messageBox("Marker index: " .. idx)
     else
         -- stop editing
         local currentMarker = GetEditorData().currentMarker
@@ -425,7 +386,7 @@ local function editMarker()
         GetEditorData().lastMarker = nil
 
         -- render all again
-        this.traceAllSegments(GetEditorData().service)
+        this.showAllSegments(GetEditorData().service)
         traceRouteNew(GetEditorData().start, GetEditorData().destination)
     end
 
@@ -433,12 +394,16 @@ local function editMarker()
     editmode = not editmode
 end
 
-local function deleteMarker()
+---@param idx number?
+local function deleteMarker(idx)
     if not GetEditorData() then return end
 
     if not GetEditorData().editorMarkers then return end
 
-    local idx = getClosestMarkerIdx(true)
+    if not idx then
+        -- TODO allow deleting connections?
+        idx = elib.getClosestMarkerIdx(true)
+    end
     if not idx then
         return
     end
@@ -457,10 +422,67 @@ local function deleteMarker()
     saveSegment(GetEditorData().service, segment)
 
     -- render again
-    this.traceAllSegments(GetEditorData().service)
+    this.showAllSegments(GetEditorData().service)
     traceRouteNew(GetEditorData().start, GetEditorData().destination)
 
     GetEditorData().currentMarker = nil
+end
+
+---@param idx number
+local function OnMarkerClick(idx)
+    if not GetEditorData() then return end
+
+    -- menu
+    tes3ui.showMessageMenu {
+        message = "marker " .. idx,
+        buttons = {
+            {
+                text = "Edit",
+                callback = function()
+                    editMarker(idx)
+                end
+            },
+            {
+                text = "Delete",
+                callback = function()
+                    deleteMarker(idx)
+                end
+            }
+        },
+        cancels = true
+    }
+end
+
+--- @param e mouseButtonDownEventData
+local function mouseButtonUpCallback(e)
+    if tes3.menuMode() then
+        return
+    end
+
+    if e.button ~= 0 then
+        return
+    end
+
+    if not GetEditorData() then return end
+    if not GetEditorData().editorMarkers then return end
+
+    -- find the marker under the mouse cursor
+    local ray = tes3.rayTest({
+        position = tes3.getPlayerEyePosition(),
+        direction = tes3.getPlayerEyeVector(),
+        root = elib.editorRoot,
+        ignore = {}
+    })
+
+    if ray and ray.object then
+        for idx, marker in ipairs(GetEditorData().editorMarkers) do
+            local d = marker.node.translation:distance(ray.intersection)
+            if d < CLICK_RADIUS then
+                OnMarkerClick(idx)
+                return
+            end
+        end
+    end
 end
 
 --#endregion
@@ -488,11 +510,6 @@ end
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// UI
-
-function this.unregisterEvents()
-    event.unregister(tes3.event.keyDown, editor_keyDownCallback)
-    event.unregister(tes3.event.simulated, simulatedCallback)
-end
 
 function this.routesPanel(menu, reload)
     -- load services
@@ -548,7 +565,7 @@ function this.routesPanel(menu, reload)
         }
         button:register(tes3.uiEvent.mouseClick, function()
             if not GetEditorData() then
-                this.traceAllSegments(service)
+                this.showAllSegments(service)
             end
 
             traceRouteNew(start, destination)
@@ -611,13 +628,20 @@ function this.routesPanel(menu, reload)
         text = "Show"
     }
     button_segments:register(tes3.uiEvent.mouseClick, function()
-        this.traceAllSegments(service)
+        this.showAllSegments(service)
     end)
 
     tes3ui.acquireTextInput(input)
 
     event.register(tes3.event.keyDown, editor_keyDownCallback)
     event.register(tes3.event.simulated, simulatedCallback)
+    event.register(tes3.event.mouseButtonUp, mouseButtonUpCallback)
+end
+
+function this.unregisterEvents()
+    event.unregister(tes3.event.keyDown, editor_keyDownCallback)
+    event.unregister(tes3.event.simulated, simulatedCallback)
+    event.unregister(tes3.event.mouseButtonUp, mouseButtonUpCallback)
 end
 
 return this

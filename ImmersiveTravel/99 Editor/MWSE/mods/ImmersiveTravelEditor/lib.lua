@@ -95,24 +95,22 @@ this.editorSplineData   = nil ---@type SEditorSplineData | nil
 this.currentEditorMode  = this.EEditorMode.Routes ---@type EEditorMode
 this.currentServiceName = nil ---@type string | nil
 
+-- nodes
+this.editorMarkerId     = "marker_travel.nif" -- for nodes
+this.portMarkerId       = "marker_arrow.nif"  -- for ports
+this.nodeMarkerId       = "marker_divine.nif" -- for connections
+this.sphereMarkerId     = "sphere.nif"        -- for connections
+this.editorMarkerMesh   = nil ---@type niNode?
+this.portMarkerMesh     = nil ---@type niNode?
+this.nodeMarkerMesh     = nil ---@type niNode?
+this.sphereMarkerMesh   = nil ---@type niNode?
 
-this.editorMarkerId   = "marker_travel.nif" -- for nodes
-this.portMarkerId     = "marker_arrow.nif"  -- for ports
-this.nodeMarkerId     = "marker_divine.nif" -- for connections
-this.sphereMarkerId   = "sphere.nif"        -- for connections
--- "marker_north.nif"
+this.arrows             = {} ---@type niNode[]
+this.arrow              = nil ---@type niNode?
+this.arrowz             = nil ---@type niNode?
 
-this.editorMarkerMesh = nil ---@type niNode?
-this.portMarkerMesh   = nil ---@type niNode?
-this.nodeMarkerMesh   = nil ---@type niNode?
-this.sphereMarkerMesh = nil ---@type niNode?
-
-this.arrows           = {} ---@type niNode[]
-this.arrow            = nil ---@type niNode?
-this.arrowz           = nil ---@type niNode?
-
-this.debugRoot        = nil ---@type niNode?
-this.editorRoot       = nil ---@type niNode?
+this.debugRoot          = nil ---@type niNode?
+this.editorRoot         = nil ---@type niNode?
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// FUNCTIONS
@@ -319,6 +317,60 @@ function this.calculateLeavePort(mountData, startPort)
             break
         end
     end
+end
+
+---@param ignoreConnections boolean?
+---@return number?
+function this.getClosestMarkerIdx(ignoreConnections)
+    if not this.editorData then return nil end
+    if not this.editorData.editorMarkers then return nil end
+
+    -- get closest marker
+    local final_idx = 0
+    local last_distance = nil
+    for index, marker in ipairs(this.editorData.editorMarkers) do
+        if ignoreConnections then
+            if marker.type ~= this.EMarkerType.Route then
+                goto continue
+            end
+        else
+            if marker.type ~= this.EMarkerType.Route and marker.type ~= this.EMarkerType.RouteConnection then
+                goto continue
+            end
+        end
+
+        local distance_to_marker = tes3.player.position:distance(marker.node.translation)
+        -- if distance_to_marker > 1024 then
+        --     goto continue
+        -- end
+
+        -- first
+        if last_distance == nil then
+            last_distance = distance_to_marker
+            final_idx = 1
+        end
+        -- last
+        if distance_to_marker < last_distance then
+            final_idx = index
+            last_distance = distance_to_marker
+        end
+
+        ::continue::
+    end
+
+    return final_idx
+end
+
+function this.IsPortMode()
+    return this.currentEditorMode == this.EEditorMode.Ports
+end
+
+function this.IsSplineMode()
+    return this.currentEditorMode == this.EEditorMode.Splines
+end
+
+function this.IsRouteMode()
+    return this.currentEditorMode == this.EEditorMode.Routes
 end
 
 return this

@@ -11,8 +11,6 @@ local splinesui          = require("ImmersiveTravelEditor.ui.splines")
 local EEditorMode        = elib.EEditorMode
 local EMarkerType        = elib.EMarkerType
 local log                = elib.log
-local currentServiceName = elib.currentServiceName
-local currentEditorMode  = elib.currentEditorMode
 
 local this               = {}
 
@@ -23,30 +21,14 @@ local editMenuPortsId    = tes3ui.registerID("it:MenuEdit_Ports")
 local editMenuServicesId = tes3ui.registerID("it:MenuEdit_Services")
 local editMenuCancelId   = tes3ui.registerID("it:MenuEdit_Cancel")
 
-local function IsPortMode()
-    return currentEditorMode == EEditorMode.Ports
-end
-
-local function IsSplineMode()
-    return currentEditorMode == EEditorMode.Splines
-end
-
-local function IsRoutesMode()
-    return currentEditorMode == EEditorMode.Routes
-end
-
 local function Reload()
     GRoutesManager.getInstance():Init()
 end
 
 local function unregisterEvents()
-    if IsSplineMode() then
-        splinesui.unregisterEvents()
-    elseif IsPortMode() then
-        portsui.unregisterEvents()
-    elseif IsRoutesMode() then
-        routesui.unregisterEvents()
-    end
+    splinesui.unregisterEvents()
+    portsui.unregisterEvents()
+    routesui.unregisterEvents()
 end
 
 function this.createEditWindow()
@@ -61,13 +43,28 @@ function this.createEditWindow()
     if not services then return end
 
     -- get current service
-    if not currentServiceName then
-        currentServiceName = table.keys(services)[1]
+    if not elib.currentServiceName then
+        elib.currentServiceName = table.keys(services)[1]
     end
 
-    local editorData = elib.editorData
-    if editorData then currentServiceName = editorData.service.class end
-    local service = services[currentServiceName]
+    local menuTitle = "Editor"
+    if elib.IsRouteMode() then
+        local editorData = elib.editorData
+        if editorData then
+            elib.currentServiceName = editorData.service.class
+            menuTitle = "Editor " .. editorData.start .. "_" .. editorData.destination
+        end
+    end
+
+    if elib.IsSplineMode() then
+        local editorData = elib.editorSplineData
+        if editorData then
+            elib.currentServiceName = editorData.service.class
+            menuTitle = "Editor " .. editorData.start .. "_" .. editorData.destination
+        end
+    end
+
+    local service = services[elib.currentServiceName]
     if not service then return end
 
     -- Create window and frame
@@ -81,13 +78,7 @@ function this.createEditWindow()
     menu.alpha = 1.0
     menu.width = 700
     menu.height = 500
-    menu.text = "Editor"
-    if editorData then
-        if IsSplineMode() then
-            menu.text = "Editor " .. editorData.start .. "_" ..
-                editorData.destination
-        end
-    end
+    menu.text = menuTitle
 
     -- tabsBlock
     local tab_block = menu:createBlock {}
@@ -108,8 +99,8 @@ function this.createEditWindow()
         text = "Ports"
     }
     button_routes:register(tes3.uiEvent.mouseClick, function()
-        if not IsRoutesMode() then
-            currentEditorMode = EEditorMode.Routes
+        if not elib.IsRouteMode() then
+            elib.currentEditorMode = EEditorMode.Routes
 
             elib.cleanup()
             menu:destroy()
@@ -117,8 +108,8 @@ function this.createEditWindow()
         end
     end)
     button_splines:register(tes3.uiEvent.mouseClick, function()
-        if not IsSplineMode() then
-            currentEditorMode = EEditorMode.Splines
+        if not elib.IsSplineMode() then
+            elib.currentEditorMode = EEditorMode.Splines
 
             elib.cleanup()
             menu:destroy()
@@ -126,8 +117,8 @@ function this.createEditWindow()
         end
     end)
     button_ports:register(tes3.uiEvent.mouseClick, function()
-        if not IsPortMode() then
-            currentEditorMode = EEditorMode.Ports
+        if not elib.IsPortMode() then
+            elib.currentEditorMode = EEditorMode.Ports
 
             elib.cleanup()
             menu:destroy()
@@ -136,11 +127,11 @@ function this.createEditWindow()
     end)
 
     -- main panel
-    if IsRoutesMode() then
+    if elib.IsRouteMode() then
         routesui.routesPanel(menu, this.createEditWindow)
-    elseif IsPortMode() then
+    elseif elib.IsPortMode() then
         portsui.portsPanel(menu, this.createEditWindow)
-    elseif IsSplineMode() then
+    elseif elib.IsSplineMode() then
         splinesui.splinesPanel(menu, this.createEditWindow)
     end
 
@@ -154,16 +145,16 @@ function this.createEditWindow()
     -- Switch service
     local button_service = button_block:createButton {
         id = editMenuServicesId,
-        text = currentServiceName
+        text = elib.currentServiceName
     }
     button_service:register(tes3.uiEvent.mouseClick, function()
         local m = tes3ui.findMenu(editMenuId)
         if (m) then
             -- go to next
-            local idx = table.find(table.keys(services), currentServiceName)
+            local idx = table.find(table.keys(services), elib.currentServiceName)
             local nextIdx = idx + 1
             if nextIdx > #table.keys(services) then nextIdx = 1 end
-            currentServiceName = table.keys(services)[nextIdx]
+            elib.currentServiceName = table.keys(services)[nextIdx]
 
             elib.cleanup()
             m:destroy()
