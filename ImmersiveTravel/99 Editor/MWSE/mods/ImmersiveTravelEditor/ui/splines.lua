@@ -108,126 +108,6 @@ local function renderAdditionalMarkers(startPort, destinationPort)
     end
 end
 
--- ---@param mountData CVehicle
--- local function calculatePositions(mountData)
---     if not GetEditorData() then return end
---     if not GetEditorData().mount then return end
---     if not GetEditorData().editorNodes then return end
-
---     GetEditorData().last_position = GetEditorData().mount.position
---     GetEditorData().last_forwardDirection = GetEditorData().mount.forwardDirection
---     GetEditorData().last_facing = GetEditorData().mount.facing
-
---     local splineIndex = 2
-
---     for idx = 1, config.tracemax * 1000, 1 do
---         if splineIndex <= #GetEditorData().editorNodes then
---             local nextPos = GetEditorData().editorNodes[splineIndex].translation
-
---             local isBehind = elib.calculatePosition(mountData, nextPos)
---             if isBehind then
---                 splineIndex = splineIndex + 1
---             end
---         else
---             break
---         end
---     end
--- end
-
--- ---@param service ServiceData
--- local function traceRoute(service)
---     if not GetEditorData() then return end
---     if not GetEditorData().editorNodes then return end
---     if #GetEditorData().editorNodes < 2 then return end
-
---     for _, value in ipairs(elib.arrows) do elib.debugRoot:detachChild(value) end
---     elib.arrows = {}
-
---     local routeId = RouteId:new(service.class, GetEditorData().start, GetEditorData().destination)
---     local mountId = service:ResolveMountId(routeId)
-
---     log:debug("[%s] Tracing %s", mountId, routeId)
-
---     local mountData = interop.getVehicleStaticData(mountId)
---     if not mountData then return end
---     local startPort = service:GetPort(GetEditorData().start, mountId)
---     if not startPort then return end
---     local destinationPort = service:GetPort(GetEditorData().destination, mountId)
---     if not destinationPort then return end
-
---     -- create mount
---     GetEditorData().mount = elib.createMount(startPort, mountId, mountData.offset)
-
---     -- trace port
---     mountData.current_turnspeed = mountData.turnspeed * 1.5
---     mountData.current_speed = mountData.speed * -1
---     elib.calculateLeavePort(mountData, startPort)
-
---     -- trace route
---     mountData.current_turnspeed = mountData.turnspeed
---     mountData.current_speed = mountData.speed
---     calculatePositions(mountData)
-
---     -- validation
-
---     -- check if the last position is near the last marker
---     local lastMarker = GetEditorData().editorNodes[#GetEditorData().editorNodes]
---     local lastPos = GetEditorData().mount.position
---     local distance = lastPos:distance(lastMarker.translation)
---     log:debug("Last position is %d from the last marker", distance)
---     if distance > 200 then
---         log:warn("!!! Last position is too far from the last marker: %d", distance)
---         tes3.messageBox("!!! Last position is too far from the last marker: %d", distance)
---     end
-
---     -- check if the last orientation does not have a big difference
---     local lastOrientation = GetEditorData().mount.orientation
---     local destinationPortOrientation = lib.radvec(destinationPort:EndRot())
---     local diff = lastOrientation.z - destinationPortOrientation.z
---     log:debug("Last orientation is %d from the last marker", diff)
---     if diff > 0.1 then
---         log:warn("!!! Last orientation is too far from the last marker: %d", diff)
---         tes3.messageBox("!!! Last orientation is too far from the last marker: %d", diff)
---     end
-
---     -- check if the start and destination ports are in the correct cells
---     local startCell = tes3.getCell({ id = GetEditorData().start }) ---@type tes3cell
---     local isPointInCell = startCell:isPointInCell(startPort:StartPos().x, startPort:StartPos().y)
---     if not isPointInCell then
---         local portCell = tes3.getCell({ position = startPort:StartPos() })
---         if portCell then
---             log:warn("!!! Start port '%s' cell mismatch: '%s'", GetEditorData().start, portCell.id)
---             tes3.messageBox("!!! Start port '%s' cell mismatch: '%s'", GetEditorData().start, portCell.id)
---         else
---             log:warn("!!! Could not find destination port cell")
---         end
---     end
-
-
---     local destinationCell = tes3.getCell({ id = GetEditorData().destination }) ---@type tes3cell
---     isPointInCell = destinationCell:isPointInCell(destinationPort:EndPos().x, destinationPort:EndPos().y)
---     if not isPointInCell then
---         local portCell = tes3.getCell({ position = destinationPort:EndPos() })
---         if portCell then
---             log:warn("!!! Destination port '%s' cell mismatch: '%s'", GetEditorData().destination, portCell.id)
---             tes3.messageBox("!!! Destination port '%s' cell mismatch: '%s'", GetEditorData().destination,
---                 portCell.id)
---         else
---             log:warn("!!! Could not find destination port cell")
---         end
---     end
-
---     -- cleanup
---     GetEditorData().mount:delete()
---     GetEditorData().mount = nil
-
---     for _, child in ipairs(elib.arrows) do
---         elib.debugRoot:attachChild(child)
---     end
-
---     elib.debugRoot:update()
--- end
-
 local function updateMarkers()
     if not GetEditorData() then return end
     local editorNodes = GetEditorData().editorNodes
@@ -346,7 +226,7 @@ end
 --- Load all route splines for a given service
 ---@param service ServiceData
 ---@return table<string, string[]>
-local function loadRoutes(service)
+local function loadSplines(service)
     local map = {} ---@type table<string, table>
 
     local fullmodpath = "Data Files\\MWSE\\mods\\ImmersiveTravelEditor"
@@ -401,7 +281,7 @@ local function ReloadSplines()
     destinations = {}
 
     for serviceName, service in pairs(services) do
-        local serviceDestinations = loadRoutes(service)
+        local serviceDestinations = loadSplines(service)
         destinations[serviceName] = serviceDestinations
 
         for start, currentDestinations in pairs(serviceDestinations) do
@@ -412,7 +292,7 @@ local function ReloadSplines()
                     local routeId = RouteId:new(service.class, start, destination)
                     splines[routeId:ToString()] = spline
 
-                    -- log:debug("\t\tAdding spline '%s'", routeId)
+                    log:debug("\t\tAdding spline '%s'", routeId)
                 else
                     log:warn("No spline found for %s -> %s", start, destination)
                 end
@@ -439,8 +319,8 @@ local function GetSplineDto()
     end
 
     -- remove first and last marker (these are the ports)
-    table.remove(tempSpline, 1)
-    table.remove(tempSpline, #tempSpline)
+    -- table.remove(tempSpline, 1)
+    -- table.remove(tempSpline, #tempSpline)
 
     return tempSpline
 end
@@ -464,12 +344,24 @@ local function dumpSegment(service)
         local pin = GetEditorData().editorNodes[minPin]
         local cell = tes3.getCell({ position = pin.translation })
         startName = cell.id
+        -- trim region
+        if string.endswith(startName, " Region") then
+            startName = startName:sub(1, -8)
+        end
+        -- append grid
+        startName = startName .. " " .. cell.gridX .. "," .. cell.gridY
     end
     local endName = GetEditorData().destination
     if maxPin then
         local pin = GetEditorData().editorNodes[maxPin]
         local cell = tes3.getCell({ position = pin.translation })
         endName = cell.id
+        -- trim region
+        if string.endswith(endName, " Region") then
+            endName = endName:sub(1, -8)
+        end
+        -- append grid
+        endName = endName .. " " .. cell.gridX .. "," .. cell.gridY
     end
 
     local tempSpline = GetSplineDto()
@@ -495,19 +387,19 @@ local function dumpSegment(service)
         end
 
         local current_editor_route = GetEditorData().start .. "_" .. GetEditorData().destination
-        local localmodpath = "mods\\ImmersiveTravel"
-        local filename = string.format("%s\\%s\\%s-%s", localmodpath, service.class, startName, endName)
+        local localmodpath = "mods\\ImmersiveTravel\\data"
+        local filename = string.format("%s\\%s\\segments\\%s - %s", localmodpath, service.class, startName, endName)
 
         -- todo check if file exists
-        local exists = tes3.getFileExists("MWSE\\" .. filename)
+        local exists = tes3.getFileExists("MWSE\\" .. filename .. ".toml")
         local msg = "File exists: " .. tostring(exists)
         tes3.messageBox(msg)
 
         tes3ui.showMessageMenu {
-            message = startName .. " - " .. endName,
+            message = startName .. " - " .. endName .. " " .. tostring(exists),
             buttons = {
                 {
-                    text = msg, --"Save",
+                    text = "Save",
                     callback = function(e)
                         -- save
                         local tfilename = "Data Files\\MWSE\\" .. filename .. ".toml"
@@ -1016,8 +908,7 @@ function this.splinesPanel(menu, reload)
         text = "Show all segments"
     }
     button_all:register(tes3.uiEvent.mouseClick, function()
-        local routesui = require("ImmersiveTravelEditor.ui.routes")
-        routesui.showAllSegments(service)
+        elib.showAllSegments(service)
     end)
 
 

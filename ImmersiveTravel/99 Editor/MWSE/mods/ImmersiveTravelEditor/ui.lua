@@ -4,9 +4,11 @@ local GRoutesManager     = require("ImmersiveTravel.GRoutesManager")
 local PositionRecord     = require("ImmersiveTravel.models.PositionRecord")
 local RouteId            = require("ImmersiveTravel.models.RouteId")
 local elib               = require("ImmersiveTravelEditor.lib")
+
 local routesui           = require("ImmersiveTravelEditor.ui.routes")
 local portsui            = require("ImmersiveTravelEditor.ui.ports")
 local splinesui          = require("ImmersiveTravelEditor.ui.splines")
+local segmentsui         = require("ImmersiveTravelEditor.ui.segments")
 
 local EEditorMode        = elib.EEditorMode
 local EMarkerType        = elib.EMarkerType
@@ -18,6 +20,7 @@ local editMenuId         = tes3ui.registerID("it:MenuEdit")
 local editMenuRoutesId   = tes3ui.registerID("it:MenuEdit_Routes")
 local editMenuSplinesId  = tes3ui.registerID("it:MenuEdit_Splines")
 local editMenuPortsId    = tes3ui.registerID("it:MenuEdit_Ports")
+local editMenuSegmentsId = tes3ui.registerID("it:MenuEdit_Segments")
 local editMenuServicesId = tes3ui.registerID("it:MenuEdit_Services")
 local editMenuCancelId   = tes3ui.registerID("it:MenuEdit_Cancel")
 
@@ -29,6 +32,7 @@ local function unregisterEvents()
     splinesui.unregisterEvents()
     portsui.unregisterEvents()
     routesui.unregisterEvents()
+    segmentsui.unregisterEvents()
 end
 
 function this.createEditWindow()
@@ -98,6 +102,10 @@ function this.createEditWindow()
         id = editMenuPortsId,
         text = "Ports"
     }
+    local button_segments = tab_block:createButton {
+        id = editMenuSegmentsId,
+        text = "Segments"
+    }
     button_routes:register(tes3.uiEvent.mouseClick, function()
         if not elib.IsRouteMode() then
             elib.currentEditorMode = EEditorMode.Routes
@@ -125,6 +133,15 @@ function this.createEditWindow()
             this.createEditWindow()
         end
     end)
+    button_segments:register(tes3.uiEvent.mouseClick, function()
+        if not elib.IsSegmentMode() then
+            elib.currentEditorMode = EEditorMode.Segments
+
+            elib.cleanup()
+            menu:destroy()
+            this.createEditWindow()
+        end
+    end)
 
     -- main panel
     if elib.IsRouteMode() then
@@ -133,6 +150,8 @@ function this.createEditWindow()
         portsui.portsPanel(menu, this.createEditWindow)
     elseif elib.IsSplineMode() then
         splinesui.splinesPanel(menu, this.createEditWindow)
+    elseif elib.IsSegmentMode() then
+        segmentsui.segmentsPanel(menu, this.createEditWindow)
     end
 
     -- bottom panel

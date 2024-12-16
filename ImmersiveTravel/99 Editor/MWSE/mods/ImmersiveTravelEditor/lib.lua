@@ -73,7 +73,8 @@ this.EMarkerType     = {
 this.EEditorMode     = {
     Splines = 1,
     Ports = 2,
-    Routes = 3
+    Routes = 3,
+    Segments = 4,
 }
 
 
@@ -82,7 +83,8 @@ this.EEditorMode     = {
 function this.ToString(val)
     if val == this.EEditorMode.Splines then return "Splines" end
     if val == this.EEditorMode.Ports then return "Ports" end
-    if val == this.EEditorMode.Routes then return "New Routes" end
+    if val == this.EEditorMode.Routes then return "Routes" end
+    if val == this.EEditorMode.Segments then return "Segments" end
     return "Unknown"
 end
 
@@ -92,7 +94,7 @@ end
 this.editorData         = nil ---@type SEditorData | nil
 this.editorSplineData   = nil ---@type SEditorSplineData | nil
 
-this.currentEditorMode  = this.EEditorMode.Routes ---@type EEditorMode
+this.currentEditorMode  = this.EEditorMode.Splines ---@type EEditorMode
 this.currentServiceName = nil ---@type string | nil
 
 -- nodes
@@ -371,6 +373,123 @@ end
 
 function this.IsRouteMode()
     return this.currentEditorMode == this.EEditorMode.Routes
+end
+
+function this.IsSegmentMode()
+    return this.currentEditorMode == this.EEditorMode.Segments
+end
+
+---@param service ServiceData
+function this.showAllSegments(service)
+    -- reset all
+    this.arrows = {}
+    this.editorData = {
+        service = service,
+        editorMarkers = {},
+        currentMarker = nil
+    }
+    this.editorRoot:detachAllChildren()
+
+    -- for each route get the segments
+    for name, segment in pairs(service.segments) do
+        this.log:trace("\tTracing segment '%s'", segment.id)
+        -- routes
+        for routeIdx = 1, 2, 1 do
+            local spline = segment:GetRoute(routeIdx)
+            if spline then
+                for i = 1, #spline do
+                    local from = spline[i]
+
+                    local node = this.nodeMarkerMesh:clone()
+                    node.translation = from
+                    node.appCulled = false
+
+                    ---@type SPreviewMarker
+                    local marker = {
+                        node = node,
+                        type = this.EMarkerType.RouteConnection,
+                        segmentId = segment.id,
+                        routeId = routeIdx,
+                        idx = i
+                    }
+
+                    -- end connectiom
+                    if i == #spline then
+                        -- end, do nothing
+                    elseif i == 1 then
+                        local to = spline[i + 1]
+                        this.createLine(string.format("rf_line_%s_%d_%d", segment.id, routeIdx, i), from, to)
+                    else
+                        local to = spline[i + 1]
+                        this.createLine(string.format("rf_line_%s_%d_%d", segment.id, routeIdx, i), from, to)
+
+                        local sphere = this.sphereMarkerMesh:clone()
+                        sphere.translation = from
+                        sphere.appCulled = false
+                        sphere.scale = 0.5
+                        marker.node = sphere
+
+                        marker.type = this.EMarkerType.Route
+                    end
+
+                    this.editorData.editorMarkers[#this.editorData.editorMarkers + 1] = marker
+                end
+            end
+        end
+    end
+
+
+    -- get ports
+    for key, sport in pairs(service.ports) do
+        -- TODO just get the first one
+        local port = sport.data[table.keys(sport.data)[1]]
+
+        do
+            local child = this.portMarkerMesh:clone()
+            child.translation = port:GetPosition()
+            local m = tes3matrix33.new()
+            local x = math.rad(port:GetRot().x)
+            local y = math.rad(port:GetRot().y)
+            local z = math.rad(port:GetRot().z)
+            m:fromEulerXYZ(x, y, z)
+            child.rotation = m
+            child.appCulled = false
+
+            ---@type SPreviewMarker
+            local marker = {
+                node = child,
+                type = this.EMarkerType.Port
+            }
+            this.editorData.editorMarkers[#this.editorData.editorMarkers + 1] = marker
+        end
+
+
+        if port:HasStart() then
+            local child = this.portMarkerMesh:clone()
+            child.translation = port:StartPos()
+            local m = tes3matrix33.new()
+            local x = math.rad(port:StartRot().x)
+            local y = math.rad(port:StartRot().y)
+            local z = math.rad(port:StartRot().z)
+            m:fromEulerXYZ(x, y, z)
+            child.rotation = m
+            child.appCulled = false
+
+            ---@type SPreviewMarker
+            local marker = {
+                node = child,
+                type = this.EMarkerType.PortStart
+            }
+            this.editorData.editorMarkers[#this.editorData.editorMarkers + 1] = marker
+        end
+    end
+
+    -- render nodes
+    for _, node in ipairs(this.editorData.editorMarkers) do
+        this.editorRoot:attachChild(node.node)
+    end
+
+    this.editorRoot:update()
 end
 
 return this
