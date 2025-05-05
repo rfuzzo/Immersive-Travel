@@ -1,6 +1,11 @@
-segments = ["Ebonheart Port Longboat", "Vivec", "Inner Sea Ebonheart", "Hla Oad Port"]
+segments = [
+    "Ebonheart Port Longboat",
+    "Vivec",
+    "Inner Sea Ebonheart",
+    "Hla Oad Port",
+]
 
 [id]
-destination = "Hla Oad"
 start = "Ebonheart"
+destination = "Hla Oad"
 service = "Shipmaster"
