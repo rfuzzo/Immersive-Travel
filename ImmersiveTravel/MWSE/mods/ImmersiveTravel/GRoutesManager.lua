@@ -112,11 +112,7 @@ local function Prune(graph, start, destination)
     return to_remove
 end
 
----@param node Node
----@return string
-local function NodeId(node)
-    return string.format("%s", node.id)
-end
+
 
 ---@param service ServiceData
 ---@param route SRoute
@@ -129,7 +125,7 @@ local function BuildGraph(service, route)
 
     ---@param node Node
     local function AddNode(node)
-        local id = NodeId(node)
+        local id = node.id
         -- add node
         graph[id] = {}
         -- storage
@@ -167,7 +163,7 @@ local function BuildGraph(service, route)
         local conections = segment:GetConnections()
         log:trace("Segment '%s', conections: %d", segmentId, #conections)
         for _, lastCursor in ipairs(cursor) do
-            log:trace(" - From: %s %s", NodeId(lastCursor), lastCursor.position)
+            log:trace(" - From: %s %s", lastCursor.id, lastCursor.position)
             for _, connection in ipairs(conections) do
                 if connection.pos == lastCursor.position then
                     -- get end position of route
@@ -193,12 +189,12 @@ local function BuildGraph(service, route)
 
                     AddNode(node)
                     -- add edge
-                    table.insert(graph[NodeId(lastCursor)], NodeId(node))
+                    table.insert(graph[lastCursor.id], node.id)
 
                     table.insert(newCursor, node)
 
-                    log:debug(" + Adding connection: '%s' (%s) -> '%s' (%s)", NodeId(lastCursor), lastCursor.position,
-                        NodeId(node), routePos)
+                    log:debug(" + Adding connection: '%s' (%s) -> '%s' (%s)", lastCursor.id, lastCursor.position,
+                        node.id, routePos)
                 end
             end
         end
@@ -218,7 +214,7 @@ local function BuildGraph(service, route)
     assert(endPort)
     local endPos = endPort:EndPos()
     for _, lastCursor in ipairs(cursor) do
-        log:trace(" ( Last cursor: %s - %s )", NodeId(lastCursor), lastCursor.position)
+        log:trace(" ( Last cursor: %s - %s )", lastCursor.id, lastCursor.position)
         if endPos == lastCursor.position then
             endNode = {
                 id = route.id.destination,
@@ -229,16 +225,16 @@ local function BuildGraph(service, route)
 
             AddNode(endNode)
             -- add edge
-            table.insert(graph[NodeId(lastCursor)], NodeId(endNode))
+            table.insert(graph[lastCursor.id], endNode.id)
 
-            log:debug(" + Adding connection: %s -> %s", NodeId(lastCursor), NodeId(endNode))
+            log:debug(" + Adding connection: %s -> %s", lastCursor.id, endNode.id)
         end
     end
 
     -- TODO verification
 
     -- prune dead branches
-    local to_remove = Prune(graph, NodeId(startNode), NodeId(endNode))
+    local to_remove = Prune(graph, startNode.id, endNode.id)
     local found = #to_remove
     while found > 0 do
         for _, node_id in ipairs(to_remove) do
@@ -257,7 +253,7 @@ local function BuildGraph(service, route)
             end
         end
 
-        to_remove = Prune(graph, NodeId(startNode), NodeId(endNode))
+        to_remove = Prune(graph, startNode.id, endNode.id)
         found = #to_remove
     end
 
