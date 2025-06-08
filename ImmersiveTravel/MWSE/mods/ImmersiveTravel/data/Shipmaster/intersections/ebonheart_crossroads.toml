@@ -1,0 +1,10 @@
+# Route intersection near Ebonheart
+# Routes between Ebonheart, Vivec, and outlying settlements cross in the Inner Sea
+# Important naval crossroads requiring traffic management
+
+[position]
+x = 102000.0
+y = -98000.0
+z = 0.0
+
+radius = 250.0

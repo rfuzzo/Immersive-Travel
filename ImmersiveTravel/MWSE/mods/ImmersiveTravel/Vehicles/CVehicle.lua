@@ -779,6 +779,9 @@ function CVehicle:cleanup()
                 end
             end
         end
+        
+        -- Exit any intersections
+        routesManager:ForceExitIntersection(self:Id())
     end
 
     local mount = self.referenceHandle:getObject()

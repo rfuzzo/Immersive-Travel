@@ -14,17 +14,26 @@ local log           = mwse.Logger.new()
 ---@field occupiedBy string? vehicle ID currently using this waterway
 ---@field queue string[] list of vehicle IDs waiting to use this waterway
 
+---@class RouteIntersection
+---@field id string unique identifier for the intersection
+---@field position tes3vector3 geographic position of the intersection
+---@field radius number collision detection radius around the intersection
+---@field occupiedBy string? vehicle ID currently in the intersection
+---@field queue string[] list of vehicle IDs waiting to enter intersection
+
 -- Define a class to manage the splines
 ---@class GRoutesManager
 ---@field private services table<string, ServiceData>? service name -> ServiceData
 ---@field spawnPoints table<string, SPointDto[]> spawn point data
 ---@field routesPrice table<string, number> route price
 ---@field sharedWaterways table<string, SharedWaterway> shared waterway data
+---@field intersections table<string, RouteIntersection> route intersection data
 local RoutesManager = {
     services       = {},
     spawnPoints    = {},
     routesPrice    = {},
     sharedWaterways = {},
+    intersections   = {},
 }
 
 function RoutesManager:new()
@@ -138,6 +147,51 @@ local function loadSharedWaterways(service)
     end
 
     return waterways
+end
+
+---@param service ServiceData
+---@return table<string, RouteIntersection>
+local function loadIntersections(service)
+    log:debug("\t  Adding route intersections:")
+
+    local intersections = {} ---@type table<string, RouteIntersection>
+
+    local intersectionsPath = string.format("%s\\data\\%s\\intersections", lib.fullmodpath, service.class)
+    
+    -- Check if intersections directory exists
+    local dirExists = lfs.attributes(intersectionsPath, "mode") == "directory"
+    if not dirExists then
+        log:debug("\t\tNo intersections directory found: %s", intersectionsPath)
+        return intersections
+    end
+
+    for file in lfs.dir(intersectionsPath) do
+        if (string.endswith(file, ".toml")) then
+            local filePath = string.format("%s\\%s", intersectionsPath, file)
+
+            local intersectionName = file:sub(0, -6)
+            local result = toml.loadFile(filePath) ---@type table?
+            if result and result.position and result.radius then
+                ---@type RouteIntersection
+                local intersection = {
+                    id = intersectionName,
+                    position = tes3vector3.new(result.position.x, result.position.y, result.position.z or 0),
+                    radius = result.radius,
+                    occupiedBy = nil,
+                    queue = {}
+                }
+                intersections[intersectionName] = intersection
+
+                log:debug("\t\tAdding intersection %s at position (%.1f, %.1f, %.1f) with radius %.1f", 
+                         intersectionName, intersection.position.x, intersection.position.y, 
+                         intersection.position.z, intersection.radius)
+            else
+                log:warn("\t\tFailed to load intersection %s (missing position or radius)", intersectionName)
+            end
+        end
+    end
+
+    return intersections
 end
 
 ---@param graph table<string,string[]>
@@ -410,6 +464,7 @@ function RoutesManager:Init()
     self.spawnPoints = {}
     self.routesPrice = {}
     self.sharedWaterways = {}
+    self.intersections = {}
 
     -- init services
     self.services = table.copy(interop.services)
@@ -430,6 +485,12 @@ function RoutesManager:Init()
         local serviceWaterways = loadSharedWaterways(service)
         for id, waterway in pairs(serviceWaterways) do
             self.sharedWaterways[id] = waterway
+        end
+
+        -- load intersections
+        local serviceIntersections = loadIntersections(service)
+        for id, intersection in pairs(serviceIntersections) do
+            self.intersections[id] = intersection
         end
 
         -- get prices
@@ -576,6 +637,98 @@ function RoutesManager:CanProceedOnSegment(segmentId, vehicleId)
     end
     
     return waterway.occupiedBy == vehicleId or waterway.occupiedBy == nil
+end
+
+---@param position tes3vector3
+---@param vehicleId string
+---@return boolean true if vehicle can enter the intersection area
+function RoutesManager:TryEnterIntersection(position, vehicleId)
+    for _, intersection in pairs(self.intersections) do
+        local distance = position:distance(intersection.position)
+        if distance <= intersection.radius then
+            -- Vehicle is approaching this intersection
+            if intersection.occupiedBy == nil then
+                -- Intersection is free, occupy it
+                intersection.occupiedBy = vehicleId
+                log:info("Vehicle %s entered intersection %s", vehicleId, intersection.id)
+                return true
+            elseif intersection.occupiedBy == vehicleId then
+                -- Already occupied by this vehicle
+                return true
+            else
+                -- Intersection is occupied by another vehicle, add to queue
+                local isAlreadyQueued = false
+                for _, queuedVehicleId in ipairs(intersection.queue) do
+                    if queuedVehicleId == vehicleId then
+                        isAlreadyQueued = true
+                        break
+                    end
+                end
+                
+                if not isAlreadyQueued then
+                    table.insert(intersection.queue, vehicleId)
+                    log:info("Vehicle %s queued for intersection %s, queue position %d", 
+                             vehicleId, intersection.id, #intersection.queue)
+                end
+                
+                return false
+            end
+        end
+    end
+    
+    return true -- No intersections nearby
+end
+
+---@param position tes3vector3
+---@param vehicleId string
+function RoutesManager:ExitIntersection(position, vehicleId)
+    for _, intersection in pairs(self.intersections) do
+        if intersection.occupiedBy == vehicleId then
+            local distance = position:distance(intersection.position)
+            -- Vehicle has moved outside the intersection radius
+            if distance > intersection.radius + 100 then -- Add some buffer to avoid flickering
+                intersection.occupiedBy = nil
+                log:info("Vehicle %s exited intersection %s", vehicleId, intersection.id)
+                
+                -- Check if there's a vehicle waiting in queue
+                if #intersection.queue > 0 then
+                    local nextVehicleId = table.remove(intersection.queue, 1)
+                    intersection.occupiedBy = nextVehicleId
+                    log:info("Vehicle %s from queue now occupies intersection %s", 
+                             nextVehicleId, intersection.id)
+                end
+                break
+            end
+        end
+    end
+end
+
+---@param vehicleId string
+function RoutesManager:ForceExitIntersection(vehicleId)
+    for _, intersection in pairs(self.intersections) do
+        if intersection.occupiedBy == vehicleId then
+            intersection.occupiedBy = nil
+            log:info("Vehicle %s force-exited intersection %s", vehicleId, intersection.id)
+            
+            -- Check if there's a vehicle waiting in queue
+            if #intersection.queue > 0 then
+                local nextVehicleId = table.remove(intersection.queue, 1)
+                intersection.occupiedBy = nextVehicleId
+                log:info("Vehicle %s from queue now occupies intersection %s", 
+                         nextVehicleId, intersection.id)
+            end
+        else
+            -- Remove from queue if present
+            for i, queuedVehicleId in ipairs(intersection.queue) do
+                if queuedVehicleId == vehicleId then
+                    table.remove(intersection.queue, i)
+                    log:info("Vehicle %s removed from queue for intersection %s", 
+                             vehicleId, intersection.id)
+                    break
+                end
+            end
+        end
+    end
 end
 
 return RoutesManager

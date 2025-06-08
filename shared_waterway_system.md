@@ -1,27 +1,42 @@
-# Shared Waterway Collision System
+# Shared Waterway & Intersection Collision System
 
 ## Overview
 
-This system replaces the complex real-time evasion mechanics with a simpler segment-based queuing system for handling vehicle collisions on shared waterways (narrow passages that can only accommodate one vehicle at a time).
+This system replaces the complex real-time evasion mechanics with a simpler queuing system for handling vehicle collisions in two scenarios:
+1. **Shared waterways** - Narrow passages that can only accommodate one vehicle at a time
+2. **Route intersections** - Geographic locations where different routes cross each other
 
 ## How It Works
 
 ### Key Components
 
 1. **Shared Waterways**: Defined in TOML files under `data/{service}/shared/` directories
-2. **Queue Management**: Vehicles queue to enter busy waterways
-3. **Rear Collision Detection**: Prevents vehicles from colliding from behind on the same route
+2. **Route Intersections**: Defined in TOML files under `data/{service}/intersections/` directories  
+3. **Queue Management**: Vehicles queue to enter busy waterways and intersections
+4. **Rear Collision Detection**: Prevents vehicles from colliding from behind on the same route
 
 ### Configuration
 
-Shared waterways are configured in TOML files:
+**Shared waterways** are configured in TOML files:
 
 ```toml
 # Example: firewatch_strait_narrows.toml
 segmentId = "Firewatch Strait"
 ```
 
-The file name becomes the waterway ID, and `segmentId` specifies which route segment is shared.
+**Route intersections** are configured in TOML files:
+
+```toml
+# Example: vivec_foreign_quarter.toml
+[position]
+x = 96000.0
+y = -103000.0
+z = 0.0
+
+radius = 300.0
+```
+
+The file name becomes the waterway/intersection ID. For shared waterways, `segmentId` specifies which route segment is shared. For intersections, `position` and `radius` define the geographic collision area.
 
 ### Vehicle Movement Logic
 
@@ -29,26 +44,33 @@ The file name becomes the waterway ID, and `segmentId` specifies which route seg
    - If free: Vehicle enters immediately
    - If occupied: Vehicle is added to a queue and waits
 
-2. **Proceeding on Segments**: Before moving each frame, vehicles check:
+2. **Intersection Checking**: Before moving each frame, vehicles check nearby intersections:
+   - If intersection is free: Vehicle enters the intersection area
+   - If occupied: Vehicle is added to intersection queue and waits
+
+3. **Proceeding on Segments**: Before moving each frame, vehicles check:
    - Can proceed on current segment (not blocked by another vehicle)
+   - Can proceed through nearby intersections (not blocked by cross-traffic)
    - No rear collision risk from vehicles behind
 
-3. **Exiting Segments**: When leaving a segment, vehicles:
-   - Exit the shared waterway
+4. **Exiting Areas**: When leaving segments or intersections, vehicles:
+   - Exit the shared waterway/intersection
    - Allow the next queued vehicle to enter
 
 ### Safety Features
 
-- **Automatic Cleanup**: Vehicles exit shared waterways when deleted/cleaned up
+- **Automatic Cleanup**: Vehicles exit shared waterways and intersections when deleted/cleaned up
 - **Rear Collision Avoidance**: Vehicles slow down if another vehicle is too close behind
+- **Cross-Route Collision Prevention**: Vehicles wait at intersections when cross-traffic is present
 - **Validation**: Robust error checking for missing routes, services, or invalid references
 
 ## File Locations
 
 - **Main Logic**: `Statemachine/locomotion/CLocomotionState.lua`
-- **Manager**: `GRoutesManager.lua` (shared waterway methods)
+- **Manager**: `GRoutesManager.lua` (shared waterway and intersection methods)
 - **Cleanup**: `Vehicles/CVehicle.lua` (exit on vehicle destruction)
-- **Configuration**: `data/{service}/shared/*.toml`
+- **Waterway Configuration**: `data/{service}/shared/*.toml`
+- **Intersection Configuration**: `data/{service}/intersections/*.toml`
 
 ## Example Configurations
 

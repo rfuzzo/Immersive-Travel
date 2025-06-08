@@ -400,6 +400,17 @@ local function getNextPositionHeading(vehicle)
         return vehicle.last_position -- stay at current position temporarily
     end
 
+    -- check for route intersection conflicts
+    local nextPos = vehicle.spline[vehicle.splineIndex]
+    if not routesManager:TryEnterIntersection(nextPos, vehicle:Id()) then
+        log:debug("Vehicle %s blocked at intersection near position (%.1f, %.1f)", 
+                 vehicle:Id(), nextPos.x, nextPos.y)
+        return vehicle.last_position -- stay at current position until intersection is clear
+    end
+
+    -- exit intersections as we move away from them
+    routesManager:ExitIntersection(vehicle.last_position, vehicle:Id())
+
     -- move to next marker
     local nextPos = vehicle.spline[vehicle.splineIndex]
     local isBehind = lib.isPointBehindObject(nextPos, vehicle.last_position, vehicle.last_forwardDirection)
