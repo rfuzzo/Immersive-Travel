@@ -8,15 +8,23 @@ if not config then return end
 
 local log           = mwse.Logger.new()
 
+---@class SharedWaterway
+---@field id string unique identifier for the shared segment
+---@field segmentId string the segment ID that is shared
+---@field occupiedBy string? vehicle ID currently using this waterway
+---@field queue string[] list of vehicle IDs waiting to use this waterway
+
 -- Define a class to manage the splines
 ---@class GRoutesManager
 ---@field private services table<string, ServiceData>? service name -> ServiceData
 ---@field spawnPoints table<string, SPointDto[]> spawn point data
 ---@field routesPrice table<string, number> route price
+---@field sharedWaterways table<string, SharedWaterway> shared waterway data
 local RoutesManager = {
-    services    = {},
-    spawnPoints = {},
-    routesPrice = {},
+    services       = {},
+    spawnPoints    = {},
+    routesPrice    = {},
+    sharedWaterways = {},
 }
 
 function RoutesManager:new()
@@ -88,6 +96,48 @@ local function loadSegments(service)
     end
 
     return map
+end
+
+---@param service ServiceData
+---@return table<string, SharedWaterway>
+local function loadSharedWaterways(service)
+    log:debug("\t  Adding shared waterways:")
+
+    local waterways = {} ---@type table<string, SharedWaterway>
+
+    local waterwaysPath = string.format("%s\\data\\%s\\shared", lib.fullmodpath, service.class)
+    
+    -- Check if shared waterways directory exists
+    local dirExists = lfs.attributes(waterwaysPath, "mode") == "directory"
+    if not dirExists then
+        log:debug("\t\tNo shared waterways directory found: %s", waterwaysPath)
+        return waterways
+    end
+
+    for file in lfs.dir(waterwaysPath) do
+        if (string.endswith(file, ".toml")) then
+            local filePath = string.format("%s\\%s", waterwaysPath, file)
+
+            local waterwayName = file:sub(0, -6)
+            local result = toml.loadFile(filePath) ---@type table?
+            if result and result.segmentId then
+                ---@type SharedWaterway
+                local waterway = {
+                    id = waterwayName,
+                    segmentId = result.segmentId,
+                    occupiedBy = nil,
+                    queue = {}
+                }
+                waterways[waterwayName] = waterway
+
+                log:debug("\t\tAdding shared waterway %s for segment %s", waterwayName, result.segmentId)
+            else
+                log:warn("\t\tFailed to load shared waterway %s", waterwayName)
+            end
+        end
+    end
+
+    return waterways
 end
 
 ---@param graph table<string,string[]>
@@ -359,6 +409,7 @@ function RoutesManager:Init()
     self.services = {}
     self.spawnPoints = {}
     self.routesPrice = {}
+    self.sharedWaterways = {}
 
     -- init services
     self.services = table.copy(interop.services)
@@ -374,6 +425,12 @@ function RoutesManager:Init()
         service.segments = loadSegments(service)
         service.ports = loadPorts(service)
         service.routes = loadRoutes(service)
+        
+        -- load shared waterways
+        local serviceWaterways = loadSharedWaterways(service)
+        for id, waterway in pairs(serviceWaterways) do
+            self.sharedWaterways[id] = waterway
+        end
 
         -- get prices
         for _, route in pairs(service.routes) do
@@ -427,6 +484,98 @@ end
 
 function RoutesManager.GetServices()
     return RoutesManager.getInstance().services
+end
+
+---@param segmentId string
+---@return SharedWaterway?
+function RoutesManager:GetSharedWaterwayBySegment(segmentId)
+    for _, waterway in pairs(self.sharedWaterways) do
+        if waterway.segmentId == segmentId then
+            return waterway
+        end
+    end
+    return nil
+end
+
+---@param segmentId string
+---@param vehicleId string
+---@return boolean true if vehicle can enter the shared waterway
+function RoutesManager:TryEnterSharedWaterway(segmentId, vehicleId)
+    local waterway = self:GetSharedWaterwayBySegment(segmentId)
+    if not waterway then
+        return true -- not a shared waterway, allow entry
+    end
+    
+    if waterway.occupiedBy == nil then
+        -- waterway is free, occupy it
+        waterway.occupiedBy = vehicleId
+        log:info("Vehicle %s entered shared waterway %s (segment %s)", vehicleId, waterway.id, segmentId)
+        return true
+    elseif waterway.occupiedBy == vehicleId then
+        -- already occupied by this vehicle
+        return true
+    else
+        -- waterway is occupied by another vehicle, add to queue
+        local isAlreadyQueued = false
+        for _, queuedVehicleId in ipairs(waterway.queue) do
+            if queuedVehicleId == vehicleId then
+                isAlreadyQueued = true
+                break
+            end
+        end
+        
+        if not isAlreadyQueued then
+            table.insert(waterway.queue, vehicleId)
+            log:info("Vehicle %s queued for shared waterway %s (segment %s), queue position %d", 
+                     vehicleId, waterway.id, segmentId, #waterway.queue)
+        end
+        
+        return false
+    end
+end
+
+---@param segmentId string
+---@param vehicleId string
+function RoutesManager:ExitSharedWaterway(segmentId, vehicleId)
+    local waterway = self:GetSharedWaterwayBySegment(segmentId)
+    if not waterway then
+        return -- not a shared waterway
+    end
+    
+    if waterway.occupiedBy == vehicleId then
+        waterway.occupiedBy = nil
+        log:info("Vehicle %s exited shared waterway %s (segment %s)", vehicleId, waterway.id, segmentId)
+        
+        -- check if there's a vehicle waiting in queue
+        if #waterway.queue > 0 then
+            local nextVehicleId = table.remove(waterway.queue, 1)
+            waterway.occupiedBy = nextVehicleId
+            log:info("Vehicle %s from queue now occupies shared waterway %s (segment %s)", 
+                     nextVehicleId, waterway.id, segmentId)
+        end
+    else
+        -- remove from queue if present
+        for i, queuedVehicleId in ipairs(waterway.queue) do
+            if queuedVehicleId == vehicleId then
+                table.remove(waterway.queue, i)
+                log:info("Vehicle %s removed from queue for shared waterway %s (segment %s)", 
+                         vehicleId, waterway.id, segmentId)
+                break
+            end
+        end
+    end
+end
+
+---@param segmentId string
+---@param vehicleId string
+---@return boolean true if this vehicle can proceed on this segment
+function RoutesManager:CanProceedOnSegment(segmentId, vehicleId)
+    local waterway = self:GetSharedWaterwayBySegment(segmentId)
+    if not waterway then
+        return true -- not a shared waterway, always allow
+    end
+    
+    return waterway.occupiedBy == vehicleId or waterway.occupiedBy == nil
 end
 
 return RoutesManager

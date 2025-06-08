@@ -765,6 +765,22 @@ end
 function CVehicle:cleanup()
     log:trace("CVehicle cleanup %s", self:Id())
 
+    -- exit any shared waterways the vehicle might be occupying
+    if self.routeId and self.serviceId then
+        local routesManager = require("ImmersiveTravel.GRoutesManager").getInstance()
+        if routesManager then
+            local service = routesManager:GetService(self.serviceId)
+            if service then
+                local route = service:GetRoute(self.routeId)
+                if route and self.segmentIndex and self.segmentIndex <= #route.segments then
+                    local currentSegmentId = route.segments[self.segmentIndex]
+                    routesManager:ExitSharedWaterway(currentSegmentId, self:Id())
+                    log:debug("Vehicle %s exited shared waterway %s on cleanup", self:Id(), currentSegmentId)
+                end
+            end
+        end
+    end
+
     local mount = self.referenceHandle:getObject()
     tes3.removeSound({ reference = mount })
 

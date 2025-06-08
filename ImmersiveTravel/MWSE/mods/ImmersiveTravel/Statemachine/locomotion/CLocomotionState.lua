@@ -269,6 +269,59 @@ local function calculateOrientation(vehicle, dt, turn)
 end
 
 ---@param vehicle CVehicle
+---@return boolean true if this vehicle is too close to a vehicle in front and should slow down
+local function checkRearCollision(vehicle)
+    if not vehicle.routeId then return false end
+    
+    local routesManager = GRoutesManager.getInstance()
+    local service = routesManager:GetService(vehicle.serviceId)
+    if not service then return false end
+
+    local route = service:GetRoute(vehicle.routeId)
+    if not route then return false end
+
+    -- get all vehicles on the same route
+    local trackingManager = GTrackingManager.getInstance()
+    if not trackingManager or not trackingManager.vehicles then return false end
+    
+    local allVehicles = trackingManager.vehicles
+    
+    local COLLISION_DISTANCE = 200 -- distance threshold for rear collision check
+    
+    for _, otherVehicle in pairs(allVehicles) do
+        if otherVehicle ~= vehicle and 
+           otherVehicle.routeId == vehicle.routeId and
+           otherVehicle.serviceId == vehicle.serviceId and
+           otherVehicle.referenceHandle and otherVehicle.referenceHandle:valid() then
+            
+            -- check if other vehicle is ahead of us on the same segment
+            if otherVehicle.segmentIndex == vehicle.segmentIndex then
+                local distance = vehicle.last_position:distance(otherVehicle.last_position)
+                if distance < COLLISION_DISTANCE then
+                    -- check if other vehicle is actually ahead of us on the route
+                    local isOtherAhead = otherVehicle.splineIndex > vehicle.splineIndex
+                    if isOtherAhead and vehicle.current_speed > 0 then
+                        log:debug("Following too close: Vehicle %s should slow down behind %s (distance: %.1f)", 
+                                 vehicle:Id(), otherVehicle:Id(), distance)
+                        return true
+                    end
+                end
+            -- also check if other vehicle is on next segment and we're approaching it
+            elseif otherVehicle.segmentIndex == vehicle.segmentIndex + 1 then
+                local distance = vehicle.last_position:distance(otherVehicle.last_position)
+                if distance < COLLISION_DISTANCE and vehicle.current_speed > 0 then
+                    log:debug("Approaching vehicle on next segment: Vehicle %s should slow down behind %s (distance: %.1f)", 
+                             vehicle:Id(), otherVehicle:Id(), distance)
+                    return true
+                end
+            end
+        end
+    end
+    
+    return false
+end
+
+---@param vehicle CVehicle
 ---@return tes3vector3?
 local function getNextPositionHeading(vehicle)
     -- handle player steer and onspline states
@@ -285,7 +338,8 @@ local function getNextPositionHeading(vehicle)
     if not vehicle.routeId then return nil end
     if not vehicle.spline then return nil end
 
-    local service = GRoutesManager.getInstance():GetService(vehicle.serviceId)
+    local routesManager = GRoutesManager.getInstance()
+    local service = routesManager:GetService(vehicle.serviceId)
     if not service then return nil end
 
     local route = service:GetRoute(vehicle.routeId)
@@ -298,7 +352,12 @@ local function getNextPositionHeading(vehicle)
 
     -- check if we need to move to the next segment
     if vehicle.splineIndex > #vehicle.spline then
-        -- TODO move to method
+        -- exit current shared waterway if applicable
+        if vehicle.segmentIndex <= #route.segments then
+            local currentSegmentId = route.segments[vehicle.segmentIndex]
+            routesManager:ExitSharedWaterway(currentSegmentId, vehicle:Id())
+        end
+
         vehicle.segmentIndex = vehicle.segmentIndex + 1
 
         local nextSegment = service:GetSegment(route.segments[vehicle.segmentIndex])
@@ -307,11 +366,38 @@ local function getNextPositionHeading(vehicle)
             log:trace("No more segments")
             return nil
         end
-        log:trace("Moving to the next segment: '%s'", nextSegment.id)
+        
+        local nextSegmentId = route.segments[vehicle.segmentIndex]
+        log:trace("Moving to the next segment: '%s'", nextSegmentId)
+
+        -- check if we can enter the next segment (shared waterway check)
+        if not routesManager:TryEnterSharedWaterway(nextSegmentId, vehicle:Id()) then
+            log:debug("Vehicle %s cannot enter shared waterway segment %s, waiting in queue", vehicle:Id(), nextSegmentId)
+            -- reset to previous segment to wait
+            vehicle.segmentIndex = vehicle.segmentIndex - 1
+            return vehicle.last_position -- stay at current position
+        end
 
         -- new route in the new segment
-        vehicle.spline = route:GetSegmentRoute(service, route.segments[vehicle.segmentIndex])
+        vehicle.spline = route:GetSegmentRoute(service, nextSegmentId)
         vehicle.splineIndex = 2 -- NOTE it needs to be 2 because we are already at the first position
+    end
+
+    -- check if we can proceed on current segment
+    local currentSegmentId = route.segments[vehicle.segmentIndex]
+    if not routesManager:CanProceedOnSegment(currentSegmentId, vehicle:Id()) then
+        log:debug("Vehicle %s blocked on segment %s", vehicle:Id(), currentSegmentId)
+        return vehicle.last_position -- stay at current position
+    end
+
+    -- check for rear collision risk
+    if checkRearCollision(vehicle) then
+        log:debug("Vehicle %s slowing down due to rear collision risk", vehicle:Id())
+        -- reduce speed to avoid collision
+        if vehicle.current_speed > 0.5 then
+            vehicle.current_speed = math.max(0.1, vehicle.current_speed * 0.8)
+        end
+        return vehicle.last_position -- stay at current position temporarily
     end
 
     -- move to next marker
