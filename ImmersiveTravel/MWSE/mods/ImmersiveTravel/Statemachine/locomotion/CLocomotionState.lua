@@ -13,10 +13,6 @@ local CLocomotionState = {
 }
 setmetatable(CLocomotionState, { __index = CAbstractState })
 
-local EVADE_RADIUS          = 1024 * 3
-local EVADE_FORWARD_OFFSET  = 0.1
-local EVADE_TURN_MULT       = 2.0
-
 --#region methods
 
 -- enum for locomotion states
@@ -174,60 +170,6 @@ local function CalculatePositions(vehicle, nextPos)
     local virtualpos    = nextPos
     local current_speed = vehicle.current_speed
     local turnspeed     = vehicle.current_turnspeed
-
-    -- only in onspline AI states
-    -- evade
-    local rootBone      = vehicle:GetRootBone()
-    local enableEvade   = false --worldConfig and worldConfig.enableEvade
-    if enableEvade and rootBone and vehicle.aiStateMachine.currentState.name == CAiState.ONSPLINE then
-        local result = nil
-        local is_evading = false;
-
-        -- get tracked objects
-        for _, other_vehicle in pairs(GTrackingManager.getInstance().trackingList) do
-            ---@cast other_vehicle CVehicle
-            if other_vehicle ~= vehicle and currentPos:distance(other_vehicle.last_position) < 8192 then
-                -- if any vehicle is too close, evade
-                if currentPos:distance(other_vehicle.last_position) < EVADE_RADIUS then
-                    local local_distance = rootBone.worldTransform:invert() * (other_vehicle.last_position - currentPos)
-                    local_distance.z = 0
-                    local_distance:normalize()
-
-                    -- check if other vehicle is in front of this vehicle
-                    if local_distance.y > 0 then
-                        if local_distance.x > EVADE_FORWARD_OFFSET then
-                            -- result is the local distance vector rotated by 90 degrees to the left around the z axis
-                            result = tes3vector3.new(-local_distance.y, local_distance.x, 0)
-                        else
-                            -- result is the local distance vector rotated by 90 degrees to the right around the z axis
-                            result = tes3vector3.new(local_distance.y, -local_distance.x, 0)
-                        end
-
-                        result:normalize()
-                        result = result * 1024
-
-                        break
-                    end
-
-                    is_evading = true
-                end
-            end
-        end
-
-        -- evade
-        if is_evading then
-            -- increase the angle speed during maneuvres
-            turnspeed = turnspeed * EVADE_TURN_MULT
-        end
-
-        if result then
-            -- -- lower the speed
-            -- current_speed = current_speed * EVADE_SPEED_MULT
-            -- override the next position temporarily
-            virtualpos = rootBone.worldTransform * result
-            virtualpos.z = currentPos.z
-        end
-    end
 
     local isReversing = vehicle.current_speed < 0
 
