@@ -6,7 +6,7 @@ local SSegment = require("ImmersiveTravel.models.SSegment")
 local config   = require("ImmersiveTravel.config")
 if not config then return end
 
-local log           = lib.log
+local log           = mwse.Logger.new()
 
 -- Define a class to manage the splines
 ---@class GRoutesManager
@@ -115,12 +115,12 @@ end
 ---@param node Node
 ---@return string
 local function NodeId(node)
-    return string.format("%s#%d", node.id, node.route)
+    return string.format("%s", node.id)
 end
 
 ---@param service ServiceData
 ---@param route SRoute
----@return table<string,Node>, table<string,string[]>, table<string,number[]>
+---@return table<string,Node>, table<string,string[]>
 local function BuildGraph(service, route)
     local cursor = {} ---@type Node[]
 
@@ -171,7 +171,7 @@ local function BuildGraph(service, route)
             for _, connection in ipairs(conections) do
                 if connection.pos == lastCursor.position then
                     -- get end position of route
-                    local croute = segment:GetRoute(connection.route)
+                    local croute = segment:GetRoute()
                     assert(croute)
                     local routeEndPos = croute[#croute]
                     local routeStartPos = croute[1]
@@ -187,7 +187,6 @@ local function BuildGraph(service, route)
                     ---@type Node
                     local node = {
                         id = segmentId,
-                        route = connection.route,
                         position = routePos,
                         reverse = reverse,
                     }
@@ -206,10 +205,10 @@ local function BuildGraph(service, route)
 
         cursor = newCursor
 
-         -- break if no connections
-         if #cursor == 0 then
+        -- break if no connections
+        if #cursor == 0 then
             log:error("No connections found for segment '%s'", segmentId)
-            return {}, {}, {}
+            return {}, {}
         end
     end
 
@@ -262,17 +261,7 @@ local function BuildGraph(service, route)
         found = #to_remove
     end
 
-    -- generate name lookup
-    local name_lookup = {} ---@type table<string,number[]>
-    for node_id, adj_list in pairs(graph) do
-        local node = nodesMap[node_id]
-        if name_lookup[node.id] == nil then
-            name_lookup[node.id] = {}
-        end
-        table.insert(name_lookup[node.id], node.route)
-    end
-
-    return nodesMap, graph, name_lookup
+    return nodesMap, graph
 end
 
 ---@param graph table<string,string[]>
@@ -321,12 +310,11 @@ local function loadRoutes(service)
 
     -- build a graph
     for id, route in pairs(routes) do
-        local nodes, graph, lut = BuildGraph(service, route)
+        local nodes, graph = BuildGraph(service, route)
 
         if table.size(nodes) > 0 then
             routes[id].nodes = nodes
             routes[id].graph = graph
-            routes[id].lut = lut
 
             log:debug("\t\tAdding route '%s'", route.id:ToString())
             if lib.IsLogLevelAtLeast("DEBUG") then
@@ -401,28 +389,25 @@ function RoutesManager:Init()
         -- spawn points
         for _, route in pairs(service.routes) do
             for _, segmentName in ipairs(route.segments) do
-                local routes = route.lut[segmentName]
-                for _, routeIdx in ipairs(routes) do
-                    local pos = route:GetStartingPoint(service, segmentName, routeIdx)
-                    if pos then
-                        local cell = tes3.getCell({
-                            position = tes3vector3.new(pos.x, pos.y, 0)
-                        })
-                        if cell then
-                            local cell_key = tostring(cell.gridX) .. "," .. tostring(cell.gridY)
-                            if not self.spawnPoints[cell_key] then
-                                self.spawnPoints[cell_key] = {}
-                            end
-
-                            ---@type SPointDto
-                            local point = {
-                                point = pos,
-                                routeId = route.id,
-                                segmentName = segmentName
-                            }
-                            table.insert(self.spawnPoints[cell_key], point)
-                            log:debug("[%s] Spawn point %s, route %d ", route.id:ToString(), segmentName, routeIdx)
+                local pos = route:GetStartingPoint(service, segmentName)
+                if pos then
+                    local cell = tes3.getCell({
+                        position = tes3vector3.new(pos.x, pos.y, 0)
+                    })
+                    if cell then
+                        local cell_key = tostring(cell.gridX) .. "," .. tostring(cell.gridY)
+                        if not self.spawnPoints[cell_key] then
+                            self.spawnPoints[cell_key] = {}
                         end
+
+                        ---@type SPointDto
+                        local point = {
+                            point = pos,
+                            routeId = route.id,
+                            segmentName = segmentName
+                        }
+                        table.insert(self.spawnPoints[cell_key], point)
+                        log:debug("[%s] Spawn point %s ", route.id:ToString(), segmentName)
                     end
                 end
             end

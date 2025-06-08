@@ -1,7 +1,7 @@
 local lib                  = require("ImmersiveTravel.lib")
 local CAiState             = require("ImmersiveTravel.Statemachine.ai.CAiState")
 local interop              = require("ImmersiveTravel.interop")
-local log                  = lib.log
+local log                  = mwse.Logger.new()
 
 -- Define a class to manage the tracking list and timer
 ---@class GTrackingManager

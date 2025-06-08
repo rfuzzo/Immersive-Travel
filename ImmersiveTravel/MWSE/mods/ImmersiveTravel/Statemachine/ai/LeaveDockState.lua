@@ -4,7 +4,7 @@ local lib                   = require("ImmersiveTravel.lib")
 local RouteId               = require("ImmersiveTravel.models.RouteId")
 local GRoutesManager        = require("ImmersiveTravel.GRoutesManager")
 
-local log                   = lib.log
+local log                   = mwse.Logger.new()
 
 ---@param ctx any
 ---@return boolean?

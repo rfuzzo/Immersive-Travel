@@ -3,7 +3,7 @@ local CLocomotionStateMachine = require("ImmersiveTravel.Statemachine.locomotion
 local CAiStateMachine         = require("ImmersiveTravel.Statemachine.ai.CAiStateMachine")
 
 local lib                     = require("ImmersiveTravel.lib")
-local log                     = lib.log
+local log                     = mwse.Logger.new()
 
 -- Define the base class CTickingEntity
 ---@class CTickingEntity

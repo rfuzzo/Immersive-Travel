@@ -4,7 +4,7 @@ local GTrackingManager = require("ImmersiveTravel.GTrackingManager")
 local GRoutesManager   = require("ImmersiveTravel.GRoutesManager")
 local CAiState         = require("ImmersiveTravel.Statemachine.ai.CAiState")
 
-local log              = lib.log
+local log              = mwse.Logger.new()
 
 -- Abstract locomotion state machine class
 ---@class CLocomotionState : CAbstractState

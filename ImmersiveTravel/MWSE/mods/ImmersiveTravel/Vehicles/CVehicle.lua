@@ -5,7 +5,7 @@ local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState"
 local lib                   = require("ImmersiveTravel.lib")
 local names                 = require("ImmersiveTravel.names")
 
-local log                   = lib.log
+local log                   = mwse.Logger.new()
 
 ---@class Slot
 ---@field position tes3vector3 slot

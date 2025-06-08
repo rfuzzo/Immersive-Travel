@@ -1,13 +1,13 @@
 # Longboat
 [data.a_longboat.position]
-x = -49481
-y = -39131
+x = -52874.234
+y = -38132.016
 z = 0
 
 [data.a_longboat.rotation]
 x = 0
 y = 0
-z = 75
+z = 163.0
 
 [data.a_longboat.positionStart]
 x = -52987

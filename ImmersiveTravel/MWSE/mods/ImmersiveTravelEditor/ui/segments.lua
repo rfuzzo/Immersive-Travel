@@ -21,7 +21,7 @@ local filter_text           = ""
 
 -- usings
 local EMarkerType           = elib.EMarkerType
-local log                   = elib.log
+local log                   = mwse.Logger.new()
 
 local function GetEditorData()
     return elib.editorData
@@ -38,20 +38,14 @@ local function saveSegment(service, segment)
     local segmentsPath = string.format("%s\\data\\%s\\segments\\%s", lib.fullmodpath, service.class, filename)
 
     local route1 = nil
-    if segment:GetRoute1() then
-        route1 = PositionRecord.ToListInt(segment:GetRoute1())
-    end
-
-    local route2 = nil
-    if segment:GetRoute2() then
-        route2 = PositionRecord.ToListInt(segment:GetRoute2())
+    if segment.route1 then
+        route1 = PositionRecord.ToListInt(segment.route1)
     end
 
     ---@type SSegmentDto
     local dto = {
         id = segment.id,
         route1 = route1,
-        route2 = route2,
     }
     toml.saveFile(segmentsPath, dto)
 end
@@ -93,7 +87,7 @@ local function insertMarker()
         -- get segment
         local segment = GetEditorData().service:GetSegment(instance.segmentId)
         assert(segment, "Segment not found")
-        local route = segment:GetRoute(instance.routeId)
+        local route = segment:GetRoute()
         assert(route, "Route not found")
 
         -- insert at index
@@ -128,7 +122,6 @@ local function editMarker(idx)
             position = GetEditorData().currentMarker.node.translation:copy(),
             type = GetEditorData().currentMarker.type,
             segmentId = GetEditorData().currentMarker.segmentId,
-            routeId = GetEditorData().currentMarker.routeId,
             idx = GetEditorData().currentMarker.idx
         }
     else
@@ -144,7 +137,7 @@ local function editMarker(idx)
             if marker.node.translation:distance(lastMarker.position) == 0 then
                 local segment = GetEditorData().service:GetSegment(marker.segmentId)
                 assert(segment)
-                segment:GetRoute(marker.routeId)[marker.idx] = currentMarker.node.translation
+                segment:GetRoute()[marker.idx] = currentMarker.node.translation
                 saveSegment(GetEditorData().service, segment)
             end
         end
@@ -152,7 +145,7 @@ local function editMarker(idx)
         -- update current segment
         local segment = GetEditorData().service:GetSegment(currentMarker.segmentId)
         assert(segment)
-        segment:GetRoute(currentMarker.routeId)[currentMarker.idx] = currentMarker.node.translation
+        segment:GetRoute()[currentMarker.idx] = currentMarker.node.translation
         saveSegment(GetEditorData().service, segment)
 
         GetEditorData().lastMarker = nil
@@ -183,7 +176,7 @@ local function deleteMarker(idx)
     -- get segment
     local segment = GetEditorData().service:GetSegment(instance.segmentId)
     assert(segment, "Segment not found")
-    local route = segment:GetRoute(instance.routeId)
+    local route = segment:GetRoute()
     assert(route, "Route not found")
 
     -- find position in the route

@@ -2,7 +2,7 @@ local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState"
 local GRoutesManager        = require("ImmersiveTravel.GRoutesManager")
 local GPlayerVehicleManager = require("ImmersiveTravel.GPlayerVehicleManager")
 local lib                   = require("ImmersiveTravel.lib")
-local log                   = lib.log
+local log                   = mwse.Logger.new()
 
 ---@param ctx any
 ---@return boolean?

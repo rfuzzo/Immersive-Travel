@@ -12,7 +12,6 @@ local segmentsui         = require("ImmersiveTravelEditor.ui.segments")
 
 local EEditorMode        = elib.EEditorMode
 local EMarkerType        = elib.EMarkerType
-local log                = elib.log
 
 local this               = {}
 

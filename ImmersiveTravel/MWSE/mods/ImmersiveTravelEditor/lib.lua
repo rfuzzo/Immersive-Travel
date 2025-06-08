@@ -4,16 +4,9 @@ if not config then return end
 local lib            = require("ImmersiveTravel.lib")
 local RouteId        = require("ImmersiveTravel.models.RouteId")
 local PositionRecord = require("ImmersiveTravel.models.PositionRecord")
+local log            = mwse.Logger.new()
 
 local this           = {}
-
-local logger         = require("logging.logger")
-this.log             = logger.new {
-    name = config.mod,
-    logLevel = config.logLevel,
-    logToConsole = false,
-    includeTimestamp = false
-}
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CLASSES
@@ -22,14 +15,12 @@ this.log             = logger.new {
 ---@field node niNode|nil
 ---@field type EMarkerType
 ---@field segmentId string?
----@field routeId number?
 ---@field idx number?
 
 ---@class SPreviewMarker2
 ---@field position tes3vector3
 ---@field type EMarkerType
 ---@field segmentId string?
----@field routeId number?
 ---@field idx number?
 
 ---@class SEditorData
@@ -392,48 +383,45 @@ function this.showAllSegments(service)
 
     -- for each route get the segments
     for name, segment in pairs(service.segments) do
-        this.log:trace("\tTracing segment '%s'", segment.id)
+        log:trace("\tTracing segment '%s'", segment.id)
         -- routes
-        for routeIdx = 1, 2, 1 do
-            local spline = segment:GetRoute(routeIdx)
-            if spline then
-                for i = 1, #spline do
-                    local from = spline[i]
+        local spline = segment:GetRoute()
+        if spline then
+            for i = 1, #spline do
+                local from = spline[i]
 
-                    local node = this.nodeMarkerMesh:clone()
-                    node.translation = from
-                    node.appCulled = false
+                local node = this.nodeMarkerMesh:clone()
+                node.translation = from
+                node.appCulled = false
 
-                    ---@type SPreviewMarker
-                    local marker = {
-                        node = node,
-                        type = this.EMarkerType.RouteConnection,
-                        segmentId = segment.id,
-                        routeId = routeIdx,
-                        idx = i
-                    }
+                ---@type SPreviewMarker
+                local marker = {
+                    node = node,
+                    type = this.EMarkerType.RouteConnection,
+                    segmentId = segment.id,
+                    idx = i
+                }
 
-                    -- end connectiom
-                    if i == #spline then
-                        -- end, do nothing
-                    elseif i == 1 then
-                        local to = spline[i + 1]
-                        this.createLine(string.format("rf_line_%s_%d_%d", segment.id, routeIdx, i), from, to)
-                    else
-                        local to = spline[i + 1]
-                        this.createLine(string.format("rf_line_%s_%d_%d", segment.id, routeIdx, i), from, to)
+                -- end connectiom
+                if i == #spline then
+                    -- end, do nothing
+                elseif i == 1 then
+                    local to = spline[i + 1]
+                    this.createLine(string.format("rf_line_%s_%d", segment.id, i), from, to)
+                else
+                    local to = spline[i + 1]
+                    this.createLine(string.format("rf_line_%s_%d", segment.id, i), from, to)
 
-                        local sphere = this.sphereMarkerMesh:clone()
-                        sphere.translation = from
-                        sphere.appCulled = false
-                        sphere.scale = 0.5
-                        marker.node = sphere
+                    local sphere = this.sphereMarkerMesh:clone()
+                    sphere.translation = from
+                    sphere.appCulled = false
+                    sphere.scale = 0.5
+                    marker.node = sphere
 
-                        marker.type = this.EMarkerType.Route
-                    end
-
-                    this.editorData.editorMarkers[#this.editorData.editorMarkers + 1] = marker
+                    marker.type = this.EMarkerType.Route
                 end
+
+                this.editorData.editorMarkers[#this.editorData.editorMarkers + 1] = marker
             end
         end
     end

@@ -1,6 +1,6 @@
 local interop = require("ImmersiveTravel.interop")
-local lib = require("ImmersiveVehicles.lib")
-local log = lib.log
+
+local log = mwse.Logger.new()
 
 local this = {}
 

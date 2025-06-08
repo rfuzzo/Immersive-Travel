@@ -1,6 +1,6 @@
 local lib                   = require("ImmersiveTravel.lib")
 local CAiState              = require("ImmersiveTravel.Statemachine.ai.CAiState")
-local log                   = lib.log
+local log                   = mwse.Logger.new()
 
 -- Define the CAbstractStateMachine class
 ---@class CAbstractStateMachine

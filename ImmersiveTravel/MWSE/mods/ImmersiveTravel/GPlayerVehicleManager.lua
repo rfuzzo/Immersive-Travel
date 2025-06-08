@@ -1,6 +1,6 @@
 local lib                  = require("ImmersiveTravel.lib")
 local GRoutesManager       = require("ImmersiveTravel.GRoutesManager")
-local log                  = lib.log
+local log                  = mwse.Logger.new()
 
 -- Define a class to manage the tracking list and timer
 ---@class GPlayerVehicleManager

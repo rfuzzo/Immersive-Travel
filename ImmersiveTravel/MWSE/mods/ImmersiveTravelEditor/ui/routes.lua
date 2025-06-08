@@ -20,7 +20,7 @@ local filter_text           = ""
 
 -- usings
 local EMarkerType           = elib.EMarkerType
-local log                   = elib.log
+local log                   = mwse.Logger.new()
 
 local function GetEditorData()
     return elib.editorData
@@ -153,49 +153,46 @@ local function showAllRouteSegments(service)
         if route.id:ToString() == routeId:ToString() then
             log:trace("Tracing route '%s'", route.id)
             -- for each route get the segments
-            for n, segment in ipairs(route:GetSegmentsResolved(service)) do
+            for n, segment in ipairs(route:GetSegments(service)) do
                 log:trace("\tTracing segment #%d '%s'", n, segment.id)
                 -- routes
-                for routeIdx = 1, 2, 1 do
-                    local spline = segment:GetRoute(routeIdx)
-                    if spline then
-                        for i = 1, #spline do
-                            local from = spline[i]
+                local spline = segment:GetRoute()
+                if spline then
+                    for i = 1, #spline do
+                        local from = spline[i]
 
-                            local node = elib.nodeMarkerMesh:clone()
-                            node.translation = from
-                            node.appCulled = false
+                        local node = elib.nodeMarkerMesh:clone()
+                        node.translation = from
+                        node.appCulled = false
 
-                            ---@type SPreviewMarker
-                            local marker = {
-                                node = node,
-                                type = EMarkerType.RouteConnection,
-                                segmentId = segment.id,
-                                routeId = routeIdx,
-                                idx = i
-                            }
+                        ---@type SPreviewMarker
+                        local marker = {
+                            node = node,
+                            type = EMarkerType.RouteConnection,
+                            segmentId = segment.id,
+                            idx = i
+                        }
 
-                            -- end connectiom
-                            if i == #spline then
-                                -- end, do nothing
-                            elseif i == 1 then
-                                local to = spline[i + 1]
-                                elib.createLine(string.format("rf_line_%s_%d_%d", segment.id, routeIdx, i), from, to)
-                            else
-                                local to = spline[i + 1]
-                                elib.createLine(string.format("rf_line_%s_%d_%d", segment.id, routeIdx, i), from, to)
+                        -- end connectiom
+                        if i == #spline then
+                            -- end, do nothing
+                        elseif i == 1 then
+                            local to = spline[i + 1]
+                            elib.createLine(string.format("rf_line_%s_%d", segment.id, i), from, to)
+                        else
+                            local to = spline[i + 1]
+                            elib.createLine(string.format("rf_line_%s_%d", segment.id, i), from, to)
 
-                                local sphere = elib.sphereMarkerMesh:clone()
-                                sphere.translation = from
-                                sphere.appCulled = false
-                                sphere.scale = 0.5
-                                marker.node = sphere
+                            local sphere = elib.sphereMarkerMesh:clone()
+                            sphere.translation = from
+                            sphere.appCulled = false
+                            sphere.scale = 0.5
+                            marker.node = sphere
 
-                                marker.type = EMarkerType.Route
-                            end
-
-                            GetEditorData().editorMarkers[#GetEditorData().editorMarkers + 1] = marker
+                            marker.type = EMarkerType.Route
                         end
+
+                        GetEditorData().editorMarkers[#GetEditorData().editorMarkers + 1] = marker
                     end
                 end
             end

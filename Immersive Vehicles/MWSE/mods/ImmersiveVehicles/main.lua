@@ -1,12 +1,12 @@
 local GTrackingManager = require("ImmersiveTravel.GTrackingManager")
 local interop          = require("ImmersiveTravel.interop")
+local lib              = require("ImmersiveTravel.lib")
 
-local lib              = require("ImmersiveVehicles.lib")
 local ui               = require("ImmersiveVehicles.ui")
 local config           = require("ImmersiveVehicles.config")
 if not config then return end
 
-local log             = lib.log
+local log             = mwse.Logger.new()
 
 --#region debugging
 
@@ -247,7 +247,7 @@ local function registerRecipes(e)
     for id, className in pairs(interop.vehicles) do
         local r = getRecipeFor(id)
         if r then
-            lib.log:debug("registering recipe for %s", id)
+            log:debug("registering recipe for %s", id)
             table.insert(recipes, r)
         end
     end

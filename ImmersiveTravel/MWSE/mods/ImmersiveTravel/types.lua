@@ -15,8 +15,6 @@
 ---@class SSegmentDto
 ---@field id string? unique id
 ---@field route1 PositionRecord[]?
----@field route2 PositionRecord[]?
----@field segments SSegmentDto[]?
 
 ---@class ReferenceRecord
 ---@field cell tes3cell The cell
@@ -24,6 +22,5 @@
 
 ---@class Node
 ---@field id string
----@field route number
 ---@field position tes3vector3? RUNTIME
 ---@field reverse boolean

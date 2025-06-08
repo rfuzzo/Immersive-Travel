@@ -12,13 +12,7 @@ local interop             = require("ImmersiveTravel.interop")
 -- ////////////// CONFIGURATION
 ---@type ITWAConfig
 local config              = require("ImmersiveTravelAddonWorld.config")
-local logger              = require("logging.logger")
-local log                 = logger.new {
-    name = config.mod,
-    logLevel = config.logLevel,
-    logToConsole = false,
-    includeTimestamp = false
-}
+local log                 = mwse.Logger.new()
 
 -- variables
 local SPAWN_DRAW_DISTANCE = 1

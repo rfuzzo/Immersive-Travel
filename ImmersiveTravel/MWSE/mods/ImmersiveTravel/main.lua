@@ -5,7 +5,7 @@ local GPlayerVehicleManager = require("ImmersiveTravel.GPlayerVehicleManager")
 local ui                    = require("ImmersiveTravel.ui")
 local interop               = require("ImmersiveTravel.interop")
 
-local log                   = lib.log
+local log                   = mwse.Logger.new()
 
 --[[
 

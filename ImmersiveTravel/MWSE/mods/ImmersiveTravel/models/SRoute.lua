@@ -3,9 +3,8 @@ local RouteId = require("ImmersiveTravel.models.RouteId")
 ---@class SRoute
 ---@field id RouteId The route id
 ---@field segments string[] The route segments
----@field nodes table<string,Node> NodeId -> Node (A#1 -> Node)
----@field graph table<string, string[]> Adjacency graph (A#1, { B#1, B#2 })
----@field lut table<string,number[]> Segment to route number lookup (A -> { 1, 2 }
+---@field nodes table<string,Node> NodeId -> Node (A -> Node)
+---@field graph table<string, string[]> Adjacency graph (A, { B, B })
 local SRoute  = {}
 
 ---@return SRoute
@@ -31,16 +30,13 @@ end
 
 ---@param service ServiceData
 ---@return SSegment[]
-function SRoute:GetSegmentsResolved(service)
+function SRoute:GetSegments(service)
     local segments = {}
 
     for _, segmentId in ipairs(self.segments) do
         local segment = service:GetSegment(segmentId)
         if segment then
-            local subsegments = segment:GetSegmentsRecursive()
-            for _, subsegment in ipairs(subsegments) do
-                table.insert(segments, subsegment)
-            end
+            table.insert(segments, segment)
         end
     end
 
@@ -62,15 +58,12 @@ end
 function SRoute:GetSegmentRoute(service, segmentName)
     local segment = service:GetSegment(segmentName)
     if not segment then return nil end
-    local routes = self.lut[segmentName]
-    if not routes then return nil end
 
-    local routeNo = table.choice(routes)
-    local spline = segment:GetRoute(routeNo)
+    local spline = segment:GetRoute()
     if not spline then return nil end
 
     -- reverse the spline if the route is backwards
-    local node = self.nodes[string.format("%s#%d", segmentName, routeNo)]
+    local node = self.nodes[segmentName]
     if node and node.reverse then
         spline = reverse(spline)
     end
@@ -80,19 +73,16 @@ end
 
 ---@param service ServiceData
 ---@param segmentName string
----@param routeIdx number
 ---@return tes3vector3?
-function SRoute:GetStartingPoint(service, segmentName, routeIdx)
+function SRoute:GetStartingPoint(service, segmentName)
     local segment = service:GetSegment(segmentName)
     if not segment then return nil end
-    local routes = self.lut[segmentName]
-    if not routes then return nil end
 
-    local spline = segment:GetRoute(routeIdx)
+    local spline = segment:GetRoute()
     if not spline then return nil end
 
     -- reverse the spline if the route is backwards
-    local node = self.nodes[string.format("%s#%d", segmentName, routeIdx)]
+    local node = self.nodes[segmentName]
     if node and node.reverse then
         spline = reverse(spline)
     end
@@ -105,15 +95,12 @@ end
 ---@return Node[]
 function SRoute:getNodesByName(name)
     local nodes = {} ---@type Node[]
-    if self.lut[name] then
-        for _, number in ipairs(self.lut[name]) do
-            local id = string.format("%s#%d", name, number)
-            local node = self.nodes[id]
-            if node then
-                table.insert(nodes, node)
-            end
-        end
+
+    local node = self.nodes[name]
+    if node then
+        table.insert(nodes, node)
     end
+
     return nodes
 end
 
