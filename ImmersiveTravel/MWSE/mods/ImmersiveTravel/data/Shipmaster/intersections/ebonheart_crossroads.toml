@@ -2,9 +2,6 @@
 # Routes between Ebonheart, Vivec, and outlying settlements cross in the Inner Sea
 # Important naval crossroads requiring traffic management
 
-[position]
-x = 102000.0
-y = -98000.0
-z = 0.0
-
-radius = 250.0
+segmentName = "ebonheart_inner_sea"
+pointIndex = 22
+radius = 2

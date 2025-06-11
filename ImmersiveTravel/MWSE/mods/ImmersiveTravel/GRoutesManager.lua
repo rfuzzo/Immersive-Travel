@@ -16,7 +16,8 @@ local log           = mwse.Logger.new()
 
 ---@class RouteIntersection
 ---@field id string unique identifier for the intersection
----@field position tes3vector3 geographic position of the intersection
+---@field segmentName string the segment containing the intersection point
+---@field pointIndex number the index of the point in the segment where intersection occurs
 ---@field radius number collision detection radius around the intersection
 ---@field occupiedBy string? vehicle ID currently in the intersection
 ---@field queue string[] list of vehicle IDs waiting to enter intersection
@@ -29,9 +30,9 @@ local log           = mwse.Logger.new()
 ---@field sharedWaterways table<string, SharedWaterway> shared waterway data
 ---@field intersections table<string, RouteIntersection> route intersection data
 local RoutesManager = {
-    services       = {},
-    spawnPoints    = {},
-    routesPrice    = {},
+    services        = {},
+    spawnPoints     = {},
+    routesPrice     = {},
     sharedWaterways = {},
     intersections   = {},
 }
@@ -115,7 +116,7 @@ local function loadSharedWaterways(service)
     local waterways = {} ---@type table<string, SharedWaterway>
 
     local waterwaysPath = string.format("%s\\data\\%s\\shared", lib.fullmodpath, service.class)
-    
+
     -- Check if shared waterways directory exists
     local dirExists = lfs.attributes(waterwaysPath, "mode") == "directory"
     if not dirExists then
@@ -149,6 +150,8 @@ local function loadSharedWaterways(service)
     return waterways
 end
 
+--#region intersections
+
 ---@param service ServiceData
 ---@return table<string, RouteIntersection>
 local function loadIntersections(service)
@@ -157,7 +160,7 @@ local function loadIntersections(service)
     local intersections = {} ---@type table<string, RouteIntersection>
 
     local intersectionsPath = string.format("%s\\data\\%s\\intersections", lib.fullmodpath, service.class)
-    
+
     -- Check if intersections directory exists
     local dirExists = lfs.attributes(intersectionsPath, "mode") == "directory"
     if not dirExists then
@@ -171,28 +174,180 @@ local function loadIntersections(service)
 
             local intersectionName = file:sub(0, -6)
             local result = toml.loadFile(filePath) ---@type table?
-            if result and result.position and result.radius then
+            if result and result.segmentName and result.pointIndex and result.radius then
                 ---@type RouteIntersection
                 local intersection = {
                     id = intersectionName,
-                    position = tes3vector3.new(result.position.x, result.position.y, result.position.z or 0),
+                    segmentName = result.segmentName,
+                    pointIndex = result.pointIndex,
                     radius = result.radius,
                     occupiedBy = nil,
                     queue = {}
                 }
                 intersections[intersectionName] = intersection
 
-                log:debug("\t\tAdding intersection %s at position (%.1f, %.1f, %.1f) with radius %.1f", 
-                         intersectionName, intersection.position.x, intersection.position.y, 
-                         intersection.position.z, intersection.radius)
+                log:debug("\t\tAdding intersection %s at segment '%s' point %d with radius %.1f",
+                    intersectionName, intersection.segmentName, intersection.pointIndex, intersection.radius)
             else
-                log:warn("\t\tFailed to load intersection %s (missing position or radius)", intersectionName)
+                log:warn("\t\tFailed to load intersection %s (missing segmentName, pointIndex or radius)",
+                    intersectionName)
+            end
+        end
+    end
+    return intersections
+end
+
+---@param service ServiceData
+---@return table<string, {segmentName: string, pointIndex: number, routes: string[]}>
+local function precomputeIntersectionsFromRoutes(service)
+    log:debug("Precomputing intersections from routes for service: %s", service.class)
+
+    local intersectionCandidates = {} ---@type table<string, {segmentName: string, pointIndex: number, routes: string[]}>
+
+    -- Collect all segment points with their route usage
+    local segmentPoints = {} ---@type table<string, table<number, {position: tes3vector3, routes: string[]}>>
+
+    for routeKey, route in pairs(service.routes) do
+        for _, segmentName in ipairs(route.segments) do
+            local segment = service:GetSegment(segmentName)
+            if segment then
+                local spline = segment:GetRoute()
+                if spline then
+                    if not segmentPoints[segmentName] then
+                        segmentPoints[segmentName] = {}
+                    end
+
+                    for pointIndex, position in ipairs(spline) do
+                        if not segmentPoints[segmentName][pointIndex] then
+                            segmentPoints[segmentName][pointIndex] = {
+                                position = position,
+                                routes = {}
+                            }
+                        end
+                        table.insert(segmentPoints[segmentName][pointIndex].routes, routeKey)
+                    end
+                end
+            end
+        end
+    end
+
+    -- Find points where multiple routes converge
+    for segmentName, points in pairs(segmentPoints) do
+        for pointIndex, pointData in pairs(points) do
+            -- Check if multiple routes use this point (potential intersection)
+            if #pointData.routes > 1 then
+                local intersectionId = string.format("%s_pt%d", segmentName, pointIndex)
+                intersectionCandidates[intersectionId] = {
+                    segmentName = segmentName,
+                    pointIndex = pointIndex,
+                    routes = pointData.routes
+                }
+
+                log:debug("Found intersection candidate %s: segment '%s' point %d used by %d routes",
+                    intersectionId, segmentName, pointIndex, #pointData.routes)
+            end
+        end
+    end
+
+    return intersectionCandidates
+end
+
+---@param service ServiceData
+---@return table<string, RouteIntersection>
+local function loadOrGenerateIntersections(service)
+    local intersectionsPath = string.format("%s\\data\\%s\\intersections", lib.fullmodpath, service.class)
+    local cacheFilePath = string.format("%s\\precomputed_intersections.toml", intersectionsPath)
+
+    -- Calculate current service hash
+    local currentHash = lib.calculateServiceHash(service)
+
+    -- Try to load cached precomputed intersections
+    local cachedIntersections = {}
+    local needsRegeneration = true
+
+    if lfs.attributes(cacheFilePath, "mode") == "file" then
+        local cacheData = toml.loadFile(cacheFilePath)
+        if cacheData and cacheData.hash == currentHash and cacheData.intersections then
+            cachedIntersections = cacheData.intersections
+            needsRegeneration = false
+            log:debug("\t\tUsing cached precomputed intersections (hash: %s)", currentHash)
+        else
+            log:debug("\t\tCache invalidated, regenerating intersections (old hash: %s, new hash: %s)",
+                cacheData and cacheData.hash or "none", currentHash)
+        end
+    else
+        log:debug("\t\tNo cached intersections found, generating...")
+    end
+
+    local intersections = {} ---@type table<string, RouteIntersection>
+
+    -- Load manual intersections first
+    local manualIntersections = loadIntersections(service)
+    for id, intersection in pairs(manualIntersections) do
+        intersections[id] = intersection
+    end
+    -- Add precomputed intersections if cache is valid or generate new ones
+    if needsRegeneration then
+        local precomputed = precomputeIntersectionsFromRoutes(service)
+
+        -- Convert to RouteIntersection format and save to cache
+        local cacheData = {
+            hash = currentHash,
+            intersections = {}
+        }
+
+        for intersectionId, data in pairs(precomputed) do
+            -- Only add if it's not already manually defined
+            if not intersections[intersectionId] then
+                local intersection = {
+                    id = intersectionId,
+                    segmentName = data.segmentName,
+                    pointIndex = data.pointIndex,
+                    radius = 2, -- default radius
+                    occupiedBy = nil,
+                    queue = {}
+                }
+                intersections[intersectionId] = intersection
+
+                -- Save to cache data
+                cacheData.intersections[intersectionId] = {
+                    segmentName = data.segmentName,
+                    pointIndex = data.pointIndex,
+                    radius = 2
+                }
+            end
+        end
+
+        -- Create directory if it doesn't exist
+        local dirExists = lfs.attributes(intersectionsPath, "mode") == "directory"
+        if not dirExists then
+            lfs.mkdir(intersectionsPath)
+        end
+
+        -- Save cache
+        toml.saveFile(cacheFilePath, cacheData)
+        log:debug("\t\tSaved precomputed intersections cache with %d intersections", table.size(cacheData.intersections))
+    else
+        -- Use cached intersections
+        for intersectionId, data in pairs(cachedIntersections) do
+            if not intersections[intersectionId] then
+                local intersection = {
+                    id = intersectionId,
+                    segmentName = data.segmentName,
+                    pointIndex = data.pointIndex,
+                    radius = data.radius or 2,
+                    occupiedBy = nil,
+                    queue = {}
+                }
+                intersections[intersectionId] = intersection
             end
         end
     end
 
     return intersections
 end
+
+--#endregion
 
 ---@param graph table<string,string[]>
 ---@param start string
@@ -215,8 +370,6 @@ local function Prune(graph, start, destination)
     end
     return to_remove
 end
-
-
 
 ---@param service ServiceData
 ---@param route SRoute
@@ -338,27 +491,29 @@ local function BuildGraph(service, route)
     -- TODO verification
 
     -- prune dead branches
-    local to_remove = Prune(graph, startNode.id, endNode.id)
-    local found = #to_remove
-    while found > 0 do
-        for _, node_id in ipairs(to_remove) do
-            -- Remove from graph
-            graph[node_id] = nil
-            log:debug(" - Removing node %s", node_id)
+    if endNode ~= nil then
+        local to_remove = Prune(graph, startNode.id, endNode.id)
+        local found = #to_remove
+        while found > 0 do
+            for _, node_id in ipairs(to_remove) do
+                -- Remove from graph
+                graph[node_id] = nil
+                log:debug(" - Removing node %s", node_id)
 
-            -- Remove from to lists
-            for _, adj_list in pairs(graph) do
-                for i, adj in ipairs(adj_list) do
-                    if adj == node_id then
-                        table.remove(adj_list, i)
-                        break
+                -- Remove from to lists
+                for _, adj_list in pairs(graph) do
+                    for i, adj in ipairs(adj_list) do
+                        if adj == node_id then
+                            table.remove(adj_list, i)
+                            break
+                        end
                     end
                 end
             end
-        end
 
-        to_remove = Prune(graph, startNode.id, endNode.id)
-        found = #to_remove
+            to_remove = Prune(graph, startNode.id, endNode.id)
+            found = #to_remove
+        end
     end
 
     return nodesMap, graph
@@ -480,15 +635,15 @@ function RoutesManager:Init()
         service.segments = loadSegments(service)
         service.ports = loadPorts(service)
         service.routes = loadRoutes(service)
-        
+
         -- load shared waterways
         local serviceWaterways = loadSharedWaterways(service)
         for id, waterway in pairs(serviceWaterways) do
             self.sharedWaterways[id] = waterway
         end
 
-        -- load intersections
-        local serviceIntersections = loadIntersections(service)
+        -- load intersections (with precomputation and caching)
+        local serviceIntersections = loadOrGenerateIntersections(service)
         for id, intersection in pairs(serviceIntersections) do
             self.intersections[id] = intersection
         end
@@ -566,7 +721,7 @@ function RoutesManager:TryEnterSharedWaterway(segmentId, vehicleId)
     if not waterway then
         return true -- not a shared waterway, allow entry
     end
-    
+
     if waterway.occupiedBy == nil then
         -- waterway is free, occupy it
         waterway.occupiedBy = vehicleId
@@ -584,13 +739,13 @@ function RoutesManager:TryEnterSharedWaterway(segmentId, vehicleId)
                 break
             end
         end
-        
+
         if not isAlreadyQueued then
             table.insert(waterway.queue, vehicleId)
-            log:info("Vehicle %s queued for shared waterway %s (segment %s), queue position %d", 
-                     vehicleId, waterway.id, segmentId, #waterway.queue)
+            log:info("Vehicle %s queued for shared waterway %s (segment %s), queue position %d",
+                vehicleId, waterway.id, segmentId, #waterway.queue)
         end
-        
+
         return false
     end
 end
@@ -602,25 +757,25 @@ function RoutesManager:ExitSharedWaterway(segmentId, vehicleId)
     if not waterway then
         return -- not a shared waterway
     end
-    
+
     if waterway.occupiedBy == vehicleId then
         waterway.occupiedBy = nil
         log:info("Vehicle %s exited shared waterway %s (segment %s)", vehicleId, waterway.id, segmentId)
-        
+
         -- check if there's a vehicle waiting in queue
         if #waterway.queue > 0 then
             local nextVehicleId = table.remove(waterway.queue, 1)
             waterway.occupiedBy = nextVehicleId
-            log:info("Vehicle %s from queue now occupies shared waterway %s (segment %s)", 
-                     nextVehicleId, waterway.id, segmentId)
+            log:info("Vehicle %s from queue now occupies shared waterway %s (segment %s)",
+                nextVehicleId, waterway.id, segmentId)
         end
     else
         -- remove from queue if present
         for i, queuedVehicleId in ipairs(waterway.queue) do
             if queuedVehicleId == vehicleId then
                 table.remove(waterway.queue, i)
-                log:info("Vehicle %s removed from queue for shared waterway %s (segment %s)", 
-                         vehicleId, waterway.id, segmentId)
+                log:info("Vehicle %s removed from queue for shared waterway %s (segment %s)",
+                    vehicleId, waterway.id, segmentId)
                 break
             end
         end
@@ -635,67 +790,72 @@ function RoutesManager:CanProceedOnSegment(segmentId, vehicleId)
     if not waterway then
         return true -- not a shared waterway, always allow
     end
-    
+
     return waterway.occupiedBy == vehicleId or waterway.occupiedBy == nil
 end
 
----@param position tes3vector3
+---@param segmentName string
+---@param splineIndex number
 ---@param vehicleId string
 ---@return boolean true if vehicle can enter the intersection area
-function RoutesManager:TryEnterIntersection(position, vehicleId)
+function RoutesManager:TryEnterIntersection(segmentName, splineIndex, vehicleId)
     for _, intersection in pairs(self.intersections) do
-        local distance = position:distance(intersection.position)
-        if distance <= intersection.radius then
-            -- Vehicle is approaching this intersection
-            if intersection.occupiedBy == nil then
-                -- Intersection is free, occupy it
-                intersection.occupiedBy = vehicleId
-                log:info("Vehicle %s entered intersection %s", vehicleId, intersection.id)
-                return true
-            elseif intersection.occupiedBy == vehicleId then
-                -- Already occupied by this vehicle
-                return true
-            else
-                -- Intersection is occupied by another vehicle, add to queue
-                local isAlreadyQueued = false
-                for _, queuedVehicleId in ipairs(intersection.queue) do
-                    if queuedVehicleId == vehicleId then
-                        isAlreadyQueued = true
-                        break
+        if intersection.segmentName == segmentName then
+            -- Check if vehicle is near the intersection point
+            local distance = math.abs(splineIndex - intersection.pointIndex)
+            if distance <= intersection.radius then
+                -- Vehicle is approaching this intersection
+                if intersection.occupiedBy == nil then
+                    -- Intersection is free, occupy it
+                    intersection.occupiedBy = vehicleId
+                    log:info("Vehicle %s entered intersection %s", vehicleId, intersection.id)
+                    return true
+                elseif intersection.occupiedBy == vehicleId then
+                    -- Already occupied by this vehicle
+                    return true
+                else
+                    -- Intersection is occupied by another vehicle, add to queue
+                    local isAlreadyQueued = false
+                    for _, queuedVehicleId in ipairs(intersection.queue) do
+                        if queuedVehicleId == vehicleId then
+                            isAlreadyQueued = true
+                            break
+                        end
                     end
+
+                    if not isAlreadyQueued then
+                        table.insert(intersection.queue, vehicleId)
+                        log:info("Vehicle %s queued for intersection %s, queue position %d",
+                            vehicleId, intersection.id, #intersection.queue)
+                    end
+
+                    return false
                 end
-                
-                if not isAlreadyQueued then
-                    table.insert(intersection.queue, vehicleId)
-                    log:info("Vehicle %s queued for intersection %s, queue position %d", 
-                             vehicleId, intersection.id, #intersection.queue)
-                end
-                
-                return false
             end
         end
     end
-    
+
     return true -- No intersections nearby
 end
 
----@param position tes3vector3
+---@param segmentName string
+---@param splineIndex number
 ---@param vehicleId string
-function RoutesManager:ExitIntersection(position, vehicleId)
+function RoutesManager:ExitIntersection(segmentName, splineIndex, vehicleId)
     for _, intersection in pairs(self.intersections) do
-        if intersection.occupiedBy == vehicleId then
-            local distance = position:distance(intersection.position)
+        if intersection.occupiedBy == vehicleId and intersection.segmentName == segmentName then
+            local distance = math.abs(splineIndex - intersection.pointIndex)
             -- Vehicle has moved outside the intersection radius
-            if distance > intersection.radius + 100 then -- Add some buffer to avoid flickering
+            if distance > intersection.radius + 5 then -- Add some buffer to avoid flickering
                 intersection.occupiedBy = nil
                 log:info("Vehicle %s exited intersection %s", vehicleId, intersection.id)
-                
+
                 -- Check if there's a vehicle waiting in queue
                 if #intersection.queue > 0 then
                     local nextVehicleId = table.remove(intersection.queue, 1)
                     intersection.occupiedBy = nextVehicleId
-                    log:info("Vehicle %s from queue now occupies intersection %s", 
-                             nextVehicleId, intersection.id)
+                    log:info("Vehicle %s from queue now occupies intersection %s",
+                        nextVehicleId, intersection.id)
                 end
                 break
             end
@@ -709,21 +869,21 @@ function RoutesManager:ForceExitIntersection(vehicleId)
         if intersection.occupiedBy == vehicleId then
             intersection.occupiedBy = nil
             log:info("Vehicle %s force-exited intersection %s", vehicleId, intersection.id)
-            
+
             -- Check if there's a vehicle waiting in queue
             if #intersection.queue > 0 then
                 local nextVehicleId = table.remove(intersection.queue, 1)
                 intersection.occupiedBy = nextVehicleId
-                log:info("Vehicle %s from queue now occupies intersection %s", 
-                         nextVehicleId, intersection.id)
+                log:info("Vehicle %s from queue now occupies intersection %s",
+                    nextVehicleId, intersection.id)
             end
         else
             -- Remove from queue if present
             for i, queuedVehicleId in ipairs(intersection.queue) do
                 if queuedVehicleId == vehicleId then
                     table.remove(intersection.queue, i)
-                    log:info("Vehicle %s removed from queue for intersection %s", 
-                             vehicleId, intersection.id)
+                    log:info("Vehicle %s removed from queue for intersection %s",
+                        vehicleId, intersection.id)
                     break
                 end
             end

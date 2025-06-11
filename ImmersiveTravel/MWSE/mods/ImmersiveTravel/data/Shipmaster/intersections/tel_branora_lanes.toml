@@ -2,9 +2,6 @@
 # Eastern shipping lanes from Sadrith Mora and Tel Aruhn converge here
 # Telvanni territory with magical transport and conventional shipping
 
-[position]
-x = 150000.0
-y = -45000.0
-z = 0.0
-
-radius = 200.0
+segmentName = "tel_branora_eastern_lanes"
+pointIndex = 12
+radius = 2

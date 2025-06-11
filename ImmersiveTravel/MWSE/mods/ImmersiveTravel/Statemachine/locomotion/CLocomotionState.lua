@@ -161,17 +161,17 @@ end
 ---@param nextPos tes3vector3
 ---@return tes3vector3, number, number
 local function CalculatePositions(vehicle, nextPos)
-    local mount         = vehicle.referenceHandle:getObject()
+    local mount            = vehicle.referenceHandle:getObject()
 
-    local mountOffset   = tes3vector3.new(0, 0, vehicle.offset)
-    local currentPos    = vehicle.last_position - mountOffset
+    local mountOffset      = tes3vector3.new(0, 0, vehicle.offset)
+    local currentPos       = vehicle.last_position - mountOffset
 
     -- change position when about to collide
-    local virtualpos    = nextPos
-    local current_speed = vehicle.current_speed
-    local turnspeed     = vehicle.current_turnspeed
+    local virtualpos       = nextPos
+    local current_speed    = vehicle.current_speed
+    local turnspeed        = vehicle.current_turnspeed
 
-    local isReversing = vehicle.current_speed < 0
+    local isReversing      = vehicle.current_speed < 0
 
     -- calculate diffs
     local forwardDirection = vehicle.last_forwardDirection
@@ -272,7 +272,7 @@ end
 ---@return boolean true if this vehicle is too close to a vehicle in front and should slow down
 local function checkRearCollision(vehicle)
     if not vehicle.routeId then return false end
-    
+
     local routesManager = GRoutesManager.getInstance()
     local service = routesManager:GetService(vehicle.serviceId)
     if not service then return false end
@@ -282,18 +282,16 @@ local function checkRearCollision(vehicle)
 
     -- get all vehicles on the same route
     local trackingManager = GTrackingManager.getInstance()
-    if not trackingManager or not trackingManager.vehicles then return false end
-    
-    local allVehicles = trackingManager.vehicles
-    
+    if not trackingManager then return false end
+
     local COLLISION_DISTANCE = 200 -- distance threshold for rear collision check
-    
-    for _, otherVehicle in pairs(allVehicles) do
-        if otherVehicle ~= vehicle and 
-           otherVehicle.routeId == vehicle.routeId and
-           otherVehicle.serviceId == vehicle.serviceId and
-           otherVehicle.referenceHandle and otherVehicle.referenceHandle:valid() then
-            
+
+    for _, otherVehicle in pairs(GTrackingManager.getInstance().trackingList) do
+        ---@cast otherVehicle CVehicle
+        if otherVehicle ~= vehicle and
+            otherVehicle.routeId == vehicle.routeId and
+            otherVehicle.serviceId == vehicle.serviceId and
+            otherVehicle.referenceHandle and otherVehicle.referenceHandle:valid() then
             -- check if other vehicle is ahead of us on the same segment
             if otherVehicle.segmentIndex == vehicle.segmentIndex then
                 local distance = vehicle.last_position:distance(otherVehicle.last_position)
@@ -301,23 +299,24 @@ local function checkRearCollision(vehicle)
                     -- check if other vehicle is actually ahead of us on the route
                     local isOtherAhead = otherVehicle.splineIndex > vehicle.splineIndex
                     if isOtherAhead and vehicle.current_speed > 0 then
-                        log:debug("Following too close: Vehicle %s should slow down behind %s (distance: %.1f)", 
-                                 vehicle:Id(), otherVehicle:Id(), distance)
+                        log:debug("Following too close: Vehicle %s should slow down behind %s (distance: %.1f)",
+                            vehicle:Id(), otherVehicle:Id(), distance)
                         return true
                     end
                 end
-            -- also check if other vehicle is on next segment and we're approaching it
+                -- also check if other vehicle is on next segment and we're approaching it
             elseif otherVehicle.segmentIndex == vehicle.segmentIndex + 1 then
                 local distance = vehicle.last_position:distance(otherVehicle.last_position)
                 if distance < COLLISION_DISTANCE and vehicle.current_speed > 0 then
-                    log:debug("Approaching vehicle on next segment: Vehicle %s should slow down behind %s (distance: %.1f)", 
-                             vehicle:Id(), otherVehicle:Id(), distance)
+                    log:debug(
+                        "Approaching vehicle on next segment: Vehicle %s should slow down behind %s (distance: %.1f)",
+                        vehicle:Id(), otherVehicle:Id(), distance)
                     return true
                 end
             end
         end
     end
-    
+
     return false
 end
 
@@ -366,7 +365,7 @@ local function getNextPositionHeading(vehicle)
             log:trace("No more segments")
             return nil
         end
-        
+
         local nextSegmentId = route.segments[vehicle.segmentIndex]
         log:trace("Moving to the next segment: '%s'", nextSegmentId)
 
@@ -398,18 +397,16 @@ local function getNextPositionHeading(vehicle)
             vehicle.current_speed = math.max(0.1, vehicle.current_speed * 0.8)
         end
         return vehicle.last_position -- stay at current position temporarily
-    end
-
-    -- check for route intersection conflicts
-    local nextPos = vehicle.spline[vehicle.splineIndex]
-    if not routesManager:TryEnterIntersection(nextPos, vehicle:Id()) then
-        log:debug("Vehicle %s blocked at intersection near position (%.1f, %.1f)", 
-                 vehicle:Id(), nextPos.x, nextPos.y)
+    end                              -- check for route intersection conflicts
+    local currentSegmentId = route.segments[vehicle.segmentIndex]
+    if not routesManager:TryEnterIntersection(currentSegmentId, vehicle.splineIndex, vehicle:Id()) then
+        log:debug("Vehicle %s blocked at intersection on segment %s at point %d",
+            vehicle:Id(), currentSegmentId, vehicle.splineIndex)
         return vehicle.last_position -- stay at current position until intersection is clear
     end
 
     -- exit intersections as we move away from them
-    routesManager:ExitIntersection(vehicle.last_position, vehicle:Id())
+    routesManager:ExitIntersection(currentSegmentId, vehicle.splineIndex, vehicle:Id())
 
     -- move to next marker
     local nextPos = vehicle.spline[vehicle.splineIndex]

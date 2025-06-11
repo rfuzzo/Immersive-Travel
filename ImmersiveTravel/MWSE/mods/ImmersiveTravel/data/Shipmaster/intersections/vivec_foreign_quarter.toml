@@ -2,11 +2,11 @@
 # Multiple shipping routes converge here - ships from Ebonheart, Hla Oad, and Molag Mar cross paths
 # High traffic area requiring careful coordination to prevent collisions
 
-# Position coordinates where routes intersect (in game world coordinates)
-[position]
-x = 96000.0
-y = -103000.0
-z = 0.0
+# Segment name containing the intersection point
+segmentName = "vivec_foreign_quarter_main"
 
-# Collision detection radius around the intersection point
-radius = 300.0
+# Point index in the segment where the intersection occurs (0-based index)
+pointIndex = 15
+
+# Collision detection radius around the intersection point (in spline point indices)
+radius = 3
