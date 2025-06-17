@@ -36,7 +36,7 @@ end
 ---@return boolean
 local function toMovingState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return (vehicle.routeId or vehicle.virtualDestination) and vehicle.changeSpeed == 0 and
+    return (vehicle.routeId ~= nil or vehicle.virtualDestination ~= nil) and vehicle.changeSpeed == 0 and
         (vehicle.current_speed > 0.5 or vehicle.current_speed < -0.5)
 end
 
@@ -63,7 +63,7 @@ end
 ---@return boolean
 local function toAccelerateState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return (vehicle.routeId or vehicle.virtualDestination) and vehicle.changeSpeed > 0
+    return (vehicle.routeId ~= nil or vehicle.virtualDestination ~= nil) and vehicle.changeSpeed > 0
 end
 
 --- transition to decelerate state
@@ -71,7 +71,7 @@ end
 ---@return boolean
 local function toDecelerateState(ctx)
     local vehicle = ctx.scriptedObject ---@cast vehicle CVehicle
-    return (vehicle.routeId or vehicle.virtualDestination) and vehicle.changeSpeed < 0
+    return (vehicle.routeId ~= nil or vehicle.virtualDestination ~= nil) and vehicle.changeSpeed < 0
 end
 
 --#endregion
@@ -354,7 +354,7 @@ local function getNextPositionHeading(vehicle)
         -- exit current shared waterway if applicable
         if vehicle.segmentIndex <= #route.segments then
             local currentSegmentId = route.segments[vehicle.segmentIndex]
-            routesManager:ExitSharedWaterway(currentSegmentId, vehicle:Id())
+            service:ExitSharedWaterway(currentSegmentId, vehicle:Id())
         end
 
         vehicle.segmentIndex = vehicle.segmentIndex + 1
@@ -370,7 +370,7 @@ local function getNextPositionHeading(vehicle)
         log:trace("Moving to the next segment: '%s'", nextSegmentId)
 
         -- check if we can enter the next segment (shared waterway check)
-        if not routesManager:TryEnterSharedWaterway(nextSegmentId, vehicle:Id()) then
+        if not service:TryEnterSharedWaterway(nextSegmentId, vehicle:Id()) then
             log:debug("Vehicle %s cannot enter shared waterway segment %s, waiting in queue", vehicle:Id(), nextSegmentId)
             -- reset to previous segment to wait
             vehicle.segmentIndex = vehicle.segmentIndex - 1
@@ -384,7 +384,7 @@ local function getNextPositionHeading(vehicle)
 
     -- check if we can proceed on current segment
     local currentSegmentId = route.segments[vehicle.segmentIndex]
-    if not routesManager:CanProceedOnSegment(currentSegmentId, vehicle:Id()) then
+    if not service:CanProceedOnSegment(currentSegmentId, vehicle:Id()) then
         log:debug("Vehicle %s blocked on segment %s", vehicle:Id(), currentSegmentId)
         return vehicle.last_position -- stay at current position
     end
@@ -399,14 +399,14 @@ local function getNextPositionHeading(vehicle)
         return vehicle.last_position -- stay at current position temporarily
     end                              -- check for route intersection conflicts
     local currentSegmentId = route.segments[vehicle.segmentIndex]
-    if not routesManager:TryEnterIntersection(currentSegmentId, vehicle.splineIndex, vehicle:Id()) then
+    if not service:TryEnterIntersection(currentSegmentId, vehicle.splineIndex, vehicle:Id()) then
         log:debug("Vehicle %s blocked at intersection on segment %s at point %d",
             vehicle:Id(), currentSegmentId, vehicle.splineIndex)
         return vehicle.last_position -- stay at current position until intersection is clear
     end
 
     -- exit intersections as we move away from them
-    routesManager:ExitIntersection(currentSegmentId, vehicle.splineIndex, vehicle:Id())
+    service:ExitIntersection(currentSegmentId, vehicle.splineIndex, vehicle:Id())
 
     -- move to next marker
     local nextPos = vehicle.spline[vehicle.splineIndex]

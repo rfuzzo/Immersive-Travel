@@ -99,7 +99,8 @@ local function onMenuDialog(e)
     if actor and actor.actorType == tes3.actorType.npc then
         local ref = actor.reference
         local obj = ref.baseObject
-        local npc = obj ---@cast obj tes3npc
+        ---@cast obj tes3npc
+        local npc = obj
 
         if not lib.offersTraveling(npc) then return end
 

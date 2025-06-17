@@ -238,7 +238,7 @@ end
 
 --- This function returns `true` if a given mobile has
 --- follow ai package with player as its target
----@param mobile tes3mobileNPC|tes3mobileCreature
+---@param mobile tes3mobileCreature|tes3mobileNPC|tes3mobilePlayer|tes3mobilePlayer|tes3mobileProjectile|tes3mobileSpellProjectile|tes3mobileSpellProjectile|nil
 ---@return boolean isFollower
 function this.isFollower(mobile)
     if not mobile then

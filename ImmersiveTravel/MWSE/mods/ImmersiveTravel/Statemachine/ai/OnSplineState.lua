@@ -12,7 +12,7 @@ local function ToEnterPort(ctx)
         return false
     end
 
-    return vehicle.currentPort and not vehicle.routeId and vehicle.virtualDestination
+    return vehicle.currentPort ~= nil and vehicle.routeId == nil and vehicle.virtualDestination ~= nil
 end
 
 ---@param ctx any

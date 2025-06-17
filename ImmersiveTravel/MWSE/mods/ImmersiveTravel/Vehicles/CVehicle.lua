@@ -217,6 +217,7 @@ function CVehicle:StartOnSpline(routeId, segmentName)
     local route = service:GetRoute(routeId)
     if not route then return end
     local spline = route:GetSegmentRoute(service, segmentName)
+    if not spline then return end
 
     self:StartRoute(routeId, spline)
 
@@ -257,6 +258,7 @@ function CVehicle:StartPlayerTravel(routeId)
     local route = service:GetRoute(routeId)
     if not route then return end
     local spline = route:GetSegmentRoute(service, route.segments[1])
+    if not spline then return end
     self:StartRoute(routeId, spline)
     self.playerRegistered = true
 
@@ -446,7 +448,8 @@ end
 function CVehicle:GetGuide()
     if self.guideSlot.handle and self.guideSlot.handle:valid() then
         local ref = self.guideSlot.handle:getObject().baseObject
-        local npc = ref ---@cast ref tes3npc
+        ---@cast ref tes3npc
+        local npc = ref
         return npc
     end
 
@@ -553,7 +556,7 @@ function CVehicle:UpdateSlots(dt)
     end
 
     -- hidden slot
-    if self.hiddenSlot and self.hiddenSlot.handles then
+    if boneOffset and self.hiddenSlot and self.hiddenSlot.handles then
         for index, handle in ipairs(self.hiddenSlot.handles) do
             if handle and handle:valid() then
                 tes3.positionCell({
@@ -566,7 +569,7 @@ function CVehicle:UpdateSlots(dt)
     end
 
     -- guide
-    if self.guideSlot.handle and self.guideSlot.handle:valid() then
+    if boneOffset and self.guideSlot.handle and self.guideSlot.handle:valid() then
         local guide = self.guideSlot.handle:getObject()
         guide.position = rootBone.worldTransform * self:getSlotTransform(self.guideSlot.position, boneOffset)
         if guide ~= tes3.player then
@@ -601,7 +604,7 @@ function CVehicle:UpdateSlots(dt)
 
     -- passengers
     for index, slot in ipairs(self.slots) do
-        if slot.handle and slot.handle:valid() then
+        if boneOffset and slot.handle and slot.handle:valid() then
             local obj = slot.handle:getObject()
 
             slot.handle:getObject().position = rootBone.worldTransform *
@@ -672,7 +675,7 @@ function CVehicle:UpdateSlots(dt)
             if slot.disableUpdates then
                 -- do nothing
             else
-                if slot.handle and slot.handle:valid() then
+                if boneOffset and slot.handle and slot.handle:valid() then
                     slot.handle:getObject().position = rootBone.worldTransform *
                         self:getSlotTransform(slot.position, boneOffset)
                     if slot.orientation then
@@ -768,20 +771,18 @@ function CVehicle:cleanup()
     -- exit any shared waterways the vehicle might be occupying
     if self.routeId and self.serviceId then
         local routesManager = require("ImmersiveTravel.GRoutesManager").getInstance()
-        if routesManager then
-            local service = routesManager:GetService(self.serviceId)
-            if service then
-                local route = service:GetRoute(self.routeId)
-                if route and self.segmentIndex and self.segmentIndex <= #route.segments then
-                    local currentSegmentId = route.segments[self.segmentIndex]
-                    routesManager:ExitSharedWaterway(currentSegmentId, self:Id())
-                    log:debug("Vehicle %s exited shared waterway %s on cleanup", self:Id(), currentSegmentId)
-                end
+        local service = routesManager:GetService(self.serviceId)
+        if service then
+            local route = service:GetRoute(self.routeId)
+            if route and self.segmentIndex and self.segmentIndex <= #route.segments then
+                local currentSegmentId = route.segments[self.segmentIndex]
+                service:ExitSharedWaterway(currentSegmentId, self:Id())
+                log:debug("Vehicle %s exited shared waterway %s on cleanup", self:Id(), currentSegmentId)
             end
+
+            -- Exit any intersections
+            service:ForceExitIntersection(self:Id())
         end
-        
-        -- Exit any intersections
-        routesManager:ForceExitIntersection(self:Id())
     end
 
     local mount = self.referenceHandle:getObject()
@@ -852,21 +853,23 @@ function CVehicle:RegisterPassengers()
             log:debug("\tregistering %s / %s passengers", n, maxPassengers)
             for i = 1, n, 1 do
                 local npcId = lib.GetRandomPassenger(service)
-                local passenger = tes3.createReference {
-                    object = npcId,
-                    position = mount.position,
-                    orientation = mount.orientation
-                }
+                if npcId then
+                    local passenger = tes3.createReference {
+                        object = npcId,
+                        position = mount.position,
+                        orientation = mount.orientation
+                    }
 
-                -- generate a random name
-                local randomName = names.Generate(passenger)
-                if not randomName then
-                    randomName = "Passenger"
+                    -- generate a random name
+                    local randomName = names.Generate(passenger)
+                    if not randomName then
+                        randomName = "Passenger"
+                    end
+                    passenger.tempData.it_name = randomName
+
+                    local refHandle            = tes3.makeSafeObjectHandle(passenger)
+                    self:registerRefInRandomSlot(refHandle)
                 end
-                passenger.tempData.it_name = randomName
-
-                local refHandle            = tes3.makeSafeObjectHandle(passenger)
-                self:registerRefInRandomSlot(refHandle)
             end
         end
     end

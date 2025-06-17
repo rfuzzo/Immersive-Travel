@@ -15,6 +15,7 @@ end
 ---@type table<string, ServiceData>
 this.services               = {}
 this.services["Shipmaster"] = newService("Shipmaster")
+-- TODO add more services
 --this.services["Caravaner"]  = require("ImmersiveTravel.Services.Caravaner")
 --this.services["Gondolier"]  = require("ImmersiveTravel.Services.Gondolier")
 

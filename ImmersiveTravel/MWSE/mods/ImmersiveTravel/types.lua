@@ -24,3 +24,17 @@
 ---@field id string
 ---@field position tes3vector3? RUNTIME
 ---@field reverse boolean
+
+---@class SharedWaterway
+---@field id string unique identifier for the shared segment
+---@field segmentId string the segment ID that is shared
+---@field occupiedBy string? vehicle ID currently using this waterway
+---@field queue string[] list of vehicle IDs waiting to use this waterway
+
+---@class RouteIntersection
+---@field id string unique identifier for the intersection
+---@field segmentName string the segment containing the intersection point
+---@field pointIndex number the index of the point in the segment where intersection occurs
+---@field radius number collision detection radius around the intersection
+---@field occupiedBy string? vehicle ID currently in the intersection
+---@field queue string[] list of vehicle IDs waiting to enter intersection

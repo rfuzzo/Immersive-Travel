@@ -1,7 +1,7 @@
-local lib                 = require("ImmersiveTravel.lib")
-local GTrackingManager    = require("ImmersiveTravel.GTrackingManager")
-local GRoutesManager      = require("ImmersiveTravel.GRoutesManager")
-local interop             = require("ImmersiveTravel.interop")
+local lib              = require("ImmersiveTravel.lib")
+local GTrackingManager = require("ImmersiveTravel.GTrackingManager")
+local GRoutesManager   = require("ImmersiveTravel.GRoutesManager")
+local interop          = require("ImmersiveTravel.interop")
 
 ---@class SPointDto
 ---@field point tes3vector3  the actual point
@@ -10,8 +10,10 @@ local interop             = require("ImmersiveTravel.interop")
 
 -- /////////////////////////////////////////////////////////////////////////////////////////
 -- ////////////// CONFIGURATION
----@type ITWAConfig
-local config              = require("ImmersiveTravelAddonWorld.config")
+---@type ITWAConfig?
+local config           = require("ImmersiveTravelAddonWorld.config")
+if not config then return end
+
 local log                 = mwse.Logger.new()
 
 -- variables
@@ -49,7 +51,7 @@ local function doSpawn(point)
     end
 
     -- get service and route
-    local service = GRoutesManager.getInstance():GetService(point.routeId.service)
+    local service = GRoutesManager:GetService(point.routeId.service)
     if not service then return end
 
     local route = service:GetRoute(point.routeId)

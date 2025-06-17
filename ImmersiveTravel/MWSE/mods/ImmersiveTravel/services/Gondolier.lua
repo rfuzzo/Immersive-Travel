@@ -1,3 +1,4 @@
+---@diagnostic disable: missing-fields
 ---@type ServiceData
 local this = {
   class = "Gondolier",
