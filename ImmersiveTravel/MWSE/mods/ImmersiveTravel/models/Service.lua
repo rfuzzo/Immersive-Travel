@@ -13,8 +13,8 @@ local log         = mwse.Logger.new()
 ---@field segments table<string, SSegment>? segment name -> SSegment
 ---@field ports table<string, SPort>? cell name -> SPort
 ---@field routes table<string, SRoute>? routeId -> SRoute
----@field shared table<string, SharedWaterway>? shared segments
----@field intersections table<string, RouteIntersection>? route intersections
+---@field sharedSegments table<string, SharedWaterway>? shared segments by name
+---@field intersections table<string, RouteIntersection>? route intersections by name
 local ServiceData = {}
 
 ---@return ServiceData
@@ -96,7 +96,7 @@ end
 ---@param segmentId string
 ---@return SharedWaterway?
 function ServiceData:GetSharedWaterwayBySegment(segmentId)
-    for _, waterway in pairs(self.shared) do
+    for _, waterway in pairs(self.sharedSegments) do
         if waterway.segmentId == segmentId then
             return waterway
         end
