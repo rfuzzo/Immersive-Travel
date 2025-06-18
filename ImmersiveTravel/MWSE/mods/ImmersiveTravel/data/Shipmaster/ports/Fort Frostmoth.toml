@@ -1,13 +1,13 @@
 # Ship
 [data.a_DE_ship.position]
-x = 62791
-y = 185039
+x = -173532
+y = 135466
 z = 0
 
 [data.a_DE_ship.rotation]
 x = 0
 y = 0
-z = 314
+z = 268.3
 
 # Longboat
 [data.a_longboat.position]
