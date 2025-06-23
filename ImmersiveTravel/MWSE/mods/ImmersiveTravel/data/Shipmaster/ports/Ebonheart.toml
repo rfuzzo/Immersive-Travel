@@ -23,11 +23,11 @@ data.a_DE_ship.reverseStart = true
 
 # Longboat
 [data.a_longboat.position]
-x = 20435
-y = -100417
+x = 21350.574
+y = -101643.570
 z = 0
 
 [data.a_longboat.rotation]
 x = 0
 y = 0
-z = 268
+z = 0
