@@ -74,7 +74,7 @@ local function doSpawn(point)
     -- create and register the vehicle
     local mountId = service:ResolveMountId(point.routeId)
 
-    if lib.IsLogLevelAtLeast("DEBUG") then
+    if log.level <= mwse.logLevel.debug then
         local cell = tes3.getCell({
             position = tes3vector3.new(point.point.x, point.point.y, 0)
         })

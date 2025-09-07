@@ -80,7 +80,7 @@ function OnSplineState:update(dt, scriptedObject)
     local manager = GPlayerVehicleManager.getInstance()
     if manager.free_movement then
         if vehicle.playerRegistered and not vehicle:isPlayerInMountBounds() and manager:IsPlayerTraveling() then
-            if lib.IsLogLevelAtLeast("DEBUG") then
+            if log.level <= mwse.logLevel.debug then
                 tes3.messageBox("You have left the vehicle")
             end
             log:debug("[%s] Player left the vehicle on route %s", vehicle:Id(), vehicle.routeId)
@@ -88,7 +88,7 @@ function OnSplineState:update(dt, scriptedObject)
             tes3.player.tempData.itpsl = nil
             manager:StopTraveling()
         elseif not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() and not manager:IsPlayerTraveling() then
-            if lib.IsLogLevelAtLeast("DEBUG") then
+            if log.level <= mwse.logLevel.debug then
                 tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
             end
             log:debug("[%s] Player entered the vehicle on route %s", vehicle:Id(), vehicle.routeId)

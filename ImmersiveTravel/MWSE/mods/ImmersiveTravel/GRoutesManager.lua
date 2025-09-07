@@ -374,7 +374,7 @@ local function BuildGraph(service, route)
     -- start with port
     cursor = {}
     table.insert(cursor, startNode)
-    log:trace("Start node '%s', position: %s", startNode.id, startNode.position)
+    log:trace("Start node '%s' (%s)", startNode.id, startNode.position)
 
     for _, segmentId in ipairs(route.segments) do
         local segment = service:GetSegment(segmentId)
@@ -386,7 +386,7 @@ local function BuildGraph(service, route)
         local conections = segment:GetConnections()
         log:trace("Segment '%s', conections: %d", segmentId, #conections)
         for _, lastCursor in ipairs(cursor) do
-            log:trace(" - From: %s %s", lastCursor.id, lastCursor.position)
+            log:trace(" - From: '%s' (%s)", lastCursor.id, lastCursor.position)
             for _, connection in ipairs(conections) do
                 if connection.pos == lastCursor.position then
                     -- get end position of route
@@ -426,7 +426,7 @@ local function BuildGraph(service, route)
 
         -- break if no connections
         if #cursor == 0 then
-            log:error("No connections found for segment '%s'", segmentId)
+            log:warn("No connections found for segment '%s'", segmentId)
             return {}, {}
         end
     end
@@ -538,11 +538,11 @@ local function loadRoutes(service)
             routes[id].graph = graph
 
             log:debug("\t\tAdding route '%s'", route.id:ToString())
-            if lib.IsLogLevelAtLeast("DEBUG") then
+            if log.level <= mwse.logLevel.debug then
                 PrintGraph(graph, route.id:ToString())
             end
         else
-            log:warn("Route '%s' is invalid", route.id:ToString())
+            log:error("Route '%s' is invalid", route.id:ToString())
             routes[id] = nil
         end
     end
