@@ -617,6 +617,9 @@ local function GetPrice(routeId)
     -- multiply by set number
     price = price * config.priceMult
 
+    -- round
+    price = math.round(price)
+
     return price
 end
 
@@ -686,7 +689,7 @@ end
 ---@param routeId RouteId
 ---@return number?
 function RoutesManager:GetRoutePrice(routeId)
-    return self.routesPrice[routeId]
+    return self.routesPrice[routeId:ToString()]
 end
 
 ---@param name string
