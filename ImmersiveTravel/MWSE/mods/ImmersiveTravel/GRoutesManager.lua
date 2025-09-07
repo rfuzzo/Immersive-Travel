@@ -6,7 +6,9 @@ local SSegment = require("ImmersiveTravel.models.SSegment")
 local config   = require("ImmersiveTravel.config")
 if not config then return end
 
-local log           = mwse.Logger.new()
+local log = mwse.Logger.new({
+    level = config.logLevel,
+})
 
 -- Define a class to manage the splines
 ---@class GRoutesManager
@@ -485,6 +487,37 @@ local function BuildGraph(service, route)
     return nodesMap, graph
 end
 
+
+local function PrintNetworkGraph(graphs)
+    -- debug print graph
+    local header = "digraph G {\n"
+    for routeId, graph in pairs(graphs) do
+        -- header = header .. string.format("\tsubgraph \"cluster_%s\" {\n", routeId)
+        -- header = header .. string.format("\t\tlabel = \"%s\"\n", routeId)
+        for node, to in pairs(graph) do
+            for _, t in ipairs(to) do
+                local msg = string.format("\t\t\"%s\" -> \"%s\"", node, t)
+                header = header .. msg .. "\n"
+            end
+        end
+        -- header = header .. "\t}\n"
+    end
+
+    header = header .. "}\n"
+
+    -- write to file
+    local path = string.format("%s\\network.dot", lib.fullmodpath)
+    local file = io.open(path, "w")
+    if not file then
+        log:warn("Failed to open file %s", path)
+        return
+    end
+    file:write(header)
+
+    log:debug("Network graph written to %s", path)
+    file:close()
+end
+
 ---@param graph table<string,string[]>
 ---@param title string
 local function PrintGraph(graph, title)
@@ -507,6 +540,9 @@ local function PrintGraph(graph, title)
         return
     end
     file:write(header)
+
+    log:debug("Graph written to %s", path)
+    file:close()
 end
 
 ---@param service ServiceData
@@ -530,6 +566,7 @@ local function loadRoutes(service)
     end
 
     -- build a graph
+    local graphs = {} ---@type table<string, table<string,string[]>>
     for id, route in pairs(routes) do
         local nodes, graph = BuildGraph(service, route)
 
@@ -538,6 +575,8 @@ local function loadRoutes(service)
             routes[id].graph = graph
 
             log:debug("\t\tAdding route '%s'", route.id:ToString())
+            graphs[id] = graph
+
             if log.level <= mwse.logLevel.debug then
                 PrintGraph(graph, route.id:ToString())
             end
@@ -545,6 +584,10 @@ local function loadRoutes(service)
             log:error("Route '%s' is invalid", route.id:ToString())
             routes[id] = nil
         end
+    end
+
+    if log.level <= mwse.logLevel.debug then
+        PrintNetworkGraph(graphs)
     end
 
     return routes
@@ -630,7 +673,7 @@ function RoutesManager:Init()
                             segmentName = segmentName
                         }
                         table.insert(self.spawnPoints[cell_key], point)
-                        log:debug("[%s] Spawn point %s ", route.id:ToString(), segmentName)
+                        log:debug("Adding Spawn point %s [%s]", segmentName, route.id:ToString())
                     end
                 end
             end

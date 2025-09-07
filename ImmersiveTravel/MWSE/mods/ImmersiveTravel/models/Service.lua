@@ -30,8 +30,8 @@ end
 function ServiceData:GetDestinations(start)
     local destinations = {}
     for _, route in ipairs(self.routes) do
-        if route.start == start then
-            table.insert(destinations, route.destination)
+        if route.id.start == start then
+            table.insert(destinations, route.id.destination)
         end
     end
     return destinations

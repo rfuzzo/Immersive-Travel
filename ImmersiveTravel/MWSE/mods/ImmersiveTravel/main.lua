@@ -120,13 +120,16 @@ local function onMenuDialog(e)
         end
 
         if service == nil then
-            log:debug("no service found for %s", npc.id)
+            log:debug("no service found for %s (%s)", npc.id, class)
             return
         end
 
         -- Return if no destinations
         local destinations = service:GetDestinations(ref.cell.id)
-        if #destinations == 0 then return end
+        if #destinations == 0 then
+            log:debug("no destinations found for %s in %s", npc.id, ref.cell.id)
+            return
+        end
 
         log:debug("createTravelButton for %s", npc.id)
         local menuDialog = e.element
