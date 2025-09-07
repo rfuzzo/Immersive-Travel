@@ -647,6 +647,7 @@ function RoutesManager:Init()
         service.routes = loadRoutes(service)
         service.sharedSegments = loadSharedWaterways(service)
         -- service.intersections = loadOrGenerateIntersections(service)
+        service.intersections = {}
 
         -- get prices
         for _, route in pairs(service.routes) do

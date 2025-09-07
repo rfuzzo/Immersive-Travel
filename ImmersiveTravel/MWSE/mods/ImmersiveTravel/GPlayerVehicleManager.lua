@@ -122,7 +122,7 @@ local function referenceActivatedCallback(e)
     local vehicle = PlayerVehicleManager.getInstance().trackedVehicle;
     if not vehicle then return end
 
-    local config = require("mer.joyOfPainting.config")
+    local config = include("mer.joyOfPainting.config")
     if config and config.easels then
         for key, easel in pairs(config.easels) do
             if e.reference.object.id:lower() == key then
