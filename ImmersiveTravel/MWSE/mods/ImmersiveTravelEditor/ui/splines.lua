@@ -28,7 +28,7 @@ local filter_text           = ""
 -- usings
 local EEditorMode           = elib.EEditorMode
 local EMarkerType           = elib.EMarkerType
-local log                   = elib.log
+local log                   = mwse.Logger.new()
 
 local function GetEditorData()
     return elib.editorSplineData
