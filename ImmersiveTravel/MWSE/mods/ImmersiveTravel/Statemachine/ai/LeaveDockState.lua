@@ -88,12 +88,12 @@ function LeaveDockState:update(dt, scriptedObject)
     if manager.free_movement then
         if vehicle.playerRegistered and not vehicle:isPlayerInMountBounds() and manager:IsPlayerTraveling() then
             -- tes3.messageBox("You have left the vehicle")
-            log:debug("[%s] Player left the vehicle on route %s", vehicle:Id(), vehicle.routeId)
+            log:debug("[%s] Player left the vehicle en route to %s", vehicle:Id(), vehicle.routeId.destination)
             vehicle.playerRegistered = false
             manager:StopTraveling()
         elseif not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() and not manager:IsPlayerTraveling() then
             -- tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
-            log:debug("[%s] Player entered the vehicle on route %s", vehicle:Id(), vehicle.routeId)
+            log:debug("[%s] Player entered the vehicle en route to %s", vehicle:Id(), vehicle.routeId.destination)
             vehicle.playerRegistered = true
             manager:StartTraveling(vehicle)
         end

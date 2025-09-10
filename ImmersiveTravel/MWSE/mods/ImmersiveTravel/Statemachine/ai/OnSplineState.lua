@@ -83,15 +83,15 @@ function OnSplineState:update(dt, scriptedObject)
             if log.level <= mwse.logLevel.debug then
                 tes3.messageBox("You have left the vehicle")
             end
-            log:debug("[%s] Player left the vehicle on route %s", vehicle:Id(), vehicle.routeId)
+            log:debug("[%s] Player left the vehicle en route to %s", vehicle:Id(), vehicle.routeId.destination)
             vehicle.playerRegistered = false
             tes3.player.tempData.itpsl = nil
             manager:StopTraveling()
         elseif not vehicle.playerRegistered and vehicle:isPlayerInMountBounds() and not manager:IsPlayerTraveling() then
             if log.level <= mwse.logLevel.debug then
-                tes3.messageBox("This is a regular service on route '%s'", vehicle.routeId)
+                tes3.messageBox("This is a regular service en route to '%s'", vehicle.routeId.destination)
             end
-            log:debug("[%s] Player entered the vehicle on route %s", vehicle:Id(), vehicle.routeId)
+            log:debug("[%s] Player entered the vehicle en route to %s", vehicle:Id(), vehicle.routeId.destination)
             vehicle.playerRegistered = true
             manager:StartTraveling(vehicle)
         end

@@ -150,13 +150,13 @@ local function onDialogueEnvironmentCreated(e)
         local manager = GPlayerVehicleManager.getInstance()
         local vehicle = manager.trackedVehicle
         if vehicle and manager.free_movement then
-            tes3.messageBox("This is a regular service on route to %s. Would you like to sit down?",
+            tes3.messageBox("This is a regular service en route to %s. Would you like to sit down?",
                 vehicle.routeId.destination)
 
             tes3ui.choice("Yes", 2)
             tes3ui.choice("No", 1)
         elseif vehicle and manager:IsPlayerTraveling() then
-            tes3.messageBox("This is a regular service on route to %s", vehicle.routeId.destination)
+            tes3.messageBox("This is a regular service en route to %s", vehicle.routeId.destination)
         else
             tes3.messageBox("I'm a shipmaster. I can transport you by ship to various destinations for a modest fee.")
         end

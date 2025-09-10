@@ -1,10 +1,22 @@
 # Longboat
 [data.a_longboat.position]
-x = -69141
-y = 143233
+x = 115351
+y = -62655
 z = 0
 
 [data.a_longboat.rotation]
 x = 0
 y = 0
-z = 108
+z = 182.4
+
+[data.a_longboat.positionStart]
+x = 115287
+y = -59258
+z = 0
+
+[data.a_longboat.rotationStart]
+x = 0
+y = 0
+z = 177.6
+
+data.a_longboat.reverseStart = true

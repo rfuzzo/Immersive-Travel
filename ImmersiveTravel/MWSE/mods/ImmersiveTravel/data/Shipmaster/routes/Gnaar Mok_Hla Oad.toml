@@ -1,0 +1,6 @@
+segments = ["Gnaar Mok Port", "Gnaar Mok_Hla Oad", "Hla Oad Port"]
+
+[id]
+start = "Gnaar Mok"
+destination = "Hla Oad"
+service = "Shipmaster"

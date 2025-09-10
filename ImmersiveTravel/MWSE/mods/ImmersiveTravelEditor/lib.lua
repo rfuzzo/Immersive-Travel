@@ -100,6 +100,7 @@ this.sphereMarkerMesh   = nil ---@type niNode?
 
 this.arrows             = {} ---@type niNode[]
 this.arrow              = nil ---@type niNode?
+this.colorArrow         = nil ---@type niNode?
 this.arrowz             = nil ---@type niNode?
 
 this.debugRoot          = nil ---@type niNode?
@@ -371,6 +372,11 @@ function this.IsSegmentMode()
 end
 
 ---@param service ServiceData
+function this.hideAllSegments(service)
+    this.editorRoot:detachAllChildren()
+end
+
+---@param service ServiceData
 function this.showAllSegments(service)
     -- reset all
     this.arrows = {}
@@ -383,7 +389,7 @@ function this.showAllSegments(service)
 
     -- for each route get the segments
     for name, segment in pairs(service.segments) do
-        log:trace("\tTracing segment '%s'", segment.id)
+        log:trace("\tShowing segment '%s'", segment.id)
         -- routes
         local spline = segment:GetRoute()
         if spline then

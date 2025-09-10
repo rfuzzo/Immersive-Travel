@@ -14,6 +14,7 @@ local editMenuTeleportId    = tes3ui.registerID("it:MenuEdit_Teleport")
 local editMenuTeleportEndId = tes3ui.registerID("it:MenuEdit_TeleportEnd")
 local editMenuSearchId      = tes3ui.registerID("it:MenuEdit_Search")
 local editMenuAllId         = tes3ui.registerID("it:MenuEdit_All")
+local editMenuHideId        = tes3ui.registerID("it:MenuEdit_Hide")
 
 -- editor
 local editmode              = false
@@ -378,10 +379,18 @@ function this.segmentsPanel(menu, reload)
     -- Display all segments
     local button_segments = button_block:createButton {
         id = editMenuAllId,
-        text = "Show"
+        text = "Show All"
     }
     button_segments:register(tes3.uiEvent.mouseClick, function()
         elib.showAllSegments(service)
+    end)
+
+    local button_segments_hide = button_block:createButton {
+        id = editMenuHideId,
+        text = "Hide All"
+    }
+    button_segments_hide:register(tes3.uiEvent.mouseClick, function()
+        elib.hideAllSegments(service)
     end)
 
     tes3ui.acquireTextInput(input)
